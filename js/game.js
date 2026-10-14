@@ -308,7 +308,7 @@ BV.Game = class {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
       const dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult;
       if (c.isPlayer) { this.stats.hits++; if (hitPart === 'head') this.stats.heads++; }
-      BV.Effects.bloodHit(end, dir, hitPart === 'head');
+      if (!hitE.isPlayer) BV.Effects.bloodHit(end, dir, hitPart === 'head');
       if (primary) BV.Audio.impact(end, 'flesh');
       this.damage(hitE, dmg, c, def, hitPart, dir);
     } else if (world) {
@@ -350,7 +350,7 @@ BV.Game = class {
       const bf = { x: -Math.sin(best.yaw), z: -Math.cos(best.yaw) };
       const back = (bf.x * hx + bf.z * hz) / hl > 0.45;
       const p = best.chest(this.T3).clone();
-      BV.Effects.bloodHit(p, fwd, false); BV.Audio.impact(p, 'flesh');
+      if (!best.isPlayer) BV.Effects.bloodHit(p, fwd, false); BV.Audio.impact(p, 'flesh');
       this.damage(best, back ? 130 : def.damage, c, def, 'body', fwd);
       if (c.isPlayer) { this.stats.hits++; this.stats.shots++; }
     } else {

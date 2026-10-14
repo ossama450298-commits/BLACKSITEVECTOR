@@ -14,29 +14,50 @@
   /* ---------- renderer & scenes ---------- */
   let renderer;
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   } catch (err) {
     document.getElementById('load-text').textContent = 'WebGL is not available in this browser. Enable hardware acceleration and reload.';
     return;
   }
   renderer.autoClear = false;
   renderer.setClearColor(0x55534d);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   E.renderer = renderer;
   const scene = E.scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x7b7568, 30, 170);
+  scene.fog = new THREE.Fog(0x8d8274, 35, 190);
   const camera = E.camera = new THREE.PerspectiveCamera(BV.settings.fov, 1, 0.05, 600);
   camera.rotation.order = 'YXZ'; scene.add(camera);
-  scene.add(new THREE.HemisphereLight(0xc9cdcc, 0x4c4538, 0.8));
-  const sun = new THREE.DirectionalLight(0xffe0b8, 0.75); sun.position.set(-40, 80, -60); scene.add(sun);
+  // lighting: sky/ground ambience + a low dusk sun with soft shadows
+  scene.add(new THREE.HemisphereLight(0xb4c2d2, 0x6a5840, 0.95));
+  const sun = E.sun = new THREE.DirectionalLight(0xffd7a8, 2.6);
+  sun.position.set(-70, 28, -35); sun.target.position.set(0, 0, 0); scene.add(sun); scene.add(sun.target);
+  sun.castShadow = true;
+  const sc = sun.shadow.camera; sc.left = -82; sc.right = 82; sc.top = 82; sc.bottom = -82; sc.near = 1; sc.far = 220;
+  sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.045; sun.shadow.mapSize.set(2048, 2048);
   const vmScene = E.vmScene = new THREE.Scene();
   const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
   vmScene.add(vmCamera);
-  vmScene.add(new THREE.HemisphereLight(0xd8dad6, 0x4d463a, 0.9));
-  const vmSun = new THREE.DirectionalLight(0xfff0d8, 0.6); vmSun.position.set(-0.4, 1, 0.5); vmScene.add(vmSun);
+  const vmHemi = new THREE.HemisphereLight(0xc8d0d8, 0x5a5040, 0.9); vmScene.add(vmHemi);
+  const vmSun = new THREE.DirectionalLight(0xffe2bc, 1.8); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
+  const vmRim = new THREE.DirectionalLight(0x8fb0d0, 0.6); vmRim.position.set(0.8, 0.2, 1); vmScene.add(vmRim);
 
   /* ---------- world ---------- */
   const t0 = performance.now();
   BV.Map.build(scene);
+  // image-based lighting: capture the level once into a prefiltered env map
+  try {
+    const cubeRT = new THREE.WebGLCubeRenderTarget(128, { encoding: THREE.sRGBEncoding, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const cubeCam = new THREE.CubeCamera(0.5, 400, cubeRT); cubeCam.position.set(0, 4, 0); scene.add(cubeCam);
+    cubeCam.update(renderer, scene);
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const env = pmrem.fromCubemap(cubeRT.texture).texture;
+    scene.environment = env; vmScene.environment = env; E.env = env;
+    scene.remove(cubeCam); pmrem.dispose();
+  } catch (err) { console.warn('env map unavailable', err); }
   BV.Effects.init(scene, vmScene);
   const game = E.game = new BV.Game(E);
   E.viewmodel = new BV.Viewmodel(vmScene, vmCamera);
@@ -50,7 +71,15 @@
     const s = BV.settings;
     const q = { low: 0.55, medium: 0.8, high: Math.min(window.devicePixelRatio || 1, 2) }[s.quality] || 0.8;
     renderer.setPixelRatio(q);
-    canvas.style.imageRendering = s.quality === 'low' ? 'pixelated' : 'auto';
+    const shadowSize = { low: 0, medium: 2048, high: 4096 }[s.quality];
+    const wantShadows = shadowSize > 0;
+    if (renderer.shadowMap.enabled !== wantShadows || sun.shadow.mapSize.x !== (shadowSize || sun.shadow.mapSize.x)) {
+      renderer.shadowMap.enabled = wantShadows;
+      if (wantShadows) sun.shadow.mapSize.set(shadowSize, shadowSize);
+      if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+      scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+    }
+    canvas.style.imageRendering = 'auto';
     scene.fog.far = s.quality === 'low' ? 120 : 170;
     camera.far = s.quality === 'low' ? 160 : 600; camera.updateProjectionMatrix();
     BV.HUD.fps(s.showFps, (E.fpsShown || 0) + ' FPS');

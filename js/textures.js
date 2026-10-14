@@ -32,7 +32,7 @@ BV.Textures = (function () {
       g.fillStyle = '#86857d'; g.fillRect(0, 0, w, h);
       blotch(g, w, h, 14, r, 'rgba(60,58,50,0.25)', 30);
       blotch(g, w, h, 8, r, 'rgba(170,168,155,0.2)', 24);
-      speckle(g, w, h, 2600, r, ['rgba(40,40,36,0.35)', 'rgba(200,198,185,0.25)', 'rgba(90,88,80,0.4)'], 1, 2);
+      speckle(g, w, h, 1800, r, ['rgba(40,40,36,0.16)', 'rgba(200,198,185,0.12)', 'rgba(90,88,80,0.2)'], 0.5, 1.2);
       g.fillStyle = 'rgba(40,40,36,0.55)'; g.fillRect(0, 0, w, 2); g.fillRect(0, 0, 2, h);
       g.fillStyle = 'rgba(220,220,210,0.18)'; g.fillRect(0, 2, w, 1);
       for (let i = 0; i < 4; i++) { g.fillStyle = 'rgba(30,30,30,0.4)'; g.beginPath(); g.arc(16 + (i % 2) * 96, 16 + Math.floor(i / 2) * 96, 2, 0, 7); g.fill(); }
@@ -43,7 +43,7 @@ BV.Textures = (function () {
       const bw = 32, bh = 16;
       for (let y = 0; y < h / bh; y++) for (let x = -1; x < w / bw + 1; x++) {
         const ox = (y % 2) * bw / 2, v = r();
-        const cr = 120 + v * 40, cg = 62 + v * 22, cb = 46 + v * 15;
+        const cr = 104 + v * 30, cg = 62 + v * 18, cb = 50 + v * 12;
         g.fillStyle = `rgb(${cr | 0},${cg | 0},${cb | 0})`;
         g.fillRect(x * bw + ox + 1, y * bh + 1, bw - 2, bh - 2);
         g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(x * bw + ox + 1, y * bh + bh - 4, bw - 2, 3);
@@ -54,7 +54,7 @@ BV.Textures = (function () {
     plaster(g, w, h, r) {
       g.fillStyle = '#ad9f84'; g.fillRect(0, 0, w, h);
       blotch(g, w, h, 18, r, 'rgba(120,100,70,0.22)', 34);
-      speckle(g, w, h, 1800, r, ['rgba(70,60,45,0.25)', 'rgba(240,230,210,0.2)'], 1, 2);
+      speckle(g, w, h, 1400, r, ['rgba(70,60,45,0.14)', 'rgba(240,230,210,0.12)'], 0.5, 1.2);
       streaks(g, w, h, 14, r, 'rgba(70,60,40,0.18)');
       for (let i = 0; i < 3; i++) { // cracks
         g.strokeStyle = 'rgba(60,50,40,0.5)'; g.lineWidth = 1; g.beginPath();
@@ -94,7 +94,7 @@ BV.Textures = (function () {
     },
     asphalt(g, w, h, r) {
       g.fillStyle = '#414140'; g.fillRect(0, 0, w, h);
-      speckle(g, w, h, 4000, r, ['rgba(20,20,20,0.4)', 'rgba(120,120,115,0.3)', 'rgba(70,70,68,0.5)'], 1, 2);
+      speckle(g, w, h, 3000, r, ['rgba(20,20,20,0.22)', 'rgba(120,120,115,0.16)', 'rgba(70,70,68,0.25)'], 0.5, 1.2);
       blotch(g, w, h, 8, r, 'rgba(15,15,15,0.3)', 30);
       g.strokeStyle = 'rgba(15,15,15,0.55)'; g.lineWidth = 1;
       for (let i = 0; i < 3; i++) { g.beginPath(); let x = r() * w, y = r() * h; g.moveTo(x, y); for (let k = 0; k < 8; k++) { x += (r() - 0.5) * 22; y += (r() - 0.5) * 22; g.lineTo(x, y); } g.stroke(); }
@@ -113,7 +113,7 @@ BV.Textures = (function () {
       g.fillStyle = '#76684d'; g.fillRect(0, 0, w, h);
       blotch(g, w, h, 16, r, 'rgba(60,48,30,0.35)', 30);
       blotch(g, w, h, 10, r, 'rgba(150,135,100,0.25)', 24);
-      speckle(g, w, h, 3000, r, ['rgba(40,32,20,0.4)', 'rgba(170,155,120,0.35)', 'rgba(100,90,70,0.5)'], 1, 3);
+      speckle(g, w, h, 2400, r, ['rgba(40,32,20,0.25)', 'rgba(170,155,120,0.2)', 'rgba(100,90,70,0.3)'], 0.6, 2);
     },
     hazard(g, w, h) {
       g.fillStyle = '#d5a72a'; g.fillRect(0, 0, w, h);
@@ -147,22 +147,71 @@ BV.Textures = (function () {
         g.fillStyle = `rgba(${150 + r() * 60 | 0},${140 + r() * 50 | 0},${130 + r() * 40 | 0},${0.06 + r() * 0.1})`;
         g.fillRect(x, y, cw, 2 + r() * 5); g.fillRect(x - w, y, cw, 2 + r() * 5);
       }
+      // low dusk sun (matches the shadow-casting light direction)
+      [w * 0.926, w * 0.926 - w].forEach(sx => {
+        const sy = h * 0.39;
+        let gr = g.createRadialGradient(sx, sy, 0, sx, sy, h * 0.55);
+        gr.addColorStop(0, 'rgba(255,214,150,0.75)'); gr.addColorStop(0.25, 'rgba(240,170,100,0.3)'); gr.addColorStop(1, 'rgba(240,170,100,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        gr = g.createRadialGradient(sx, sy, 0, sx, sy, 7); gr.addColorStop(0, 'rgba(255,250,230,1)'); gr.addColorStop(1, 'rgba(255,230,180,0)');
+        g.fillStyle = gr; g.fillRect(sx - 8, sy - 8, 16, 16);
+      });
       // distant industrial skyline silhouette
       g.fillStyle = '#3a3936';
       let x = 0; while (x < w) { const bw = 6 + r() * 18, bh = 6 + r() * 26; g.fillRect(x, h * 0.66 - bh, bw, bh + h); if (r() < 0.15) g.fillRect(x + bw / 2 - 1, h * 0.66 - bh - 18, 3, 18); x += bw; }
     }
   };
 
+  /* Paint at a logical 128 px layout on a 2x canvas (256 px) for crisper
+     detail, add per-pixel grain, then derive a normal map from luminance. */
+  const SCALE = 2;
+  const imgData = {};
   function make(name, opts) {
     if (cache[name]) return cache[name];
-    const size = (opts && opts.size) || 128;
-    const c = canvas(size, (opts && opts.h) || size);
+    const L = (opts && opts.size) || 128, LH = (opts && opts.h) || L;
+    const c = canvas(L * SCALE, LH * SCALE);
     const g = c.getContext('2d');
-    painters[name](g, c.width, c.height, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31));
+    g.save(); g.scale(SCALE, SCALE);
+    painters[name](g, L, LH, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31));
+    g.restore();
+    if (name !== 'sky') grain(g, c.width, c.height, name);
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.encoding = THREE.sRGBEncoding;
     applyFilter(t);
     cache[name] = t; all.push(t);
+    return t;
+  }
+  function grain(g, w, h, name) {
+    const id = g.getImageData(0, 0, w, h), d = id.data, r = BV.U.rng(name.length * 131 + 7);
+    const amp = name === 'metal' || name === 'roof' || name === 'container' ? 5 : 7;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (r() - 0.5) * amp;
+      d[i] = d[i] + n; d[i + 1] = d[i + 1] + n; d[i + 2] = d[i + 2] + n;
+    }
+    g.putImageData(id, 0, 0);
+    imgData[name] = { d: id.data, w, h };
+  }
+  /* normal map from the colour texture's luminance (Sobel) */
+  function normal(name, strength) {
+    const key = 'n_' + name;
+    if (cache[key]) return cache[key];
+    make(name);
+    const src = imgData[name]; if (!src) return null;
+    const { d, w, h } = src, k = strength || 2;
+    const lum = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) lum[i] = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) / 255;
+    const c = canvas(w, h), g = c.getContext('2d'), out = g.createImageData(w, h), o = out.data;
+    const L = (x, y) => lum[((y + h) % h) * w + ((x + w) % w)];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = (L(x + 1, y - 1) + 2 * L(x + 1, y) + L(x + 1, y + 1)) - (L(x - 1, y - 1) + 2 * L(x - 1, y) + L(x - 1, y + 1));
+      const dy = (L(x - 1, y + 1) + 2 * L(x, y + 1) + L(x + 1, y + 1)) - (L(x - 1, y - 1) + 2 * L(x, y - 1) + L(x + 1, y - 1));
+      let nx = -dx * k, ny = dy * k, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+      const i = (y * w + x) * 4; o[i] = (nx * 0.5 + 0.5) * 255; o[i + 1] = (ny * 0.5 + 0.5) * 255; o[i + 2] = (nz * 0.5 + 0.5) * 255; o[i + 3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    applyFilter(t); cache[key] = t; all.push(t);
     return t;
   }
   function applyFilter(t) {
@@ -222,7 +271,7 @@ BV.Textures = (function () {
     g.globalCompositeOperation = 'destination-out';
     const r = BV.U.rng(text.length * 13 + 5);
     for (let i = 0; i < 260; i++) { g.fillStyle = 'rgba(0,0,0,' + (0.3 + r() * 0.7) + ')'; g.fillRect(r() * c.width, r() * c.height, 1 + r() * 3, 1 + r() * 3); }
-    const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; cache[key] = t; return t;
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.userData = { noFilter: true }; cache[key] = t; return t;
   }
   function sign(lines, bg, fg, w, h) {
     const key = 'sign_' + lines.join('|');
@@ -235,7 +284,7 @@ BV.Textures = (function () {
     lines.forEach((l, i) => { g.font = (i === 0 ? 'bold ' : '') + Math.floor(lh * 0.62) + 'px Impact, "Arial Black", sans-serif'; g.fillText(l, c.width / 2, 5 + lh * (i + 0.5)); });
     const r = BV.U.rng(lines[0].length * 7);
     for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(0,0,0,' + r() * 0.35 + ')'; g.fillRect(r() * c.width, r() * c.height, 2, 2); }
-    const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; cache[key] = t; return t;
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.userData = { noFilter: true }; cache[key] = t; return t;
   }
   /* team emblems drawn with simple geometric shapes */
   function emblem(team) {
@@ -252,7 +301,7 @@ BV.Textures = (function () {
     g.globalCompositeOperation = 'destination-out';
     const r = BV.U.rng(team.length * 3);
     for (let i = 0; i < 200; i++) { g.fillStyle = 'rgba(0,0,0,' + r() + ')'; g.fillRect(r() * 128, r() * 128, 2, 2); }
-    const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; cache[key] = t; return t;
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.userData = { noFilter: true }; cache[key] = t; return t;
   }
   function nameTag(text, color) {
     const c = canvas(128, 32), g = c.getContext('2d');
@@ -262,5 +311,5 @@ BV.Textures = (function () {
     const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; return t;
   }
 
-  return { make, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
+  return { make, normal, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
 })();

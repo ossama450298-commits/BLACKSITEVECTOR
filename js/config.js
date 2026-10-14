@@ -6,14 +6,22 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '1.0.0';
+BV.VERSION = '1.1.0';
+
+/* Colour management: Three.js r128 treats hex colours as linear. The game is
+   authored in sRGB and renders with sRGB output + ACES tone mapping, so every
+   hex colour is converted to linear once, at creation. */
+(function () {
+  const setHex = THREE.Color.prototype.setHex;
+  THREE.Color.prototype.setHex = function (h) { setHex.call(this, h); return this.convertSRGBToLinear(); };
+})();
 
 /* ---------- Teams -------------------------------------------------- */
 BV.TEAMS = {
   VANGUARD: {
     id: 'VANGUARD', name: 'VANGUARD', css: '#78acd4', color: 0x78acd4,
     motto: 'Hold the line',
-    uniform: 0x52626a, uniformDark: 0x384449, vest: 0x5d6b4b,
+    uniform: 0x5a6058, uniformDark: 0x3f443f, vest: 0x5c6248,
     accent: 0xe0b43c, skin: 0xc79d7d, helmet: 0x3e4b52
   },
   RAVEN: {

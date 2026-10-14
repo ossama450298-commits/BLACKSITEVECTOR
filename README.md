@@ -45,6 +45,7 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 - **IA por estados** — IDLE, PATROL, SEARCH, ATTACK, DEFEND, RETREAT, OBJECTIVE, DEAD — con tres dificultades (EASY, NORMAL, HARD).
 - **HUD**: vida, armadura, dinero, munición, arma, ranuras, temporizador, rondas, jugadores vivos, objetivo, radar giratorio, killfeed, hitmarkers, indicador de dirección del daño, barra de plante/desactivación, mira con dispersión dinámica y mira telescópica.
 - **Sonido procedural** (Web Audio): disparos distintos por arma con eco a distancia, recargas, pasos, impactos, explosiones, pitidos de la carga, ambiente, interfaz y música del menú.
+- **Gráficos (v1.1)**: iluminación de atardecer con sombras suaves en tiempo real, materiales PBR con mapas de normales generados por código, reflejos por *image-based lighting*, tone mapping ACES con gestión de color sRGB y antialiasing. Soldados con extremidades redondeadas, camuflaje texturizado, cascos, capuchas, chalecos y equipo; armas modeladas con perfiles biselados y metal desgastado; coches, sacos terreros y charcos reflectantes.
 - **Efectos**: fogonazo, trazadoras, chispas, humo, agujeros de bala, casquillos, sangre estilizada, explosiones con onda de choque y destello de daño en pantalla.
 
 ## IA de los bots
@@ -57,7 +58,9 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 
 ## Rendimiento
 
-- Geometría estática fusionada por material (~45 draw calls en total) con iluminación horneada en colores de vértice: no hay luces dinámicas en el mundo.
+- Geometría estática fusionada por material; oclusión ambiental y lámparas horneadas en colores de vértice, con una única luz dinámica (el sol) que proyecta sombras.
+- Las piezas de cada soldado y de cada arma se fusionan por material para reducir las llamadas de dibujo; todas las lámparas se dibujan en una sola llamada.
+- Calidad Low desactiva las sombras; Medium usa un mapa de sombras de 2048 px y High de 4096 px.
 - Texturas procedurales de 128 px, partículas en *pools* preasignados, decals reciclados.
 - Percepción de la IA escalonada, rechazo rápido en el trazado de balas y sub-pasos de física solo cuando baja el framerate.
 - Calidad de render (Low / Medium / High), niebla y distancia de dibujado ajustables; contador de FPS opcional en *Settings → Graphics*.
