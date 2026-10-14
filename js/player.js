@@ -1,0 +1,110 @@
+/* =====================================================================
+   player.js — local player controller: movement (walk/sprint/crouch/
+   jump with classic ground acceleration and air control), weapon input,
+   objective interaction and spectator camera after death.
+   ===================================================================== */
+'use strict';
+BV.Player = (function () {
+  const I = () => BV.Input;
+  const wish = new THREE.Vector3();
+  let lastFireDown = false;
+
+  function update(game, dt, engine) {
+    const p = game.player; if (!p) return;
+    const inp = I(), s = BV.settings;
+    const uiOpen = engine.uiBlocking();
+    if (!p.alive) { spectate(game, dt, engine); return; }
+
+    // ---------- look ----------
+    if (!uiOpen) {
+      const zoomK = engine.zoomFov() / s.fov;
+      const sens = 0.0021 * s.sensitivity * zoomK;
+      p.yaw -= inp.mouse.dx * sens;
+      p.pitch -= inp.mouse.dy * sens * (s.invertY ? -1 : 1);
+      p.pitch = BV.U.clamp(p.pitch, -1.52, 1.52);
+    }
+    // ---------- movement ----------
+    const frozen = game.phase === 'freeze' || game.phase === 'over' || p.planting || p.defusing;
+    let fx = 0, fz = 0;
+    if (!uiOpen && !frozen) {
+      if (inp.down('KeyW')) fz -= 1; if (inp.down('KeyS')) fz += 1;
+      if (inp.down('KeyA')) fx -= 1; if (inp.down('KeyD')) fx += 1;
+    }
+    const cy = Math.cos(p.yaw), sy = Math.sin(p.yaw);
+    wish.set(fx * cy + fz * sy, 0, -fx * sy + fz * cy);
+    const wl = wish.length(); if (wl > 0) wish.multiplyScalar(1 / wl);
+    p.wantCrouch = !uiOpen && (inp.down('ControlLeft') || inp.down('ControlRight') || inp.down('KeyC'));
+    if (p.defusing) p.wantCrouch = true;
+    p.sprint = !uiOpen && (inp.down('ShiftLeft') || inp.down('ShiftRight')) && fz < 0 && p.crouch < 0.3 && !p.zoom && !p.reloading;
+    let speed = (p.sprint ? 6.2 : 4.6) * p.speedMul();
+    if (p.crouch > 0.5) speed = 1.9 * p.speedMul();
+    if (p.zoom) speed *= 0.6;
+    if (p.onGround) {
+      const acc = Math.min(1, (wl > 0 ? 11 : 9) * dt);
+      p.vel.x += (wish.x * speed - p.vel.x) * acc;
+      p.vel.z += (wish.z * speed - p.vel.z) * acc;
+      if (!uiOpen && !frozen && inp.pressed('Space')) { p.vel.y = 5.6; p.onGround = false; BV.Audio.jump(null); game.emitNoise(p.pos, 10, p); }
+    } else {
+      // limited air control
+      p.vel.x += wish.x * speed * dt * 1.6; p.vel.z += wish.z * speed * dt * 1.6;
+      const h = Math.hypot(p.vel.x, p.vel.z), lim = Math.max(speed, 4.6) * 1.05;
+      if (h > lim) { p.vel.x *= lim / h; p.vel.z *= lim / h; }
+    }
+    if (frozen) { p.vel.x *= 0.5; p.vel.z *= 0.5; }
+    game.applyCrouch(p, dt);
+    BV.Physics.moveEntity(p, dt, true);
+    game.movementFx(p, dt);
+    // stay inside the map even in odd cases
+    const b = game.map.data.bounds;
+    p.pos.x = BV.U.clamp(p.pos.x, b.minX + 0.4, b.maxX - 0.4); p.pos.z = BV.U.clamp(p.pos.z, b.minZ + 0.4, b.maxZ - 0.4);
+
+    if (uiOpen) { lastFireDown = false; game.playerUse = false; return; }
+    // ---------- weapons ----------
+    const w = p.weapon;
+    for (let i = 1; i <= 4; i++) if (inp.pressed('Digit' + i)) game.switchSlot(p, i);
+    if (inp.pressed('KeyQ')) game.switchSlot(p, p.prevSlot);
+    if (inp.mouse.wheel) {
+      const order = [1, 2, 3, 4].filter(sl => p.inv[sl] && (sl !== 4 || p.hasGrenade()));
+      let i = order.indexOf(p.slot); i = (i + (inp.mouse.wheel > 0 ? 1 : -1) + order.length) % order.length;
+      game.switchSlot(p, order[i]);
+    }
+    if (inp.pressed('KeyR')) game.startReload(p);
+    if (inp.mouse.rightPressed && w && w.def.zoom && !p.reloading && p.switchT <= 0) {
+      const max = w.def.cls === 'sniper' ? 2 : 1;
+      p.zoom = (p.zoom + 1) % (max + 1); BV.Audio.zoom();
+    }
+    const fireDown = inp.mouse.left;
+    if (fireDown && w) {
+      const auto = w.def.auto || w.def.cls === 'melee';
+      if (auto || !lastFireDown) game.fire(p);
+    }
+    lastFireDown = fireDown;
+    // sniper bolt: drop out of scope briefly after a shot
+    if (w && w.def.cls === 'sniper' && p.zoom && game.time - p.lastShot < 0.05) { p._rezoom = p.zoom; p.zoom = 0; }
+    if (p._rezoom && game.time - p.lastShot > w.def.rate * 0.9) { p.zoom = p._rezoom; p._rezoom = 0; }
+    if (p.reloading || p.slot !== 1) p._rezoom = 0;
+
+    // ---------- objective ----------
+    game.playerUse = inp.down('KeyE');
+    if (game.playerUse) {
+      if (p.hasCharge) game.beginPlant(p);
+      else if (game.phase === 'planted' && p.team !== game.attackTeam) game.beginDefuse(p);
+    }
+  }
+
+  /* chase camera on a living teammate */
+  function spectate(game, dt, engine) {
+    const sp = game.spectate; if (!sp) return;
+    sp.t -= dt;
+    if (sp.t > 0) return;
+    const inp = I();
+    const pool = game.ents.filter(e => e.alive && e.team === game.player.team);
+    const list = pool.length ? pool : game.ents.filter(e => e.alive);
+    if (!list.length) { sp.target = null; return; }
+    if (!sp.target || !sp.target.alive || inp.mouse.leftPressed || inp.pressed('Space')) {
+      let i = list.indexOf(sp.target); sp.target = list[(i + 1) % list.length];
+    }
+  }
+
+  return { update };
+})();

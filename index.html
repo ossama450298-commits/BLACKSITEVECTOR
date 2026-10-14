@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLACKSITE: VECTOR</title>
+<meta name="description" content="BLACKSITE: VECTOR — an original retro tactical FPS that runs in the browser. Vanguard vs Raven on SECTOR-17.">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<!-- ============================ HUD ============================ -->
+<div id="hud" class="hidden">
+  <div id="flash-dmg"></div><div id="flash-white"></div>
+  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="crosshair"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><i class="ch-dot"></i></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="dmg-ind"></div>
+
+  <div id="hud-top">
+    <div class="tm tm-l"><span class="tm-name" id="tm-l-name">VANGUARD</span><span class="tm-score" id="tm-l-score">0</span><div class="pips" id="pips-l"></div></div>
+    <div class="tm-mid"><div id="hud-timer">1:55</div><div id="hud-round">ROUND 1</div></div>
+    <div class="tm tm-r"><span class="tm-score" id="tm-r-score">0</span><span class="tm-name" id="tm-r-name">RAVEN</span><div class="pips" id="pips-r"></div></div>
+  </div>
+  <div id="hud-obj"></div>
+  <canvas id="radar" width="176" height="176"></canvas>
+  <div id="radar-zone"></div>
+  <div id="killfeed"></div>
+  <div id="hud-center"><div id="center-big"></div><div id="center-sub"></div></div>
+  <div id="hud-notice"></div>
+  <div id="hud-progress" class="hidden"><div id="progress-label">ARMING</div><div class="bar"><div id="progress-fill"></div></div></div>
+
+  <div id="hud-bl">
+    <div id="hud-money">$800</div>
+    <div class="vital"><span class="ico ico-hp"></span><span id="hud-hp">100</span><div class="vbar"><div id="hp-fill"></div></div></div>
+    <div class="vital"><span class="ico ico-ar"></span><span id="hud-ar">0</span><div class="vbar"><div id="ar-fill"></div></div></div>
+  </div>
+  <div id="hud-br">
+    <div id="hud-slots"></div>
+    <div id="hud-wname">Viper-9</div>
+    <div id="hud-ammo"><span id="ammo-mag">15</span><span id="ammo-res">/ 60</span></div>
+  </div>
+  <div id="charge-icon" class="hidden">CHARGE</div>
+  <div id="hud-hint"></div>
+  <div id="death-msg" class="hidden"></div>
+  <div id="training-stats" class="hidden"></div>
+
+  <!-- scoreboard -->
+  <div id="scoreboard" class="hidden">
+    <div class="sb-head"><span id="sb-title">SECTOR-17</span><span id="sb-sub"></span></div>
+    <div class="sb-cols"><div class="sb-team" id="sb-a"></div><div class="sb-team" id="sb-b"></div></div>
+  </div>
+
+  <!-- buy menu -->
+  <div id="buymenu" class="hidden">
+    <div class="buy-head"><h2>Requisition</h2><span id="buy-money">$0</span><span id="buy-status"></span><button class="btn small" data-act="close-buy">Close [B]</button></div>
+    <div id="buy-grid"></div>
+  </div>
+</div>
+<div id="fps" class="hidden">0 FPS</div>
+
+<!-- ============================ MENUS ============================ -->
+<div id="menu" class="overlay">
+  <div class="menu-frame">
+    <header class="brand">
+      <div class="brand-title">BLACKSITE<span>:</span> VECTOR</div>
+      <div class="brand-sub">Vanguard versus Raven · Sector&#8209;17 freight compound</div>
+    </header>
+
+    <section class="panel" id="p-main">
+      <div class="group-label">Play</div>
+      <button class="btn" data-go="p-setup">Start Game</button>
+      <button class="btn" data-act="training">Training</button>
+      <div class="group-label">Options</div>
+      <button class="btn" data-go="p-settings">Settings</button>
+      <button class="btn" data-go="p-about">About</button>
+      <button class="btn ghost" data-act="quit">Quit</button>
+    </section>
+
+    <section class="panel hidden" id="p-setup">
+      <h3>New operation</h3>
+      <div class="opt"><label>Your team</label><div class="seg" data-key="team"><button data-v="VANGUARD">Vanguard · defend</button><button data-v="RAVEN">Raven · attack</button><button data-v="AUTO">Auto</button></div></div>
+      <div class="opt"><label>Bot difficulty</label><div class="seg" data-key="difficulty"><button data-v="EASY">Easy</button><button data-v="NORMAL">Normal</button><button data-v="HARD">Hard</button></div></div>
+      <div class="opt"><label>Team size</label><div class="seg" data-key="teamSize"><button data-v="3">3 v 3</button><button data-v="4">4 v 4</button><button data-v="5">5 v 5</button></div></div>
+      <div class="opt"><label>Rounds to win</label><div class="seg" data-key="roundsToWin"><button data-v="3">3</button><button data-v="5">5</button><button data-v="8">8</button></div></div>
+      <p class="note">Raven attacks first and must arm the Vector Charge at site A or B. Vanguard defends. Sides switch at halftime.</p>
+      <div class="row"><button class="btn ghost" data-go="p-main">Back</button><button class="btn primary" data-act="start">Deploy</button></div>
+    </section>
+
+    <section class="panel hidden" id="p-settings">
+      <h3>Settings</h3>
+      <div class="tabs"><button class="tab on" data-tab="t-gfx">Graphics</button><button class="tab" data-tab="t-aud">Audio</button><button class="tab" data-tab="t-ctl">Controls</button></div>
+      <div class="tabpane" id="t-gfx">
+        <div class="opt"><label>Render quality</label><div class="seg" data-set="quality"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div>
+        <div class="opt"><label>Field of view <b id="v-fov"></b></label><input type="range" min="70" max="105" step="1" data-set="fov"></div>
+        <div class="opt"><label>Retro pixel filtering</label><div class="seg" data-set="retroFilter"><button data-v="false">Off</button><button data-v="true">On</button></div></div>
+        <div class="opt"><label>Particle effects</label><div class="seg" data-set="effects"><button data-v="true">Full</button><button data-v="false">Reduced</button></div></div>
+        <div class="opt"><label>Weapon bob</label><div class="seg" data-set="viewBob"><button data-v="true">On</button><button data-v="false">Off</button></div></div>
+        <div class="opt"><label>FPS counter</label><div class="seg" data-set="showFps"><button data-v="false">Hidden</button><button data-v="true">Shown</button></div></div>
+      </div>
+      <div class="tabpane hidden" id="t-aud">
+        <div class="opt"><label>Master volume <b id="v-master"></b></label><input type="range" min="0" max="1" step="0.05" data-set="master"></div>
+        <div class="opt"><label>Effects volume <b id="v-sfx"></b></label><input type="range" min="0" max="1" step="0.05" data-set="sfx"></div>
+        <div class="opt"><label>Music volume <b id="v-music"></b></label><input type="range" min="0" max="1" step="0.05" data-set="music"></div>
+      </div>
+      <div class="tabpane hidden" id="t-ctl">
+        <div class="opt"><label>Mouse sensitivity <b id="v-sensitivity"></b></label><input type="range" min="0.2" max="3" step="0.05" data-set="sensitivity"></div>
+        <div class="opt"><label>Invert mouse Y</label><div class="seg" data-set="invertY"><button data-v="false">Off</button><button data-v="true">On</button></div></div>
+        <table class="keys">
+          <tr><td>W A S D</td><td>Move</td><td>Shift</td><td>Sprint</td></tr>
+          <tr><td>Ctrl / C</td><td>Crouch</td><td>Space</td><td>Jump</td></tr>
+          <tr><td>Left click</td><td>Fire</td><td>Right click</td><td>Scope (Kestrel-5, Lynx-7)</td></tr>
+          <tr><td>R</td><td>Reload</td><td>1 2 3 4 / wheel / Q</td><td>Weapons / last weapon</td></tr>
+          <tr><td>E (hold)</td><td>Arm / disarm charge</td><td>B</td><td>Buy menu</td></tr>
+          <tr><td>Tab</td><td>Scoreboard</td><td>Esc</td><td>Pause menu</td></tr>
+        </table>
+      </div>
+      <div class="row"><button class="btn ghost" data-act="settings-back">Back</button></div>
+    </section>
+
+    <section class="panel hidden" id="p-about">
+      <h3>About</h3>
+      <p>BLACKSITE: VECTOR is an original round-based tactical shooter in the spirit of turn-of-the-millennium PC shooters: low-poly models, baked lighting, hitscan weapons with real recoil, an economy and one life per round.</p>
+      <p>Two fictional private forces fight over a decommissioned freight compound. Raven carries the Vector Charge; Vanguard holds the line. Every model, texture, sound and line of music is generated by code at runtime.</p>
+      <p class="note">Built with HTML5, CSS3, JavaScript and Three.js r128 (MIT). Version <span id="ver"></span>.</p>
+      <div class="row"><button class="btn ghost" data-go="p-main">Back</button></div>
+    </section>
+
+    <section class="panel hidden" id="p-quit">
+      <h3>Session closed</h3>
+      <p>You can close this tab now. Thanks for playing BLACKSITE: VECTOR.</p>
+      <div class="row"><button class="btn" data-go="p-main">Return to menu</button></div>
+    </section>
+  </div>
+  <footer class="menu-foot">Click Deploy to lock the mouse · Esc pauses · An original game, not affiliated with any other franchise</footer>
+</div>
+
+<div id="pause" class="overlay dim hidden">
+  <div class="panel center">
+    <h3>Paused</h3>
+    <button class="btn primary" data-act="resume">Resume</button>
+    <button class="btn" data-act="pause-settings">Settings</button>
+    <button class="btn" data-act="restart">Restart match</button>
+    <button class="btn ghost" data-act="to-menu">Quit to menu</button>
+  </div>
+</div>
+
+<div id="matchover" class="overlay dim hidden">
+  <div class="panel center">
+    <div id="mo-title">VICTORY</div>
+    <div id="mo-score"></div>
+    <div id="mo-stats"></div>
+    <button class="btn primary" data-act="restart">Play again</button>
+    <button class="btn ghost" data-act="to-menu">Main menu</button>
+  </div>
+</div>
+
+<div id="loading" class="overlay"><div class="load-box"><div class="brand-title small">BLACKSITE<span>:</span> VECTOR</div><div id="load-text">Building Sector-17…</div></div></div>
+<div id="clickcatch" class="hidden"><div>Click to return to the fight</div></div>
+
+<script src="js/lib/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/map.js"></script>
+<script src="js/models.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/combatant.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/game.js"></script>
+<script src="js/viewmodel.js"></script>
+<script src="js/input.js"></script>
+<script src="js/player.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
