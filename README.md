@@ -11,7 +11,7 @@ Dos fuerzas privadas ficticias se enfrentan en **SECTOR-17**, un recinto ferrovi
 
 ## Cómo jugar
 
-**Online:** abre la URL de GitHub Pages del repositorio.
+**Online:** https://ossama450298-commits.github.io/BLACKSITEVECTOR/
 
 **En local:** descarga el repositorio y abre `index.html` en Chrome, Edge o Firefox. También puedes servir la carpeta con cualquier servidor estático:
 
