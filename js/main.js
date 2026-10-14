@@ -45,6 +45,30 @@
   const vmSun = new THREE.DirectionalLight(0xffe2bc, 1.8); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
   const vmRim = new THREE.DirectionalLight(0x8fb0d0, 0.6); vmRim.position.set(0.8, 0.2, 1); vmScene.add(vmRim);
 
+  /* ---------- post-processing, muzzle light, dust ---------- */
+  const post = E.post = new BV.PostFX(renderer);
+  const muzzleLight = new THREE.PointLight(0xffb060, 0, 10, 2); scene.add(muzzleLight);
+  E.flashLight = (pos, k) => { muzzleLight.position.copy(pos); muzzleLight.intensity = Math.max(muzzleLight.intensity, 4 * (k || 1)); };
+  const dustN = 420, dustPos = new Float32Array(dustN * 3), dustSeed = new Float32Array(dustN);
+  for (let i = 0; i < dustN; i++) { dustPos[i * 3] = (Math.random() - 0.5) * 24; dustPos[i * 3 + 1] = Math.random() * 6; dustPos[i * 3 + 2] = (Math.random() - 0.5) * 24; dustSeed[i] = Math.random() * 100; }
+  const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xfff0d0, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  dust.frustumCulled = false; scene.add(dust);
+  let dustT = 0;
+  function updateDust(dt) {
+    dustT += dt; const c = camera.position;
+    for (let i = 0; i < dustN; i++) {
+      let x = dustPos[i * 3], y = dustPos[i * 3 + 1], z = dustPos[i * 3 + 2]; const sd = dustSeed[i];
+      x += Math.sin(dustT * 0.3 + sd) * 0.004 + 0.003; y += Math.sin(dustT * 0.5 + sd * 2) * 0.002; z += Math.cos(dustT * 0.25 + sd) * 0.004;
+      // wrap around the camera
+      if (x - c.x > 12) x -= 24; if (x - c.x < -12) x += 24; if (z - c.z > 12) z -= 24; if (z - c.z < -12) z += 24;
+      if (y > 6) y = 0.1; if (y < 0) y = 6;
+      dustPos[i * 3] = x; dustPos[i * 3 + 1] = y; dustPos[i * 3 + 2] = z;
+    }
+    dustGeo.attributes.position.needsUpdate = true;
+    muzzleLight.intensity *= Math.exp(-dt * 30);
+  }
+
   /* ---------- world ---------- */
   const t0 = performance.now();
   BV.Map.build(scene);
@@ -71,6 +95,8 @@
     const s = BV.settings;
     const q = { low: 0.55, medium: 0.8, high: Math.min(window.devicePixelRatio || 1, 2) }[s.quality] || 0.8;
     renderer.setPixelRatio(q);
+    post.enabled = s.quality !== 'low' && s.postfx !== false;
+    document.getElementById('vignette').style.display = post.enabled ? 'none' : '';
     const shadowSize = { low: 0, medium: 2048, high: 4096 }[s.quality];
     const wantShadows = shadowSize > 0;
     if (renderer.shadowMap.enabled !== wantShadows || sun.shadow.mapSize.x !== (shadowSize || sun.shadow.mapSize.x)) {
@@ -88,6 +114,7 @@
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
+    post.setSize(w, h, renderer.getPixelRatio());
     camera.aspect = w / h; camera.updateProjectionMatrix();
     vmCamera.aspect = w / h; vmCamera.updateProjectionMatrix();
   }
@@ -103,7 +130,10 @@
     if (d.cls === 'sniper') return p.zoom === 1 ? 32 : 11;
     return 42;
   };
-  E.onPlayerShot = (def) => { E.viewmodel.shot(def); E.punch += def.kick * 0.9; };
+  E.onPlayerShot = (def) => {
+    E.viewmodel.shot(def); E.punch += def.kick * 0.9;
+    const p = game.player, d = p.dir(E._v2); E.flashLight(p.eye(E._v).addScaledVector(d, 0.9), 1);
+  };
   E.playerMuzzle = (out) => E.viewmodel.muzzleWorld(out, camera);
   E.onRoundStart = () => {
     const p = game.player;
@@ -260,9 +290,19 @@
       // world frozen; keep rendering the current frame
     }
     BV.Input.endFrame();
-    renderer.clear();
-    renderer.render(scene, camera);
-    if (playing && game.player && game.player.alive) { renderer.clearDepth(); renderer.render(vmScene, vmCamera); }
+    updateDust(dt);
+    const vm = playing && game.player && game.player.alive;
+    if (post.enabled) {
+      post.begin();
+      renderer.render(scene, camera);
+      if (vm) { renderer.clearDepth(); renderer.render(vmScene, vmCamera); }
+      post.end(dt, 0);
+    } else {
+      renderer.setRenderTarget(null);
+      renderer.clear();
+      renderer.render(scene, camera);
+      if (vm) { renderer.clearDepth(); renderer.render(vmScene, vmCamera); }
+    }
   }
 
   document.getElementById('loading').classList.add('hidden');

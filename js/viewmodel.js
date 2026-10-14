@@ -32,7 +32,7 @@ BV.Viewmodel = class {
     if (this.flash.parent) this.flash.parent.remove(this.flash);
     this.gun.muzzle.add(this.flash);
     this.base = def.cls === 'pistol' ? [0.13, -0.13, -0.33] : def.cls === 'melee' ? [0.17, -0.2, -0.33] : def.cls === 'grenade' ? [0.17, -0.19, -0.34]
-      : def.cls === 'sniper' ? [0.16, -0.18, -0.46] : [0.17, -0.185, -0.47];
+      : def.cls === 'sniper' ? [0.17, -0.165, -0.55] : [0.17, -0.185, -0.47];
     this.baseRot = def.cls === 'melee' ? [0.1, 0.25, -0.15] : [0, 0.03, 0];
     this.holder.add(g);
     this.t.draw = def.cls === 'melee' ? 0.3 : 0.5; this.t.reload = 0; this.t.swing = 0;

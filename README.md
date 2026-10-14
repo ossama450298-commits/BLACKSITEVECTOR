@@ -46,6 +46,8 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 - **HUD**: vida, armadura, dinero, munición, arma, ranuras, temporizador, rondas, jugadores vivos, objetivo, radar giratorio, killfeed, hitmarkers, indicador de dirección del daño, barra de plante/desactivación, mira con dispersión dinámica y mira telescópica.
 - **Sonido procedural** (Web Audio): disparos distintos por arma con eco a distancia, recargas, pasos, impactos, explosiones, pitidos de la carga, ambiente, interfaz y música del menú.
 - **Gráficos (v1.1)**: iluminación de atardecer con sombras suaves en tiempo real, materiales PBR con mapas de normales generados por código, reflejos por *image-based lighting*, tone mapping ACES con gestión de color sRGB y antialiasing. Soldados con extremidades redondeadas, camuflaje texturizado, cascos, capuchas, chalecos y equipo; armas modeladas con perfiles biselados y metal desgastado; coches, sacos terreros y charcos reflectantes.
+- **Postprocesado (v1.2)**: cadena propia sin librerías extra — render MSAA en HDR, *bloom* a dos escalas, gradación de color con sombras frías y luces cálidas, aberración cromática sutil, viñeta y grano de película.
+- **Escenario (v1.2)**: horizonte industrial con ventanas iluminadas y grúas portuarias, cornisas, zócalos, marcos y alféizares de ventana, bajantes, equipos de azotea y depósitos de agua, cables colgantes, barandillas, hierba seca y gravilla instanciadas, tragaluces con haces de luz volumétricos en la nave B y polvo en suspensión. Los disparos y explosiones iluminan el entorno.
 - **Efectos**: fogonazo, trazadoras, chispas, humo, agujeros de bala, casquillos, sangre estilizada, explosiones con onda de choque y destello de daño en pantalla.
 
 ## IA de los bots
@@ -60,7 +62,7 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 
 - Geometría estática fusionada por material; oclusión ambiental y lámparas horneadas en colores de vértice, con una única luz dinámica (el sol) que proyecta sombras.
 - Las piezas de cada soldado y de cada arma se fusionan por material para reducir las llamadas de dibujo; todas las lámparas se dibujan en una sola llamada.
-- Calidad Low desactiva las sombras; Medium usa un mapa de sombras de 2048 px y High de 4096 px.
+- Calidad Low desactiva sombras y postprocesado; Medium usa un mapa de sombras de 2048 px y High de 4096 px.
 - Texturas procedurales de 128 px, partículas en *pools* preasignados, decals reciclados.
 - Percepción de la IA escalonada, rechazo rápido en el trazado de balas y sub-pasos de física solo cuando baja el framerate.
 - Calidad de render (Low / Medium / High), niebla y distancia de dibujado ajustables; contador de FPS opcional en *Settings → Graphics*.
@@ -92,6 +94,7 @@ js/input.js         Teclado, ratón y pointer lock
 js/player.js        Control del jugador y espectador
 js/hud.js           HUD, radar, marcador y menú de compra
 js/menu.js          Menú principal, ajustes y pausa
+js/postfx.js        Postprocesado: bloom, gradación de color, viñeta y grano
 js/main.js          Renderizador, bucle principal y estados de la interfaz
 ```
 

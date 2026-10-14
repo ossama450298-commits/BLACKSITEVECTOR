@@ -279,6 +279,7 @@ BV.Game = class {
     } else if (c.model.flashAnchor) {
       c.model.root.updateMatrixWorld(true);
       c.model.flashAnchor.getWorldPosition(this.T3); BV.Effects.muzzle(this.T3);
+      if (c.pos.distanceTo(this.player.pos) < 45) this.engine.flashLight(this.T3, 0.7);
     }
     BV.Audio.shot(def, c.isPlayer ? null : c.pos);
     this.emitNoise(c.pos, 50, c);
@@ -394,7 +395,7 @@ BV.Game = class {
     }
   }
   explode(pos, radius, damage, owner, def, needLos) {
-    BV.Effects.explosion(pos); BV.Audio.explosion(pos);
+    BV.Effects.explosion(pos); BV.Audio.explosion(pos); this.engine.flashLight(new THREE.Vector3(pos.x, pos.y + 1.5, pos.z), 12);
     const p = this.player, d = p ? p.pos.distanceTo(pos) : 99;
     BV.Effects.addShake(BV.U.clamp(0.35 - d / 80, 0.02, 0.35), 0.6);
     if (d < radius * 2.2) BV.Effects.flashScreen(0.35);

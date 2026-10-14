@@ -23,6 +23,7 @@ BV.Map = (function () {
   const decals = [];     // painted signs {tex, pos, normal, size}
   const indoor = [];     // regions with a roof: [x0,z0,x1,z1,yRoof]
   const props = [];      // detailed visual models (cars, sandbags, puddles, lamp posts)
+  const skylights = [];
   function sandbags(x0, z0, x1, z1, h) { B(x0, z0, x1, z1, 0, h, 'sandbag', { faces: [] }); props.push({ type: 'sandbags', x0, z0, x1, z1, h }); }
 
   function B(x0, z0, x1, z1, y0, y1, mat, o) {
@@ -149,8 +150,15 @@ BV.Map = (function () {
     /* ---- decorative windows / doors on facades ---- */
     function windows(x0, x1, z, face, rows, step) {
       for (let x = x0 + 2; x <= x1 - 3; x += step) rows.forEach(y => {
-        const zz = face > 0 ? z : z - 0.06;
-        B(x, zz, x + 1.8, zz + 0.06, y, y + 1.3, 'window', { solid: false, fit: true, noBake: false });
+        const o = face > 0 ? 1 : -1, zw = face > 0 ? z : z - 0.02;
+        B(x, zw, x + 1.8, zw + 0.02, y, y + 1.3, 'window', { solid: false, fit: true });
+        const zf0 = face > 0 ? z : z - 0.11, zf1 = face > 0 ? z + 0.11 : z;
+        B(x - 0.1, zf0, x + 1.9, zf1, y + 1.3, y + 1.44, 'trim', { solid: false });                 // lintel
+        B(x - 0.08, zf0, x + 0.02, zf1, y, y + 1.3, 'trim', { solid: false });                      // jambs
+        B(x + 1.78, zf0, x + 1.88, zf1, y, y + 1.3, 'trim', { solid: false });
+        B(x + 0.86, zw, x + 0.94, zw + (face > 0 ? 0.05 : -0.03) * 1 + (face > 0 ? 0 : 0.05), y, y + 1.3, 'trim', { solid: false }); // mullion
+        const zs0 = face > 0 ? z : z - 0.18, zs1 = face > 0 ? z + 0.18 : z;
+        B(x - 0.14, zs0, x + 1.94, zs1, y - 0.12, y, 'concrete', { solid: false });               // sill
       });
     }
     windows(-40, -15, -28, -1, [2.4, 5.2], 4);
@@ -177,6 +185,31 @@ BV.Map = (function () {
     lamp(-61.8, 4.5, 0, 12, 0.5); lamp(61.8, 4.5, 0, 12, 0.5, false);
     lamp(-3, 4.5, 29.8, 6, 0.4); lamp(-13, 4.5, -27.8, 6, 0.4);
 
+    /* ---- architectural detail: plinths, string courses, cornices ---- */
+    const blds = [[-40, -28, -15, -10, 8], [-11, -28, 18, -10, 7], [-40, 10, -5, 30, 8], [-1, 10, 18, 30, 7], [18, -28, 22, -14, 7], [18, 14, 22, 30, 7]];
+    for (const [x0, z0, x1, z1, h] of blds) {
+      B(x0 - 0.07, z0 - 0.07, x1 + 0.07, z1 + 0.07, 0, 0.55, 'concreteDark', { solid: false });
+      B(x0 - 0.1, z0 - 0.1, x1 + 0.1, z1 + 0.1, 4.25, 4.45, 'concreteDark', { solid: false, faces: ['px', 'nx', 'pz', 'nz', 'py', 'ny'] });
+      B(x0 - 0.28, z0 - 0.28, x1 + 0.28, z1 + 0.28, h - 0.35, h, 'trim', { solid: false, faces: ['px', 'nx', 'pz', 'nz', 'py', 'ny'] });
+      // downpipes at the corners
+      [[x0 - 0.12, z0 - 0.12], [x1 + 0.12, z0 - 0.12], [x0 - 0.12, z1 + 0.12], [x1 + 0.12, z1 + 0.12]].forEach(c => cyls.push({ x: c[0], z: c[1], r: 0.07, h: h - 0.3, y: 0, mat: 'vpipe' }));
+      // rooftop clutter (skyline silhouettes)
+      const rx = (a) => x0 + (x1 - x0) * a, rz = (a) => z0 + (z1 - z0) * a;
+      if (x1 - x0 > 6) {
+        B(rx(0.25) - 0.9, rz(0.4) - 0.6, rx(0.25) + 0.9, rz(0.4) + 0.6, h, h + 1.1, 'metal', { solid: false });   // AC unit
+        B(rx(0.6) - 0.7, rz(0.6) - 0.7, rx(0.6) + 0.7, rz(0.6) + 0.7, h, h + 1.4, 'roof', { solid: false });      // stair hut
+        cyls.push({ x: rx(0.8), z: rz(0.3), r: 0.22, h: 1.6, y: h, mat: 'vpipe' });                            // vent stack
+        cyls.push({ x: rx(0.42), z: rz(0.75), r: 1.1, h: 1.7, y: h + 1.1, mat: 'tank' });                      // water tank
+        [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]].forEach(l => B(rx(0.42) + l[0] - 0.06, rz(0.75) + l[1] - 0.06, rx(0.42) + l[0] + 0.06, rz(0.75) + l[1] + 0.06, h, h + 1.1, 'trim', { solid: false }));
+        cyls.push({ x: rx(0.1), z: rz(0.15), r: 0.04, h: 4, y: h, mat: 'vpipe' });                             // antenna mast
+      }
+    }
+    // A-deck railings
+    for (let x = 40.1; x <= 48; x += 1.3) { B(x, -34, x + 0.06, -33.94, 1.2, 2.2, 'trim', { solid: false }); B(x, -26.06, x + 0.06, -26, 1.2, 2.2, 'trim', { solid: false }); }
+    B(40, -34, 48, -33.94, 2.12, 2.2, 'hazard', { solid: false }); B(40, -26.06, 48, -26, 2.12, 2.2, 'hazard', { solid: false });
+    // skylights in the B hall roof (bright panels + cool light below)
+    skylights.push([34, 27], [46, 27], [34, 38], [46, 38]);
+    for (const [x, z] of skylights) { lamp(x, 5.8, z, 8, 0.55, false); lamps[lamps.length - 1].sky = true; }
     /* ---- sandbag positions & puddles ---- */
     sandbags(33.2, -29.5, 34.2, -26.5, 1.05);
     sandbags(46, 4.2, 49, 5.2, 1.05);
@@ -366,6 +399,11 @@ BV.Map = (function () {
         rim.rotation.x = Math.PI / 2; rim.position.y = c.h / 2 - 0.02; mesh.add(rim);
         const rim2 = rim.clone(); rim2.position.y = -0.1; mesh.add(rim2);
         mesh.position.set(c.x, c.h / 2, c.z); mesh.rotation.y = Math.random() * 6;
+      } else if (c.mat === 'vpipe' || c.mat === 'tank') {
+        const tank = c.mat === 'tank';
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(c.r, c.r, c.h, tank ? 20 : 8), new THREE.MeshStandardMaterial({ color: tank ? 0x5b5e57 : 0x3c3f3b, roughness: 0.6, metalness: 0.5, map: tank ? BV.Textures.make('metal') : null }));
+        mesh.position.set(c.x, c.y + c.h / 2, c.z);
+        if (tank) { const cap = new THREE.Mesh(new THREE.ConeGeometry(c.r * 1.03, 0.5, 20), mesh.material); cap.position.y = c.h / 2 + 0.25; mesh.add(cap); }
       } else {
         mesh = new THREE.Mesh(new THREE.CylinderGeometry(c.r, c.r, c.h, 10), new THREE.MeshStandardMaterial({ color: 0x3a3e3a, roughness: 0.5, metalness: 0.6 }));
         mesh.rotation.z = Math.PI / 2; mesh.position.set(c.x + c.h / 2, c.y, c.z);
@@ -374,6 +412,7 @@ BV.Map = (function () {
       mesh.matrixAutoUpdate = false; mesh.updateMatrix(); mesh.updateMatrixWorld(true); scene.add(mesh);
     }
     buildProps(scene);
+    buildAtmosphere(scene);
     // lamp fixtures + glow sprites
     const glowMat = new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xffc070, transparent: true, opacity: 0.45, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: true });
     const glowMatCool = glowMat.clone(); glowMatCool.color = new THREE.Color(0x9cc4ff);
@@ -384,6 +423,7 @@ BV.Map = (function () {
     const lampGroup = new THREE.Group();
     const gp = [], gc = [];
     for (const L of lamps) {
+      if (L.sky) continue;
       const f = new THREE.Mesh(fixGeo, L.c[2] > 0.9 ? coolFix : fixMat);
       f.position.set(L.x, L.y + 0.05, L.z); lampGroup.add(f);
       const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.42, 0.22, 10, 1, true), bracketMat);
@@ -431,6 +471,102 @@ BV.Map = (function () {
       } else if (p.type === 'puddle') {
         const m = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), S({ color: 0x16181a, roughness: 0.08, metalness: 0.0, transparent: true, opacity: 0.7, envMapIntensity: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }));
         m.scale.set(p.w, p.d, 1); m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.012, p.z); m.receiveShadow = true; scene.add(m);
+      }
+    }
+  }
+  /* ---------------- atmosphere & far scenery ---------------- */
+  function facadeTexture(seed) {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 256; const g = c.getContext('2d'), r = BV.U.rng(seed);
+    g.fillStyle = '#2a2b2a'; g.fillRect(0, 0, 128, 256);
+    const e = document.createElement('canvas'); e.width = 128; e.height = 256; const ge = e.getContext('2d');
+    ge.fillStyle = '#000'; ge.fillRect(0, 0, 128, 256);
+    for (let y = 6; y < 250; y += 12) for (let x = 6; x < 124; x += 10) {
+      const lit = r() < 0.22;
+      g.fillStyle = lit ? '#6b5a3a' : '#1b1d1e'; g.fillRect(x, y, 6, 7);
+      if (lit) { ge.fillStyle = r() < 0.7 ? '#ffcc80' : '#bcd8ff'; ge.fillRect(x, y, 6, 7); }
+    }
+    const t = new THREE.CanvasTexture(c), te = new THREE.CanvasTexture(e);
+    t.encoding = te.encoding = THREE.sRGBEncoding; return [t, te];
+  }
+  function buildAtmosphere(scene) {
+    // distant industrial skyline beyond the compound walls
+    const sky = new THREE.Group();
+    const [ft, fe] = facadeTexture(5);
+    const fm = new THREE.MeshStandardMaterial({ map: ft, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.9, color: 0x8a8a88 });
+    const r = BV.U.rng(77);
+    for (let i = 0; i < 46; i++) {
+      const a = (i / 46) * Math.PI * 2 + r() * 0.08, dist = 95 + r() * 70;
+      const w = 10 + r() * 22, d = 10 + r() * 18, h = 12 + r() * 38;
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const uv = geo.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / 14, uv.getY(k) * h / 28);
+      const m = new THREE.Mesh(geo, fm); m.position.set(Math.cos(a) * dist * 1.15, h / 2 - 1, Math.sin(a) * dist); m.rotation.y = r() * 0.6;
+      sky.add(m);
+      if (r() < 0.3) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.3, 22, 10), fm); ch.position.set(m.position.x + 3, h + 10, m.position.z); sky.add(ch); }
+    }
+    BV.Models.mergeTree(sky); scene.add(sky);
+    // two harbour gantry cranes
+    const cm = new THREE.MeshStandardMaterial({ color: 0x7a2a1c, roughness: 0.7, metalness: 0.4 });
+    const crane = (x, z, rot) => {
+      const g = new THREE.Group();
+      const leg = (lx, lz) => { const l = new THREE.Mesh(new THREE.BoxGeometry(1.2, 34, 1.2), cm); l.position.set(lx, 17, lz); g.add(l); };
+      leg(-8, -6); leg(8, -6); leg(-8, 6); leg(8, 6);
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 70), cm); beam.position.set(0, 35, 8); g.add(beam);
+      const beam2 = beam.clone(); beam2.position.x = 6; g.add(beam2);
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), cm); cab.position.set(3, 31, 18); g.add(cab);
+      for (let k = 0; k < 8; k++) { const br = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 17), cm); br.position.set(-8 + (k % 2) * 16, 6 + Math.floor(k / 2) * 7.5, 0); br.rotation.x = 0.8 * (k % 4 < 2 ? 1 : -1); g.add(br); }
+      g.position.set(x, 0, z); g.rotation.y = rot; BV.Models.mergeTree(g); scene.add(g);
+    };
+    crane(110, -95, 0.4); crane(140, -60, 0.4);
+    // sagging overhead cables
+    const wm = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
+    const cable = (a, b, sag) => {
+      const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(new THREE.Vector3(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - Math.sin(t * Math.PI) * sag, a[2] + (b[2] - a[2]) * t)); }
+      const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.025, 4), wm); scene.add(m);
+    };
+    cable([-34, 7.6, -28.3], [-34, 9.6, -44], 1.2); cable([-22, 7.6, -28.3], [-20, 9.6, -44], 1.3); cable([8, 6.6, -28.3], [10, 9.6, -44], 1.2);
+    cable([-30, 7.6, -9.7], [-30, 7.6, 9.7], 1.6); cable([-18, 7.6, -9.7], [-16, 7.6, 9.7], 1.8); cable([4, 6.6, -9.7], [6, 6.6, 9.7], 1.5);
+    cable([-40.3, 7.4, -20], [-62, 9.6, -24], 1.4); cable([-40.3, 7.4, 20], [-62, 9.6, 18], 1.4);
+    // dry grass tufts and gravel (instanced)
+    const gc = document.createElement('canvas'); gc.width = 64; gc.height = 64; const gg = gc.getContext('2d');
+    for (let i = 0; i < 40; i++) { gg.strokeStyle = `rgb(${78 + Math.random() * 30 | 0},${80 + Math.random() * 25 | 0},${48 + Math.random() * 15 | 0})`; gg.lineWidth = 2; gg.beginPath(); const x = 8 + Math.random() * 48; gg.moveTo(x, 64); gg.quadraticCurveTo(x + (Math.random() - 0.5) * 10, 40, x + (Math.random() - 0.5) * 22, 10 + Math.random() * 30); gg.stroke(); }
+    const gt = new THREE.CanvasTexture(gc); gt.encoding = THREE.sRGBEncoding;
+    const tuftGeo = new THREE.PlaneGeometry(0.7, 0.55); tuftGeo.translate(0, 0.27, 0);
+    const tg2 = tuftGeo.clone(); tg2.rotateY(Math.PI / 2);
+    const both = new THREE.BufferGeometry();
+    ['position', 'normal', 'uv'].forEach(k => { const a = tuftGeo.toNonIndexed().attributes[k].array, b2 = tg2.toNonIndexed().attributes[k].array; const o = new Float32Array(a.length + b2.length); o.set(a); o.set(b2, a.length); both.setAttribute(k, new THREE.BufferAttribute(o, k === 'uv' ? 2 : 3)); });
+    const spots = [];
+    const free = (x, z) => !BV.Physics.collide(x, 0.05, z, 0.3, 0.5);
+    for (let i = 0; i < 1600 && spots.length < 700; i++) {
+      let x, z;
+      if (i % 3 === 0) { x = -61 + r() * 20; z = -43 + r() * 86; }                                   // plaza
+      else { const b = boxes[Math.floor(r() * boxes.length)]; if (!b.solid || b.max[1] < 3 || b.min[1] > 0.1) continue;   // wall bases
+        const side = Math.floor(r() * 4); x = side < 2 ? b.min[0] + r() * (b.max[0] - b.min[0]) : (side === 2 ? b.min[0] - 0.25 : b.max[0] + 0.25);
+        z = side >= 2 ? b.min[2] + r() * (b.max[2] - b.min[2]) : (side === 0 ? b.min[2] - 0.25 : b.max[2] + 0.25); }
+      if (Math.abs(x) > 61.6 || Math.abs(z) > 43.6 || !free(x, z) || isIndoor(x, 0.5, z)) continue;
+      spots.push([x, z]);
+    }
+    const im = new THREE.InstancedMesh(both, new THREE.MeshStandardMaterial({ map: gt, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1 }), spots.length);
+    const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
+    spots.forEach((p, i) => { q.setFromAxisAngle(BV.UP, r() * 6.28); const k = 0.6 + r() * 0.9; sc.set(k, k * (0.7 + r() * 0.6), k); ps.set(p[0], 0, p[1]); mtx.compose(ps, q, sc); im.setMatrixAt(i, mtx); });
+    im.receiveShadow = true; scene.add(im);
+    const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.12, 0), new THREE.MeshStandardMaterial({ color: 0x6f6a60, roughness: 0.95 }), 260);
+    for (let i = 0; i < 260; i++) { const p = spots[i % spots.length]; q.setFromEuler(new THREE.Euler(r() * 3, r() * 3, r() * 3)); const k = 0.4 + r() * 1.3; sc.set(k, k * 0.6, k); ps.set(p[0] + (r() - 0.5) * 1.2, 0.03, p[1] + (r() - 0.5) * 1.2); mtx.compose(ps, q, sc); rock.setMatrixAt(i, mtx); }
+    rock.castShadow = true; rock.receiveShadow = true; scene.add(rock);
+    // skylight panels + volumetric light shafts in the B hall
+    const shaftC = document.createElement('canvas'); shaftC.width = 32; shaftC.height = 128; const sg = shaftC.getContext('2d');
+    const lg = sg.createLinearGradient(0, 0, 0, 128); lg.addColorStop(0, 'rgba(255,240,215,0.9)'); lg.addColorStop(1, 'rgba(255,240,215,0)');
+    sg.fillStyle = lg; sg.fillRect(0, 0, 32, 128);
+    const hg = sg.createLinearGradient(0, 0, 32, 0); hg.addColorStop(0, 'rgba(0,0,0,1)'); hg.addColorStop(0.3, 'rgba(0,0,0,0)'); hg.addColorStop(0.7, 'rgba(0,0,0,0)'); hg.addColorStop(1, 'rgba(0,0,0,1)');
+    sg.globalCompositeOperation = 'destination-out'; sg.fillStyle = hg; sg.fillRect(0, 0, 32, 128);
+    const st = new THREE.CanvasTexture(shaftC);
+    const shaftMat = new THREE.MeshBasicMaterial({ map: st, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, fog: false });
+    const panelMat = new THREE.MeshBasicMaterial({ color: 0x9aa6b2, toneMapped: false });
+    for (const [x, z] of skylights) {
+      const pnl = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), panelMat); pnl.rotation.x = Math.PI / 2; pnl.position.set(x, 5.98, z); scene.add(pnl);
+      for (let k = 0; k < 3; k++) {
+        const sh = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 7.2), shaftMat);
+        sh.position.set(x + 1.1, 2.6, z + 0.6); sh.rotation.set(0.0, k * Math.PI / 3, -0.32);
+        scene.add(sh);
       }
     }
   }
