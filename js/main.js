@@ -11,6 +11,12 @@
     _v: new THREE.Vector3(), _v2: new THREE.Vector3()
   };
 
+  /* ---------- height fog: ground haze that thickens near the floor ---------- */
+  THREE.ShaderChunk.fog_pars_vertex = '#ifdef USE_FOG\n\tvarying float fogDepth;\n\tvarying float vFogH;\n#endif';
+  THREE.ShaderChunk.fog_vertex = '#ifdef USE_FOG\n\tfogDepth = - mvPosition.z;\n\tvFogH = dot( viewMatrix[1].xyz, mvPosition.xyz - viewMatrix[3].xyz );\n#endif';
+  THREE.ShaderChunk.fog_pars_fragment = THREE.ShaderChunk.fog_pars_fragment.replace('varying float fogDepth;', 'varying float fogDepth;\n\tvarying float vFogH;');
+  THREE.ShaderChunk.fog_fragment = '#ifdef USE_FOG\n\tfloat fogFactor = smoothstep( fogNear, fogFar, fogDepth );\n\tfloat hFog = ( 1.0 - exp( - fogDepth * 0.02 ) ) * exp( - max( vFogH, 0.0 ) * 0.3 ) * 0.42;\n\tfogFactor = clamp( max( fogFactor, hFog ), 0.0, 1.0 );\n\tgl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif';
+
   /* ---------- renderer & scenes ---------- */
   let renderer;
   try {
@@ -36,14 +42,22 @@
   const sun = E.sun = new THREE.DirectionalLight(0xffd7a8, 2.6);
   sun.position.set(-70, 28, -35); sun.target.position.set(0, 0, 0); scene.add(sun); scene.add(sun.target);
   sun.castShadow = true;
-  const sc = sun.shadow.camera; sc.left = -82; sc.right = 82; sc.top = 82; sc.bottom = -82; sc.near = 1; sc.far = 220;
-  sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.045; sun.shadow.mapSize.set(2048, 2048);
+  const SH_R = 46; // shadow frustum follows the camera; snapped to texels to avoid shimmering
+  const sc = sun.shadow.camera; sc.left = -SH_R; sc.right = SH_R; sc.top = SH_R; sc.bottom = -SH_R; sc.near = 1; sc.far = 220;
+  const sunDir = new THREE.Vector3(-70, 28, -35).normalize();
+  function followShadow() {
+    const texel = (SH_R * 2) / sun.shadow.mapSize.x, c = camera.position;
+    const x = Math.round(c.x / texel) * texel, z = Math.round(c.z / texel) * texel;
+    sun.target.position.set(x, 0, z); sun.position.set(x + sunDir.x * 90, sunDir.y * 90, z + sunDir.z * 90);
+    sun.target.updateMatrixWorld();
+  }
+  sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.03; sun.shadow.radius = 2.5; sun.shadow.mapSize.set(2048, 2048);
   const vmScene = E.vmScene = new THREE.Scene();
   const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
   vmScene.add(vmCamera);
-  const vmHemi = new THREE.HemisphereLight(0xc8d0d8, 0x5a5040, 0.9); vmScene.add(vmHemi);
-  const vmSun = new THREE.DirectionalLight(0xffe2bc, 1.8); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
-  const vmRim = new THREE.DirectionalLight(0x8fb0d0, 0.6); vmRim.position.set(0.8, 0.2, 1); vmScene.add(vmRim);
+  const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, 0.55); vmScene.add(vmHemi);
+  const vmSun = new THREE.DirectionalLight(0xffe2bc, 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
+  const vmRim = new THREE.DirectionalLight(0x8fb0d0, 0.45); vmRim.position.set(0.8, 0.2, 1); vmScene.add(vmRim);
 
   /* ---------- post-processing, muzzle light, dust ---------- */
   const post = E.post = new BV.PostFX(renderer);
@@ -72,16 +86,20 @@
   /* ---------- world ---------- */
   const t0 = performance.now();
   BV.Map.build(scene);
+  BV.timings.mapTotal = performance.now() - t0; const tEnv = performance.now();
   // image-based lighting: capture the level once into a prefiltered env map
   try {
-    const cubeRT = new THREE.WebGLCubeRenderTarget(128, { encoding: THREE.sRGBEncoding, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
+    const shWas = renderer.shadowMap.enabled; renderer.shadowMap.enabled = false;
+    const cubeRT = new THREE.WebGLCubeRenderTarget(96, { encoding: THREE.sRGBEncoding, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
     const cubeCam = new THREE.CubeCamera(0.5, 400, cubeRT); cubeCam.position.set(0, 4, 0); scene.add(cubeCam);
     cubeCam.update(renderer, scene);
     const pmrem = new THREE.PMREMGenerator(renderer);
     const env = pmrem.fromCubemap(cubeRT.texture).texture;
     scene.environment = env; vmScene.environment = env; E.env = env;
-    scene.remove(cubeCam); pmrem.dispose();
+    vmScene.traverse(o => { if (o.material) o.material.envMapIntensity = 0.8; });
+    scene.remove(cubeCam); pmrem.dispose(); renderer.shadowMap.enabled = shWas;
   } catch (err) { console.warn('env map unavailable', err); }
+  BV.timings.env = performance.now() - tEnv;
   BV.Effects.init(scene, vmScene);
   const game = E.game = new BV.Game(E);
   E.viewmodel = new BV.Viewmodel(vmScene, vmCamera);
@@ -91,13 +109,35 @@
   E.buildMs = Math.round(performance.now() - t0);
 
   /* ---------- settings ---------- */
+  /* real point lights at interior lamps (count depends on quality) */
+  const lampLights = [];
+  function setLampLights(n) {
+    while (lampLights.length > n) scene.remove(lampLights.pop());
+    const cands = BV.Map.data.lamps.filter(L => BV.Map.isIndoor(L.x, L.y - 0.5, L.z) || L.sky).sort((a, b) => (b.sky ? 1 : 0) - (a.sky ? 1 : 0) || b.i - a.i);
+    for (let i = lampLights.length; i < Math.min(n, cands.length); i++) {
+      const L = cands[i];
+      const pl = new THREE.PointLight(L.sky ? 0xc4d6ea : 0xffbe78, L.sky ? 1.5 : 1.25, L.r * 1.35, 2);
+      pl.position.set(L.x, L.y - 0.3, L.z); scene.add(pl); lampLights.push(pl);
+    }
+    scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
+  }
+  E.QUALITY = {
+    low:    { pr: 0.6,  shadow: 0,    far: 110, props: 0, lights: 0,  post: false, bloom: 0 },
+    medium: { pr: 0.85, shadow: 1024, far: 160, props: 1, lights: 4,  post: true,  bloom: 0.45 },
+    high:   { pr: 1.0,  shadow: 2048, far: 210, props: 2, lights: 8,  post: true,  bloom: 0.55 },
+    ultra:  { pr: 1.0,  shadow: 4096, far: 260, props: 2, lights: 12, post: true,  bloom: 0.6 }
+  };
   E.applySettings = function () {
-    const s = BV.settings;
-    const q = { low: 0.55, medium: 0.8, high: Math.min(window.devicePixelRatio || 1, 2) }[s.quality] || 0.8;
+    const s = BV.settings, Q = E.QUALITY[s.quality] || E.QUALITY.medium;
+    const dpr = window.devicePixelRatio || 1;
+    const q = s.quality === 'ultra' ? Math.min(dpr, 2) : s.quality === 'high' ? Math.min(dpr, 1.5) : Q.pr;
     renderer.setPixelRatio(q);
+    if (lampLights.length !== Q.lights) setLampLights(Q.lights);
+    BV.Props.setLevel(Q.props);
+    post.mComp.uniforms.bloom.value = Q.bloom;
     post.enabled = s.quality !== 'low' && s.postfx !== false;
     document.getElementById('vignette').style.display = post.enabled ? 'none' : '';
-    const shadowSize = { low: 0, medium: 2048, high: 4096 }[s.quality];
+    const shadowSize = Q.shadow;
     const wantShadows = shadowSize > 0;
     if (renderer.shadowMap.enabled !== wantShadows || sun.shadow.mapSize.x !== (shadowSize || sun.shadow.mapSize.x)) {
       renderer.shadowMap.enabled = wantShadows;
@@ -106,8 +146,7 @@
       scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
     }
     canvas.style.imageRendering = 'auto';
-    scene.fog.far = s.quality === 'low' ? 120 : 170;
-    camera.far = s.quality === 'low' ? 160 : 600; camera.updateProjectionMatrix();
+    scene.fog.far = Q.far; camera.far = Q.far + 420; camera.updateProjectionMatrix();
     BV.HUD.fps(s.showFps, (E.fpsShown || 0) + ' FPS');
     resize();
   };
@@ -132,7 +171,17 @@
   };
   E.onPlayerShot = (def) => {
     E.viewmodel.shot(def); E.punch += def.kick * 0.9;
-    const p = game.player, d = p.dir(E._v2); E.flashLight(p.eye(E._v).addScaledVector(d, 0.9), 1);
+    const p = game.player, d = p.dir(E._v2); E.flashLight(p.eye(E._v).addScaledVector(d, 0.9), def.cls === 'pistol' ? 0.7 : 1.1);
+    const mz = E.viewmodel.muzzleWorld(E._mz || (E._mz = new THREE.Vector3()), camera);
+    BV.Effects.puff(mz.x, mz.y, mz.z, 0.12, 0.6, 0.18, 0xc8c4ba);
+    const dx = d.x, dz = d.z;
+    const eject = () => {
+      const ej = E.viewmodel.ejectWorld(E._ej || (E._ej = new THREE.Vector3()), camera); if (!ej) return;
+      const rx = Math.cos(p.yaw), rz = -Math.sin(p.yaw);
+      BV.Effects.ejectShell(ej, new THREE.Vector3(rx * (1.6 + Math.random() * 0.8) + p.vel.x - dx * 0.4, 1.7 + Math.random() * 0.7, rz * (1.6 + Math.random() * 0.8) + p.vel.z - dz * 0.4), def.cls);
+    };
+    if (def.cls === 'shotgun') setTimeout(eject, 260); else if (def.cls === 'sniper') setTimeout(eject, 520); else eject();
+    if (BV.settings.viewBob !== false) E.camKick = (E.camKick || 0) + def.kick * 0.5;
   };
   E.playerMuzzle = (out) => E.viewmodel.muzzleWorld(out, camera);
   E.onRoundStart = () => {
@@ -203,6 +252,7 @@
   BV.Input.listeners.key.push((code, down) => {
     if (code === 'Tab' && (E.state === 'play' || E.state === 'buy')) BV.HUD.scoreboard(down);
     if (!down) return;
+    if (code === 'KeyF' && E.state === 'play' && game.player && game.player.alive) E.viewmodel.inspect();
     if (code === 'KeyB') { if (E.state === 'play') E.openBuy(); else if (E.state === 'buy') E.closeBuy(); }
     if (code === 'Escape') {
       if (E.state === 'buy') E.closeBuy();
@@ -225,12 +275,25 @@
   function playCamera(dt) {
     const p = game.player;
     E.punch *= Math.exp(-dt * 12);
-    const fov = E.zoomFov();
+    const fov = E.zoomFov() + (game.player && game.player.sprint && !game.player.zoom ? 5 : 0);
     if (Math.abs(camera.fov - fov) > 0.01) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 22); if (Math.abs(camera.fov - fov) < 0.3) camera.fov = fov; camera.updateProjectionMatrix(); }
     const sh = BV.Effects.shakeOffset();
     if (p.alive) {
       p.eye(camera.position);
-      camera.rotation.set(p.pitch + E.punch + (Math.random() - 0.5) * sh * 0.1, p.yaw + (Math.random() - 0.5) * sh * 0.1, 0);
+      // weighty camera: head bob, landing dip (spring), strafe roll, recoil kick
+      const spd = Math.hypot(p.vel.x, p.vel.z), bobOn = BV.settings.viewBob !== false && p.onGround;
+      const bk = bobOn ? Math.min(1.2, spd / 4.6) * (p.sprint ? 1.5 : 1) : 0;
+      E.camBobPh = (E.camBobPh || 0) + dt * (spd > 0.3 ? 3.2 + spd * 1.15 : 0);
+      E.landY = E.landY || 0; E.landV = E.landV || 0;
+      if (p.landSpeed > 3) { E.landV -= Math.min(0.9, p.landSpeed * 0.07); E.viewmodel.land(p.landSpeed); p.landSpeed = 0; }
+      E.landV += -E.landY * 160 * dt; E.landV *= Math.max(0, 1 - 16 * dt); E.landY += E.landV * dt;
+      camera.position.y += -Math.abs(Math.cos(E.camBobPh)) * 0.032 * bk + E.landY * 0.2;
+      camera.position.x += Math.cos(p.yaw) * Math.sin(E.camBobPh) * 0.012 * bk; camera.position.z += -Math.sin(p.yaw) * Math.sin(E.camBobPh) * 0.012 * bk;
+      const lateral = p.vel.x * Math.cos(p.yaw) - p.vel.z * Math.sin(p.yaw);
+      E.roll = (E.roll || 0) + ((-lateral * 0.0045 + Math.sin(E.camBobPh) * 0.004 * bk) - (E.roll || 0)) * Math.min(1, dt * 8);
+      E.camKick = (E.camKick || 0) * Math.exp(-dt * 14);
+      E.strafe = BV.U.clamp(lateral / 4.6, -1, 1);
+      camera.rotation.set(p.pitch + E.punch + E.camKick + (Math.random() - 0.5) * sh * 0.1, p.yaw + (Math.random() - 0.5) * sh * 0.1, E.roll);
     } else {
       const sp = game.spectate;
       if (sp && sp.t > 0 || !sp || !sp.target) {
@@ -283,7 +346,7 @@
       E.viewmodel.update(dt, {
         speed: Math.hypot(p.vel.x, p.vel.z), onGround: p.onGround, crouch: p.crouch > 0.5, sprint: p.sprint,
         mdx, mdy,
-        busy: p.planting || p.defusing, visible: p.alive && !(p.zoom && p.weapon && p.weapon.def.zoom)
+        busy: p.planting || p.defusing, visible: p.alive && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
       });
       BV.HUD.update(dt);
     } else if (E.state === 'pause') {
@@ -291,6 +354,8 @@
     }
     BV.Input.endFrame();
     updateDust(dt);
+    BV.Props.update(performance.now() / 1000);
+    if (renderer.shadowMap.enabled) followShadow();
     const vm = playing && game.player && game.player.alive;
     if (post.enabled) {
       post.begin();

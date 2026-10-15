@@ -140,6 +140,12 @@ BV.Audio = (function () {
   }
   function hurt() { if (!ok()) return; const t = ctx.currentTime; noise(t, 0.16, 'lowpass', 400, 90, 1.5, 0.5, 0); tone(t, 'sine', 160, 70, 0.18, 0.3, 0); }
   function death(pos) { if (!ok()) return; const sp = spatial(pos, 30); const t = ctx.currentTime; noise(t, 0.3, 'lowpass', 350, 60, 1, 0.45 * sp.g, sp.pan); tone(t, 'sine', 110, 45, 0.35, 0.3 * sp.g, sp.pan); }
+  function shell(pos, heavy) {
+    if (!ok()) return; const sp = spatial(pos, 14); if (sp.g <= 0.01) return; const t = ctx.currentTime + Math.random() * 0.02;
+    if (heavy) { noise(t, 0.05, 'bandpass', 900, 600, 2, 0.12 * sp.g, sp.pan); return; }
+    const f = 5200 + Math.random() * 2600;
+    tone(t, 'triangle', f, f * 0.96, 0.09, 0.05 * sp.g, sp.pan); tone(t + 0.004, 'sine', f * 1.51, f * 1.5, 0.06, 0.025 * sp.g, sp.pan);
+  }
   function bounce(pos) { if (!ok()) return; const sp = spatial(pos, 25); tone(ctx.currentTime, 'triangle', 900 + Math.random() * 400, 600, 0.07, 0.12 * sp.g, sp.pan); }
   function explosion(pos) {
     if (!ok()) return; const sp = spatial(pos, 160); const t = ctx.currentTime, g = Math.max(0.12, sp.g);
@@ -227,7 +233,7 @@ BV.Audio = (function () {
 
   return {
     init, resume, applyVolumes, setListener, shot, knife, reload, dryFire, draw, zoom, step, land, jump,
-    impact, hitmarker, hurt, death, bounce, explosion, beep, keypad, chargeArmed, defused, ui, roundStinger,
+    impact, hitmarker, hurt, death, bounce, shell, explosion, beep, keypad, chargeArmed, defused, ui, roundStinger,
     startAmbience, stopAmbience, startMusic, stopMusic,
     get ready() { return !!ctx; }
   };

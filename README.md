@@ -32,7 +32,7 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 | Clic derecho | Mira (Kestrel-5, Lynx-7) | R | Recargar |
 | 1 2 3 4 / rueda / Q | Cambiar arma / arma anterior | E (mantener) | Armar / desactivar la carga |
 | B | Menú de compra | Tab | Marcador |
-| Esc | Menú de pausa | | |
+| Esc | Menú de pausa | F | Inspeccionar arma |
 
 ## Características
 
@@ -48,6 +48,15 @@ Three.js va incluido en `js/lib/`, así que el juego funciona sin conexión (sol
 - **Gráficos (v1.1)**: iluminación de atardecer con sombras suaves en tiempo real, materiales PBR con mapas de normales generados por código, reflejos por *image-based lighting*, tone mapping ACES con gestión de color sRGB y antialiasing. Soldados con extremidades redondeadas, camuflaje texturizado, cascos, capuchas, chalecos y equipo; armas modeladas con perfiles biselados y metal desgastado; coches, sacos terreros y charcos reflectantes.
 - **Postprocesado (v1.2)**: cadena propia sin librerías extra — render MSAA en HDR, *bloom* a dos escalas, gradación de color con sombras frías y luces cálidas, aberración cromática sutil, viñeta y grano de película.
 - **Escenario (v1.2)**: horizonte industrial con ventanas iluminadas y grúas portuarias, cornisas, zócalos, marcos y alféizares de ventana, bajantes, equipos de azotea y depósitos de agua, cables colgantes, barandillas, hierba seca y gravilla instanciadas, tragaluces con haces de luz volumétricos en la nave B y polvo en suspensión. Los disparos y explosiones iluminan el entorno.
+- **Remasterización (v1.3)**:
+  - *Armas*: kit mecánico en todas (pasadores, tornillos, selector con marcas, ventana de expulsión con cerrojo visible, palanca de carga, base y nervios del cargador, cantonera de goma, linterna táctica). Materiales por pieza —acero pavonado, acero gastado, aluminio, polímero punteado, goma, madera, latón— con **desgaste de bordes** real (atributo por vértice + parche de shader), suciedad y rugosidad con arañazos.
+  - *Texturas*: hasta 512 px con capas de desgaste por material (grietas, humedad, óxido, pintura desconchada, aceite, marcas de neumático, nudos, rodadas) y mapas de rugosidad.
+  - *Luz y sombras*: luces puntuales reales en interiores (4/8/12 según calidad), niebla de altura, mapa de sombras que sigue a la cámara con ajuste a texel.
+  - *Escenario*: cientos de objetos instanciados (palés, armarios eléctricos con LEDs, rejillas, tuberías, bandeja de cables, conos, neumáticos, bidones, extintores, bombonas, basura, escombros, carteles y números estarcidos, manchas de suciedad).
+  - *Primera persona*: animación por muelles (peso, balanceo en ocho, respiración, inercia, inclinación lateral, aterrizaje), recargas coreografiadas, bombeo de escopeta e inspección (**F**).
+  - *Disparos e impactos*: fogonazo volumétrico distinto por arma, humo, luz dinámica; impactos por material (chispas, astillas, polvo, fragmentos) con marcas propias; casquillos físicos que rebotan y suenan.
+  - *Personajes*: más equipo, reacción a impactos, postura de sprint, recarga, tres variantes de muerte.
+  - *Cámara, mira e interfaz*: balanceo, hundimiento al aterrizar, inclinación lateral, retroceso; retículas propias con lente y animación; HUD translúcido y menú animado; nivel de calidad **ULTRA**.
 - **Efectos**: fogonazo, trazadoras, chispas, humo, agujeros de bala, casquillos, sangre estilizada, explosiones con onda de choque y destello de daño en pantalla.
 
 ## IA de los bots
@@ -84,7 +93,8 @@ js/audio.js         Síntesis de sonido y música
 js/textures.js      Texturas procedurales en canvas
 js/physics.js       Colisiones AABB, movimiento y raycasts
 js/map.js           SECTOR-17: geometría, iluminación horneada, waypoints y A*
-js/models.js        Soldados y armas low-poly
+js/models.js        Soldados y armas (perfiles biselados, kit mecánico, desgaste de bordes)
+js/props.js         Atrezo industrial instanciado
 js/effects.js       Partículas, trazadoras, decals y explosiones
 js/combatant.js     Estado compartido de jugador y bots
 js/bot.js           IA por estados

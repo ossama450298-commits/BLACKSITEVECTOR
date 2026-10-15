@@ -145,7 +145,9 @@ BV.HUD = (function () {
       c[0].style.top = (-px - 8) + 'px'; c[1].style.top = px + 'px'; c[2].style.left = (-px - 8) + 'px'; c[3].style.left = px + 'px';
       el.crosshair.style.display = p.zoom ? 'none' : '';
     } else el.crosshair.style.display = p.alive ? '' : 'none';
-    el.scope.classList.toggle('hidden', !(p.alive && p.zoom));
+    const scoped = !!(p.alive && p.zoom && w && w.def.zoom);
+    el.scope.classList.toggle('on', scoped);
+    if (scoped) { const kind = w.def.cls === 'sniper' ? 'sniper' : 'dmr'; if (el.scope.dataset.kind !== kind) el.scope.dataset.kind = kind; }
     // hit marker / flashes
     if (hitT > 0) { hitT -= dt; el.hitmarker.style.opacity = Math.min(1, hitT * 8); } else el.hitmarker.style.opacity = 0;
     el['flash-dmg'].style.opacity = Math.min(0.9, BV.Effects.screenFlash * 1.6 + (p.alive && p.hp < 25 ? 0.25 : 0));

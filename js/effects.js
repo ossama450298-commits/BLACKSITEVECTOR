@@ -43,6 +43,20 @@ BV.Effects = (function () {
     };
   }
 
+  const decalMats = {}, worldShells = []; let wsNext = 0, splinters = null;
+  function holeTex(kind) {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    if (kind === 'metal') {
+      let gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(10,10,10,1)'); gr.addColorStop(0.22, 'rgba(15,15,15,1)'); gr.addColorStop(0.3, 'rgba(200,200,195,0.9)'); gr.addColorStop(0.5, 'rgba(120,110,95,0.5)'); gr.addColorStop(1, 'rgba(60,50,40,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    } else if (kind === 'wood') {
+      g.fillStyle = 'rgba(25,15,8,1)'; g.beginPath(); g.arc(32, 32, 8, 0, 7); g.fill();
+      for (let i = 0; i < 12; i++) { g.strokeStyle = `rgba(${200 + Math.random() * 40 | 0},${160 + Math.random() * 30 | 0},110,0.8)`; g.lineWidth = 2; g.beginPath(); const a = Math.random() * 6.28; g.moveTo(32 + Math.cos(a) * 7, 32 + Math.sin(a) * 7); g.lineTo(32 + Math.cos(a) * (14 + Math.random() * 14), 32 + Math.sin(a) * (10 + Math.random() * 8)); g.stroke(); }
+    } else {
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(30,24,16,0.85)'); gr.addColorStop(1, 'rgba(60,50,35,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+  }
   let sparks, blood, debris, tracerGeo, tracerArr, tracerCol, tracerLife = [], tracerN = 48, tracerNext = 0;
   const smokes = [], flashes = [], decals = [], shells = [], fireballs = [];
   let decalNext = 0, smokeNext = 0, flashNext = 0, shellNext = 0;
@@ -51,7 +65,8 @@ BV.Effects = (function () {
 
   function init(sc, vms) {
     scene = sc; vmScene = vms;
-    sparks = PointPool(260, 0.12, THREE.AdditiveBlending); scene.add(sparks.obj);
+    sparks = PointPool(420, 0.1, THREE.AdditiveBlending); scene.add(sparks.obj);
+    splinters = PointPool(160, 0.06, THREE.NormalBlending, 1); scene.add(splinters.obj);
     blood = PointPool(200, 0.09, THREE.NormalBlending, 0.95); scene.add(blood.obj);
     debris = PointPool(160, 0.07, THREE.NormalBlending, 1); scene.add(debris.obj);
     // tracers: one LineSegments buffer
@@ -64,7 +79,7 @@ BV.Effects = (function () {
     for (let i = 0; i < tracerN; i++) tracerLife.push(0);
     // smoke sprites
     const smokeTex = BV.Textures.smoke();
-    for (let i = 0; i < 48; i++) {
+    for (let i = 0; i < 110; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9a9890, transparent: true, opacity: 0, depthWrite: false }));
       s.visible = false; scene.add(s); smokes.push({ s, life: 0, max: 1, grow: 1, vy: 0.4, op: 0.5 });
     }
@@ -81,10 +96,23 @@ BV.Effects = (function () {
       s.visible = false; scene.add(s); fireballs.push({ s, life: 0, max: 1, size: 1 });
     }
     // bullet decals
-    const holeMat = new THREE.MeshBasicMaterial({ map: BV.Textures.bulletHole(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+    const holeMat = new THREE.MeshStandardMaterial({ map: BV.Textures.bulletHole(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
+    decalMats.wall = holeMat;
+    decalMats.metal = new THREE.MeshStandardMaterial({ map: holeTex('metal'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.3, metalness: 0.8 });
+    decalMats.wood = new THREE.MeshStandardMaterial({ map: holeTex('wood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
+    decalMats.dirt = new THREE.MeshStandardMaterial({ map: holeTex('dirt'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 1 });
     const scorchMat = new THREE.MeshBasicMaterial({ map: BV.Textures.scorch(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
     const dg = new THREE.PlaneGeometry(0.12, 0.12);
-    for (let i = 0; i < 90; i++) { const m = new THREE.Mesh(dg, holeMat); m.visible = false; scene.add(m); decals.push(m); }
+    for (let i = 0; i < 140; i++) { const m = new THREE.Mesh(dg, holeMat); m.visible = false; m.receiveShadow = true; scene.add(m); decals.push(m); }
+    // world-space brass casings (physics + bounce sounds)
+    const brassGeo = new THREE.CylinderGeometry(0.0048, 0.0048, 0.024, 8), shellGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.06, 10);
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a14a, roughness: 0.28, metalness: 1 }), redMat = new THREE.MeshStandardMaterial({ color: 0x8e1f18, roughness: 0.5, metalness: 0.2 });
+    for (let i = 0; i < 60; i++) {
+      const m = new THREE.Mesh(brassGeo, brassMat); m.visible = false; m.castShadow = false; scene.add(m);
+      worldShells.push({ m, v: new V(), spin: new V(), life: 0, bounces: 0, geoB: brassGeo, geoS: shellGeo, matB: brassMat, matS: redMat });
+    }
+    // volumetric-looking muzzle flash cones (third person)
+    const fl2 = BV.Textures.flash();
     decals.scorch = []; for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), scorchMat); m.visible = false; scene.add(m); decals.scorch.push(m); }
     decals.scorchNext = 0;
     // shell casings live in the view-model scene
@@ -102,22 +130,69 @@ BV.Effects = (function () {
     tracerArr.set([a.x + dx / len * s0, a.y + dy / len * s0, a.z + dz / len * s0, a.x + dx / len * s1, a.y + dy / len * s1, a.z + dz / len * s1], i * 6);
     tracerLife[i] = bright ? 0.07 : 0.05;
   }
+  /* material-aware bullet impacts: concrete, metal, wood, dirt, glass */
   function impact(p, n, kind) {
-    const cnt = low() ? 3 : (kind === 'metal' ? 10 : 6);
-    for (let i = 0; i < cnt; i++) {
-      const sp = 2 + Math.random() * 3;
-      sparks.emit(p.x + n[0] * 0.03, p.y + n[1] * 0.03, p.z + n[2] * 0.03,
-        n[0] * sp + (Math.random() - 0.5) * 3, n[1] * sp + Math.random() * 2.5, n[2] * sp + (Math.random() - 0.5) * 3,
-        0.25 + Math.random() * 0.25, 1, 0.75, 0.35, 12);
+    const q = mult(), ox = p.x + n[0] * 0.03, oy = p.y + n[1] * 0.03, oz = p.z + n[2] * 0.03;
+    const rnd = (a) => (Math.random() - 0.5) * a;
+    if (kind === 'metal') {
+      for (let i = 0; i < 14 * q; i++) { const sp = 3 + Math.random() * 5; sparks.emit(ox, oy, oz, n[0] * sp + rnd(5), n[1] * sp + Math.random() * 3, n[2] * sp + rnd(5), 0.2 + Math.random() * 0.35, 1, 0.78, 0.4, 14); }
+      muzzle(new V(ox, oy, oz), 0.22);
+      puff(ox, oy, oz, 0.18, 0.4, 0.25, 0x8a8a86);
+    } else if (kind === 'wood') {
+      for (let i = 0; i < 10 * q; i++) splinters.emit(ox, oy, oz, n[0] * 3 + rnd(3), n[1] * 2 + Math.random() * 2.5, n[2] * 3 + rnd(3), 0.7 + Math.random() * 0.5, 0.55, 0.4, 0.22, 10);
+      puff(ox, oy, oz, 0.3, 0.7, 0.35, 0x9a8460);
+    } else if (kind === 'dirt') {
+      for (let i = 0; i < 8 * q; i++) debris.emit(ox, oy, oz, n[0] * 2 + rnd(2.5), 1.5 + Math.random() * 2.5, n[2] * 2 + rnd(2.5), 0.7, 0.33, 0.27, 0.19, 10);
+      puff(ox, oy + 0.05, oz, 0.45, 1.0, 0.5, 0x8a7a5e); puff(ox, oy + 0.15, oz, 0.3, 0.8, 0.35, 0x8a7a5e);
+    } else if (kind === 'glass') {
+      for (let i = 0; i < 12 * q; i++) sparks.emit(ox, oy, oz, n[0] * 2 + rnd(3), Math.random() * 2, n[2] * 2 + rnd(3), 0.5, 0.6, 0.7, 0.75, 9);
+    } else { // concrete / brick / plaster
+      for (let i = 0; i < 3 * q; i++) { const sp = 2 + Math.random() * 3; sparks.emit(ox, oy, oz, n[0] * sp + rnd(3), n[1] * sp + Math.random() * 2, n[2] * sp + rnd(3), 0.15 + Math.random() * 0.15, 1, 0.7, 0.35, 12); }
+      for (let i = 0; i < 8 * q; i++) debris.emit(ox, oy, oz, n[0] * 2.5 + rnd(2.5), n[1] * 2 + Math.random() * 2.5, n[2] * 2.5 + rnd(2.5), 0.8, 0.42, 0.4, 0.37, 9);
+      puff(ox + n[0] * 0.08, oy + n[1] * 0.08, oz + n[2] * 0.08, 0.4, 1.1, 0.42, 0xa29e94);
+      puff(ox + n[0] * 0.2, oy + n[1] * 0.2, oz + n[2] * 0.2, 0.25, 0.7, 0.3, 0xb5b0a4);
     }
-    if (kind !== 'metal' && !low()) for (let i = 0; i < 5; i++) debris.emit(p.x, p.y, p.z, n[0] * 2 + (Math.random() - 0.5) * 2, n[1] * 2 + Math.random() * 2, n[2] * 2 + (Math.random() - 0.5) * 2, 0.6, 0.35, 0.33, 0.3, 9);
-    puff(p.x + n[0] * 0.1, p.y + n[1] * 0.1, p.z + n[2] * 0.1, 0.35, 0.8, 0.35);
-    // decal oriented to the surface normal
     const d = decals[decalNext]; decalNext = (decalNext + 1) % decals.length;
+    d.material = decalMats[kind === 'glass' ? 'wall' : kind] || decalMats.wall;
+    const sz = kind === 'metal' ? 0.75 : kind === 'dirt' ? 1.6 : kind === 'wood' ? 1.1 : 1;
+    d.scale.set(sz, sz, sz);
     d.position.set(p.x + n[0] * 0.01, p.y + n[1] * 0.01, p.z + n[2] * 0.01);
     d.lookAt(p.x + n[0], p.y + n[1], p.z + n[2]); d.rotation.z = Math.random() * 6;
     d.visible = true;
   }
+  /* brass ejected into the world: bounces, spins and tinkles */
+  function ejectShell(pos, vel, kind) {
+    if (!BV.settings.effects && Math.random() < 0.6) return;
+    const s = worldShells[wsNext]; wsNext = (wsNext + 1) % worldShells.length;
+    const sg = kind === 'shotgun';
+    s.m.geometry = sg ? s.geoS : s.geoB; s.m.material = sg ? s.matS : s.matB;
+    s.m.position.copy(pos); s.v.copy(vel); s.spin.set(Math.random() * 30, Math.random() * 30, Math.random() * 30);
+    s.life = 5; s.bounces = 0; s.m.visible = true;
+  }
+  const _rd = new V(), _ro = new V();
+  function updateShells(dt) {
+    for (const s of worldShells) {
+      if (s.life <= 0) continue;
+      s.life -= dt; if (s.life <= 0) { s.m.visible = false; continue; }
+      if (s.bounces > 4) continue; // resting
+      s.v.y -= 11 * dt;
+      const step = s.v.length() * dt;
+      if (step > 1e-5) {
+        _rd.copy(s.v).normalize(); _ro.copy(s.m.position);
+        const hit = BV.Physics.raycast(_ro, _rd, step + 0.012);
+        if (hit) {
+          const n = hit.normal; const dot = s.v.x * n[0] + s.v.y * n[1] + s.v.z * n[2];
+          s.v.x -= 2 * dot * n[0]; s.v.y -= 2 * dot * n[1]; s.v.z -= 2 * dot * n[2]; s.v.multiplyScalar(0.38);
+          s.m.position.set(hit.point.x + n[0] * 0.01, hit.point.y + n[1] * 0.01, hit.point.z + n[2] * 0.01);
+          s.spin.multiplyScalar(0.5); s.bounces++;
+          if (s.bounces < 3 && BV.Audio.shell) BV.Audio.shell(s.m.position, s.m.geometry === s.geoS);
+          if (n[1] > 0.7 && s.v.length() < 0.4) { s.bounces = 99; s.m.rotation.set(Math.PI / 2, s.m.rotation.y, Math.random() * 6); }
+        } else s.m.position.addScaledVector(s.v, dt);
+      }
+      s.m.rotation.x += s.spin.x * dt; s.m.rotation.y += s.spin.y * dt; s.m.rotation.z += s.spin.z * dt;
+    }
+  }
+  const mult = () => (BV.settings.effects ? 1 : 0.4) * ({ low: 0.5, medium: 0.8, high: 1, ultra: 1.3 }[BV.settings.quality] || 1);
   function bloodHit(p, dir, head) {
     const cnt = low() ? 4 : (head ? 16 : 9);
     for (let i = 0; i < cnt; i++) {
@@ -133,9 +208,9 @@ BV.Effects = (function () {
     s.life = s.max = life; s.grow = size * 2.2; s.op = op; s.vy = 0.5;
     s.s.material.rotation = Math.random() * 6;
   }
-  function muzzle(pos) {
+  function muzzle(pos, size) {
     const f = flashes[flashNext]; flashNext = (flashNext + 1) % flashes.length;
-    f.s.position.copy(pos); const s = 0.45 + Math.random() * 0.25; f.s.scale.set(s, s, 1);
+    f.s.position.copy(pos); const s = (size || 0.5) * (0.85 + Math.random() * 0.5); f.s.scale.set(s, s, 1);
     f.s.material.rotation = Math.random() * 6; f.s.visible = true; f.life = 0.05;
   }
   function explosion(p) {
@@ -168,7 +243,7 @@ BV.Effects = (function () {
   }
 
   function update(dt, camera) {
-    sparks.update(dt); blood.update(dt); debris.update(dt);
+    sparks.update(dt); blood.update(dt); debris.update(dt); splinters.update(dt); updateShells(dt);
     let dirty = false;
     for (let i = 0; i < tracerN; i++) {
       if (tracerLife[i] > 0) {
@@ -200,7 +275,7 @@ BV.Effects = (function () {
   }
   function shakeOffset() { return shake.t > 0 ? shake.amp * Math.min(1, shake.t * 2) : 0; }
   function clear() {
-    sparks.clear(); blood.clear(); debris.clear();
+    sparks.clear(); blood.clear(); debris.clear(); splinters.clear(); worldShells.forEach(s => { s.life = 0; s.m.visible = false; });
     smokes.forEach(s => { s.life = 0; s.s.visible = false; });
     flashes.forEach(f => { f.life = 0; f.s.visible = false; });
     fireballs.forEach(f => { f.life = 0; f.s.visible = false; });
@@ -208,5 +283,5 @@ BV.Effects = (function () {
     tracerLife.fill(0); tracerArr.fill(0); tracerGeo.attributes.position.needsUpdate = true;
   }
 
-  return { init, tracer, impact, bloodHit, puff, muzzle, explosion, shell, addShake, flashScreen, update, shakeOffset, clear, get screenFlash() { return screenFlash; } };
+  return { init, tracer, impact, ejectShell, bloodHit, puff, muzzle, explosion, shell, addShake, flashScreen, update, shakeOffset, clear, get screenFlash() { return screenFlash; } };
 })();

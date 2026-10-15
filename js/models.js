@@ -69,8 +69,9 @@ BV.Models = (function () {
   }
   function woodTex() {
     return ctex('wood', 128, 128, (g, w, h, r) => {
-      g.fillStyle = '#6a4526'; g.fillRect(0, 0, w, h);
-      for (let y = 0; y < h; y++) { g.fillStyle = `rgba(${30 + r() * 20 | 0},15,5,${0.1 + Math.abs(Math.sin(y * 0.4 + r())) * 0.18})`; g.fillRect(0, y, w, 1); }
+      g.fillStyle = '#4a3220'; g.fillRect(0, 0, w, h);
+      for (let y = 0; y < h; y++) { g.fillStyle = `rgba(${20 + r() * 20 | 0},10,4,${0.12 + Math.abs(Math.sin(y * 0.35 + r() * 0.6)) * 0.22})`; g.fillRect(0, y, w, 1); }
+      for (let i = 0; i < 10; i++) { g.strokeStyle = 'rgba(20,10,4,0.35)'; g.lineWidth = 1; g.beginPath(); const y = r() * h; g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 6, w * 0.6, y - 6, w, y + (r() - 0.5) * 8); g.stroke(); }
     });
   }
   function S(o) { return new THREE.MeshStandardMaterial(o); }
@@ -79,14 +80,67 @@ BV.Models = (function () {
     if (!matCache[key]) matCache[key] = S(Object.assign({ color, roughness: 0.7, metalness: 0 }, opts || {}));
     return matCache[key];
   }
+  /* ---------- weapon materials ----------
+     Every gun material gets an "edge wear" shader patch: a per-vertex wear
+     value (bevel/edge vertices score high) blends the surface toward bare,
+     polished metal (or a pale scuff on polymer/wood) and lowers roughness.
+     A grime texture breaks up colour and a scratch-driven roughness map
+     makes highlights uneven. */
+  function grimeTex(base, scratch) {
+    return ctex('grime_' + base + scratch, 256, 256, (g, w, h, r) => {
+      g.fillStyle = hex(base); g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 40; i++) { const x = r() * w, y = r() * h, rad = 10 + r() * 40; const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${0.05 + r() * 0.06})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+      for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,255'},${r() * 0.07})`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1); }
+      g.lineCap = 'round';
+      for (let i = 0; i < scratch; i++) { g.strokeStyle = `rgba(215,215,210,${0.08 + r() * 0.16})`; g.lineWidth = 0.4 + r() * 0.8; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 40, y + (r() - 0.5) * 10); g.stroke(); }
+      for (let i = 0; i < 18; i++) { g.fillStyle = `rgba(20,16,10,${0.15 + r() * 0.2})`; g.beginPath(); g.ellipse(r() * w, r() * h, 3 + r() * 9, 2 + r() * 5, r() * 3, 0, 7); g.fill(); } // grease / powder residue
+    });
+  }
+  function stippleNormal() {
+    if (texCache.stip) return texCache.stip;
+    const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+    g.fillStyle = 'rgb(128,128,255)'; g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 1400; i++) { const x = Math.random() * 128, y = Math.random() * 128; const gr = g.createRadialGradient(x - 0.6, y - 0.6, 0, x, y, 1.8); gr.addColorStop(0, 'rgb(90,90,255)'); gr.addColorStop(0.5, 'rgb(160,160,240)'); gr.addColorStop(1, 'rgba(128,128,255,0)'); g.fillStyle = gr; g.fillRect(x - 2, y - 2, 4, 4); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; texCache.stip = t; return t;
+  }
+  function scratchRough(base) {
+    return ctex('sr_' + base, 256, 256, (g, w, h, r) => {
+      const v = Math.round(base * 255); g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 700; i++) { const k = Math.round(Math.max(0, base - 0.3 + r() * 0.2) * 255); g.strokeStyle = `rgb(${k},${k},${k})`; g.lineWidth = 0.6; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 30, y + (r() - 0.5) * 8); g.stroke(); }
+      for (let i = 0; i < 60; i++) { const k = Math.round(Math.min(1, base + 0.3) * 255); g.fillStyle = `rgb(${k},${k},${k})`; g.beginPath(); g.arc(r() * w, r() * h, 2 + r() * 8, 0, 7); g.fill(); }
+    });
+  }
+  function wearMat(key, o, wear) {
+    if (matCache[key]) return matCache[key];
+    const m = S(o);
+    m.userData.wear = wear;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uWearColor = { value: new THREE.Color(wear.color) };
+      sh.uniforms.uWearAmt = { value: wear.amt };
+      sh.uniforms.uWearMetal = { value: wear.metal };
+      sh.vertexShader = 'attribute float wear;\nvarying float vWear;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vWear = wear;');
+      sh.fragmentShader = 'uniform vec3 uWearColor;\nuniform float uWearAmt;\nuniform float uWearMetal;\nvarying float vWear;\n' + sh.fragmentShader
+        .replace('#include <map_fragment>', '#include <map_fragment>\n float wk = clamp(vWear * uWearAmt, 0.0, 1.0);\n diffuseColor.rgb = mix(diffuseColor.rgb, uWearColor, wk);')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(roughnessFactor, 0.22, wk);')
+        .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n metalnessFactor = mix(metalnessFactor, 1.0, wk * uWearMetal);');
+    };
+    m.customProgramCacheKey = () => 'wear-' + key;
+    matCache[key] = m; return m;
+  }
   const M = {
-    dark: () => matCache.gdark || (matCache.gdark = S({ map: wearTex(0x2c2f31), roughness: 0.42, metalness: 0.75 })),
-    steel: () => matCache.gsteel || (matCache.gsteel = S({ map: wearTex(0x707578), roughness: 0.32, metalness: 0.9 })),
-    poly: () => matCache.gpoly || (matCache.gpoly = S({ map: wearTex(0x222324), roughness: 0.68, metalness: 0.05 })),
-    wood: () => matCache.gwood || (matCache.gwood = S({ map: woodTex(), roughness: 0.55, metalness: 0 })),
-    olive: () => matCache.golive || (matCache.golive = S({ map: wearTex(0x4c5236), roughness: 0.6, metalness: 0.15 })),
+    // blued steel receiver parts
+    dark: () => wearMat('gdark', { map: grimeTex(0x2a2d30, 120), roughnessMap: scratchRough(0.42), roughness: 1, metalness: 0.8 }, { color: 0x9aa0a4, amt: 0.9, metal: 1 }),
+    // bare / worn steel: barrels, bolts, pins
+    steel: () => wearMat('gsteel', { map: grimeTex(0x6c7175, 200), roughnessMap: scratchRough(0.32), roughness: 1, metalness: 0.95 }, { color: 0xc8ccd0, amt: 0.7, metal: 1 }),
+    // polymer furniture with stippled grip texture
+    poly: () => wearMat('gpoly', { map: grimeTex(0x202122, 40), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.72, metalness: 0.02 }, { color: 0x4a4b4c, amt: 0.6, metal: 0 }),
+    wood: () => wearMat('gwood', { map: woodTex(), roughness: 0.5, metalness: 0 }, { color: 0x7a5636, amt: 0.5, metal: 0 }),
+    olive: () => wearMat('golive', { map: grimeTex(0x4a5034, 80), roughness: 0.62, metalness: 0.15 }, { color: 0x8a8f86, amt: 0.85, metal: 0.8 }),
     bright: () => matCache.gbright || (matCache.gbright = S({ color: 0xd2d6da, roughness: 0.16, metalness: 1 })),
-    tan: () => matCache.gtan || (matCache.gtan = S({ map: wearTex(0x8a7656), roughness: 0.7, metalness: 0.05 }))
+    tan: () => wearMat('gtan', { map: grimeTex(0x8a7656, 60), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.74, metalness: 0.04 }, { color: 0xb8a684, amt: 0.6, metal: 0 }),
+    alu: () => wearMat('galu', { map: grimeTex(0x3b3e41, 160), roughnessMap: scratchRough(0.38), roughness: 1, metalness: 0.85 }, { color: 0xb0b4b8, amt: 0.9, metal: 1 }),
+    rubber: () => matCache.grub || (matCache.grub = S({ color: 0x141414, roughness: 0.95, metalness: 0, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.3, 0.3) })),
+    brass: () => matCache.gbrass || (matCache.gbrass = S({ color: 0xc9a14a, roughness: 0.3, metalness: 1 }))
   };
   function box(g, w, h, d, x, y, z, m, rx, ry, rz) {
     const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -118,10 +172,25 @@ BV.Models = (function () {
     const g = new THREE.ExtrudeGeometry(sh, { depth: Math.max(0.002, thick - bt * 2), bevelEnabled: true, bevelThickness: bt, bevelSize: bt * 0.8, bevelSegments: 2, curveSegments: 4 });
     g.rotateY(Math.PI / 2); g.translate(-(thick - bt * 2) / 2 + (x || 0), 0, 0);
     g.computeVertexNormals();
+    addWear(g, 1);
     const me = new THREE.Mesh(g, m); me.castShadow = true; parent.add(me); return me;
   }
+  /* edge wear: vertices whose normal is not axis-aligned sit on bevels/edges */
+  function addWear(g, k) {
+    const n = g.attributes.normal, w = new Float32Array(n.count);
+    for (let i = 0; i < n.count; i++) {
+      const ax = Math.max(Math.abs(n.getX(i)), Math.abs(n.getY(i)), Math.abs(n.getZ(i)));
+      w[i] = Math.min(1, Math.max(0, (1 - ax) * 3.2 * k + (Math.random() - 0.5) * 0.15));
+    }
+    g.setAttribute('wear', new THREE.BufferAttribute(w, 1)); return g;
+  }
   function tube(parent, r, f0, f1, y, m, seg, x) {
-    const me = new THREE.Mesh(new THREE.CylinderGeometry(r, r, Math.abs(f1 - f0), seg || 14), m);
+    const cg = new THREE.CylinderGeometry(r, r, Math.abs(f1 - f0), seg || 14);
+    // wear on the cylinder rims only
+    const p = cg.attributes.position, w = new Float32Array(p.count), hh = Math.abs(f1 - f0) / 2;
+    for (let i = 0; i < p.count; i++) w[i] = Math.abs(Math.abs(p.getY(i)) - hh) < 1e-4 ? 0.8 : 0.12 * Math.random();
+    cg.setAttribute('wear', new THREE.BufferAttribute(w, 1));
+    const me = new THREE.Mesh(cg, m);
     me.rotation.x = Math.PI / 2; me.position.set(x || 0, y, -(f0 + f1) / 2); me.castShadow = true; parent.add(me); return me;
   }
   function magGroup(parent, pts, thick, m, home) {
@@ -140,6 +209,88 @@ BV.Models = (function () {
     tube(parent, r * 0.45, f0 + 0.12, f0 + 0.16, y + r + 0.012, m, 10); // turret
     prof(parent, [[f0 + 0.08, y - r], [f0 + 0.12, y - r], [f0 + 0.12, y - r - 0.03], [f0 + 0.08, y - r - 0.03]], 0.02, m);
     prof(parent, [[f1 - 0.12, y - r], [f1 - 0.08, y - r], [f1 - 0.08, y - r - 0.03], [f1 - 0.12, y - r - 0.03]], 0.02, m);
+  }
+  /* ---------- mechanical detail kit: pins, screws, ports, levers ---------- */
+  const THICK = { pistol: 0.032, pistolHeavy: 0.038, smg: 0.048, smgCompact: 0.06, rifle: 0.052, rifleCarbine: 0.05, dmr: 0.054, sniper: 0.06, shotgun: 0.054 };
+  function pin(g, f, y, r, len, m) { const c = new THREE.CylinderGeometry(r, r, len, 10); addWear(c, 0.4); const me = new THREE.Mesh(c, m); me.rotation.z = Math.PI / 2; me.position.set(0, y, -f); g.add(me); return me; }
+  function screw(g, th, f, y, side) {
+    const c = new THREE.CylinderGeometry(0.0042, 0.0042, 0.003, 10); addWear(c, 0.6);
+    const me = new THREE.Mesh(c, M.steel()); me.rotation.z = Math.PI / 2; me.position.set(side * (th / 2 + 0.0015), y, -f); g.add(me);
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.0065, 0.0012), M.poly()); sl.position.set(side * (th / 2 + 0.003), y, -f); sl.rotation.x = Math.random() * 3; g.add(sl);
+  }
+  function port(g, th, f0, f1, y0, y1) {
+    const dark = mat(0x050505, { roughness: 0.9 });
+    const pb = new THREE.Mesh(new THREE.BoxGeometry(0.003, y1 - y0, f1 - f0), dark); pb.position.set(th / 2 + 0.0008, (y0 + y1) / 2, -(f0 + f1) / 2); g.add(pb);
+    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.003, (y1 - y0) * 0.55, (f1 - f0) * 0.85), M.steel()); bolt.position.set(th / 2 + 0.0016, (y0 + y1) / 2, -(f0 + f1) / 2); g.add(bolt);
+    const lug = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.006, 0.006), M.steel()); lug.position.set(th / 2 + 0.002, (y0 + y1) / 2, -(f0 + (f1 - f0) * 0.3)); g.add(lug);
+  }
+  function selector(g, th, f, y) {
+    const ax = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.004, 12), M.steel()); ax.rotation.z = Math.PI / 2; ax.position.set(-(th / 2 + 0.002), y, -f); g.add(ax);
+    const lv = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.004, 0.022), M.dark()); lv.position.set(-(th / 2 + 0.004), y + 0.004, -f + 0.008); lv.rotation.x = -0.5; g.add(lv);
+    // painted fire-mode marks
+    [['#e9e2cf', -0.012], ['#c4442c', 0.012]].forEach(([c, df]) => { const mk = new THREE.Mesh(new THREE.BoxGeometry(0.0006, 0.003, 0.003), mat(parseInt(c.slice(1), 16), { roughness: 0.6 })); mk.position.set(-(th / 2 + 0.0008), y + 0.009, -(f + df)); g.add(mk); });
+  }
+  function magDetail(mag, th) {
+    if (!mag || !mag.children.length) return;
+    const bb = new THREE.Box3().setFromObject(mag); // in parent space (mag at home)
+    mag.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(mag.matrixWorld).invert();
+    const lo = bb.min.clone().applyMatrix4(inv), hi = bb.max.clone().applyMatrix4(inv);
+    const bp = new THREE.Mesh(new THREE.BoxGeometry(th + 0.006, 0.01, Math.abs(hi.z - lo.z) * 0.55 + 0.01), M.poly());
+    bp.position.set(0, lo.y + 0.004, (lo.z + hi.z) / 2 + (hi.z - lo.z) * 0.12); mag.add(bp);
+    for (let i = 0; i < 3; i++) { const rib = new THREE.Mesh(new THREE.BoxGeometry(th + 0.002, 0.004, Math.abs(hi.z - lo.z) * 0.4), mat(0x1a1a1a, { roughness: 0.8 })); rib.position.set(0, hi.y - 0.03 - i * 0.025, (lo.z + hi.z) / 2); mag.add(rib); }
+    const wind = new THREE.Mesh(new THREE.BoxGeometry(0.0008, 0.03, 0.006), M.brass()); wind.position.set(th / 2 + 0.0012, hi.y - 0.04, (lo.z + hi.z) / 2 - 0.006); mag.add(wind); // witness hole showing rounds
+  }
+  function addKit(model, g, mag) {
+    const th = THICK[model]; if (!th) return;
+    const rifleLike = model === 'rifle' || model === 'rifleCarbine' || model === 'dmr';
+    if (rifleLike) {
+      port(g, th, 0.07, 0.17, 0.03, 0.058);
+      pin(g, -0.07, 0.012, 0.004, th + 0.008, M.steel()); pin(g, 0.2, 0.012, 0.004, th + 0.008, M.steel());
+      selector(g, th, -0.015, 0.035);
+      [0.3, 0.38, 0.46].forEach(f => { screw(g, th + 0.006, f, 0.035, 1); screw(g, th + 0.006, f, 0.035, -1); });
+      if (model === 'rifle') { const ch = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.008, 0.01), M.steel()); ch.position.set(th / 2 + 0.01, 0.06, -0.2); g.add(ch); }
+      if (model === 'rifleCarbine') {
+        const ch = prof(g, [[-0.12, 0.07], [-0.08, 0.07], [-0.08, 0.08], [-0.12, 0.08]], 0.03, M.dark()); // charging handle
+        const ch2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.012), M.dark()); ch2.position.set(0, 0.075, 0.12); g.add(ch2);
+        // flip-up front sight + side flashlight with lens
+        prof(g, [[0.47, 0.082], [0.49, 0.082], [0.488, 0.115], [0.472, 0.115]], 0.012, M.dark());
+        tube(g, 0.014, 0.36, 0.48, 0.045, M.alu(), 14, 0.045);
+        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.012, 14), new THREE.MeshBasicMaterial({ color: 0xcfd8dc })); lens.position.set(0.045, 0.045, -0.481); lens.rotation.y = Math.PI; g.add(lens);
+        const sw = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.01, 0.02), M.rubber()); sw.position.set(0.045, 0.06, -0.38); g.add(sw);
+      }
+      // rubber butt pad
+      const bp = new THREE.Mesh(new THREE.BoxGeometry(th + 0.004, 0.13, 0.018), M.rubber());
+      bp.position.set(0, -0.02, model === 'dmr' ? 0.468 : model === 'rifle' ? 0.438 : 0.385); g.add(bp);
+    }
+    if (model === 'smg' || model === 'smgCompact') {
+      port(g, th, 0.04, 0.12, 0.03, 0.055);
+      selector(g, th, -0.02, 0.03);
+      pin(g, -0.05, 0.01, 0.0035, th + 0.006, M.steel()); pin(g, 0.17, 0.02, 0.0035, th + 0.006, M.steel());
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), M.steel()); knob.position.set(-(th / 2 + 0.008), 0.06, -0.15); g.add(knob);
+    }
+    if (model === 'pistol' || model === 'pistolHeavy') {
+      const ep = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.012, 0.03), mat(0x050505, { roughness: 0.9 })); ep.position.set(th / 2 - 0.001, 0.05, -0.04); g.add(ep);
+      const br = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.009, 0.026), M.brass()); br.position.set(th / 2 - 0.0005, 0.049, -0.04); g.add(br); // barrel hood
+      const ham = prof(g, [[-0.045, 0.03], [-0.035, 0.03], [-0.04, 0.055], [-0.052, 0.05]], 0.01, M.steel());
+      const ss = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.006, 0.03), M.dark()); ss.position.set(-(th / 2 + 0.0015), 0.016, -0.03); g.add(ss); // slide stop
+      const mr = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.004, 10), M.dark()); mr.rotation.z = Math.PI / 2; mr.position.set(-(th / 2 + 0.002), -0.01, 0.005); g.add(mr);
+      [[-0.07, 1], [-0.07, -1], [-0.03, 1], [-0.03, -1]].forEach(([y, sd]) => screw(g, th + 0.004, -0.025, y, sd));
+    }
+    if (model === 'sniper') {
+      [0.1, 0.25, 0.42].forEach(f => { screw(g, 0.066, f, 0.03, 1); screw(g, 0.066, f, 0.03, -1); });
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.056, 0.16, 0.025), M.rubber()); pad.position.set(0, -0.02, 0.52); g.add(pad);
+      const knob = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 10), M.dark()); knob.position.set(0.075, 0.075, 0.04); g.add(knob);
+      selector(g, 0.06, -0.05, 0.075);
+    }
+    if (model === 'shotgun') {
+      port(g, th, 0.06, 0.17, 0.035, 0.065);
+      const lp = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.004, 0.09), mat(0x050505, { roughness: 0.9 })); lp.position.set(0, -0.001, -0.12); g.add(lp);
+      const sb = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, th + 0.006, 10), M.steel()); sb.rotation.z = Math.PI / 2; sb.position.set(0, 0.0, 0.03); g.add(sb);
+      pin(g, 0.02, 0.05, 0.0035, th + 0.006, M.steel()); pin(g, 0.18, 0.05, 0.0035, th + 0.006, M.steel());
+      [0.25, 0.38].forEach(f => { const ring = new THREE.Mesh(new THREE.TorusGeometry(0.019, 0.003, 6, 16), M.dark()); ring.position.set(0, 0.036, -f - 0.15); g.add(ring); });
+    }
+    magDetail(mag, th - 0.022 > 0.02 ? th - 0.022 : 0.026);
   }
   function gun(model) {
     const g = new THREE.Group(); const muzzle = new THREE.Object3D(); let mag = null;
@@ -258,9 +409,12 @@ BV.Models = (function () {
       }
       default: tube(g, 0.02, 0, 0.3, 0, D); muzzle.position.set(0, 0, -0.3);
     }
+    addKit(model, g, mag);
     mergeTree(g);
     g.add(muzzle);
-    return { group: g, muzzle, mag, magHome: mag ? mag.position.clone() : null };
+    // ejection-port anchor for world-space brass
+    const ej = new THREE.Object3D(); ej.position.set((THICK[model] || 0.04) / 2 + 0.01, 0.045, model === 'pistol' || model === 'pistolHeavy' ? 0.04 : -0.12); g.add(ej);
+    return { group: g, muzzle, mag, magHome: mag ? mag.position.clone() : null, eject: ej };
   }
 
   /* extra detail common to firearms: trigger guard + muzzle device */
@@ -296,12 +450,13 @@ BV.Models = (function () {
       }
       for (const [m, list] of byMat) {
         if (list.length < 2) continue;
-        const pos = [], nor = [], uv = [];
+        const pos = [], nor = [], uv = [], wr = [];
         for (const me of list) {
           me.updateMatrix();
           let gg = me.geometry.clone(); gg.applyMatrix4(me.matrix); if (gg.index) gg = gg.toNonIndexed();
           pos.push(gg.attributes.position.array); nor.push(gg.attributes.normal.array);
           uv.push(gg.attributes.uv ? gg.attributes.uv.array : new Float32Array(gg.attributes.position.count * 2));
+          wr.push(gg.attributes.wear ? gg.attributes.wear.array : new Float32Array(gg.attributes.position.count));
           grp.remove(me);
         }
         const cat = (arrs) => { let n = 0; arrs.forEach(a => n += a.length); const o = new Float32Array(n); let k = 0; arrs.forEach(a => { o.set(a, k); k += a.length; }); return o; };
@@ -309,6 +464,7 @@ BV.Models = (function () {
         geo.setAttribute('position', new THREE.BufferAttribute(cat(pos), 3));
         geo.setAttribute('normal', new THREE.BufferAttribute(cat(nor), 3));
         geo.setAttribute('uv', new THREE.BufferAttribute(cat(uv), 2));
+        if (m.userData.wear) geo.setAttribute('wear', new THREE.BufferAttribute(cat(wr), 1));
         geo.computeBoundingSphere();
         const mm = new THREE.Mesh(geo, m); mm.castShadow = true; mm.receiveShadow = true; grp.add(mm);
       }
@@ -324,7 +480,9 @@ BV.Models = (function () {
     const mats = [];
     const m = (o) => { const mm = S(Object.assign({ roughness: 0.85, metalness: 0 }, o)); mm.userData.base = mm.color.clone(); mats.push(mm); return mm; };
     const fab = fabric(T.uniform, V ? 'digital' : 'blot');
-    const mU = m({ map: fab }), mUd = m({ map: fab, color: 0xb0b0b0 });
+    const weave = stippleNormal();
+    const mU = m({ map: fab, normalMap: weave, normalScale: new THREE.Vector2(0.25, 0.25) }), mUd = m({ map: fab, color: 0xb0b0b0, normalMap: weave, normalScale: new THREE.Vector2(0.25, 0.25) });
+    const mRub = m({ color: 0x1b1b1a, roughness: 0.95 });
     const mV = m({ map: wearTex(T.vest), roughness: 0.75 }), mA = m({ color: T.accent, roughness: 0.6 });
     const mSkin = m({ map: faceTex(T.skin, V ? 'face' : 'mask'), roughness: 0.65 });
     const mSkinPlain = m({ color: T.skin, roughness: 0.65 });
@@ -338,7 +496,8 @@ BV.Models = (function () {
       const knee = new THREE.Group(); knee.position.set(0, -0.47, 0); p.add(knee);
       part(knee, geo.sph(0.07, 10, 8), mU, 0, 0, 0);
       part(knee, geo.cyl(0.068, 0.054, 0.4, 10), mUd, 0, -0.2, 0);
-      if (V) part(knee, geo.sph(0.066, 10, 6), mV, 0, 0.0, -0.05, 1, 1.1, 0.6);
+      part(knee, geo.sph(0.066, 10, 6), V ? mV : mRub, 0, 0.0, -0.05, 1, 1.1, 0.6);           // knee pads
+      part(knee, new THREE.BoxGeometry(0.13, 0.03, 0.03), mStrap, 0, 0.04, -0.01);
       const boot = new THREE.Group(); boot.position.set(0, -0.4, 0); knee.add(boot);
       part(boot, new THREE.BoxGeometry(0.12, 0.13, 0.2), mBoot, 0, -0.01, 0.01);
       part(boot, geo.sph(0.07, 10, 6), mBoot, 0, -0.03, -0.1, 0.9, 0.7, 1.1);
@@ -372,6 +531,13 @@ BV.Models = (function () {
       const roll = part(torso, geo.cyl(0.06, 0.06, 0.32, 10), mStrap, 0, 0.64, 0.17); roll.rotation.z = Math.PI / 2;
       part(torso, geo.cyl(0.006, 0.006, 0.34, 4), mStrap, -0.1, 0.72, 0.2);                   // antenna
     }
+    // belt kit: holster on the right, dump pouch on the left, IFAK at the back
+    part(torso, new THREE.BoxGeometry(0.05, 0.16, 0.1), mStrap, 0.19, -0.02, -0.02);
+    part(torso, new THREE.BoxGeometry(0.035, 0.1, 0.06), mRub, 0.205, -0.03, -0.03);
+    part(torso, geo.cyl(0.06, 0.05, 0.14, 10), mV, -0.19, 0.04, 0.03);
+    part(torso, new THREE.BoxGeometry(0.14, 0.09, 0.06), m({ color: V ? 0x7a2a22 : 0x3a3a34, roughness: 0.8 }), 0, 0.12, 0.16);
+    if (V) { for (const sx of [-1, 1]) part(torso, geo.cap(0.1, Math.PI * 0.45), mV, sx * 0.21, 0.56, 0, 1, 0.7, 1); }       // shoulder pads
+    else { const sc = part(torso, new THREE.TorusGeometry(0.075, 0.03, 8, 16), m({ map: fabric(0x5a4a38, 'blot'), roughness: 0.95 }), 0, 0.62, 0); sc.rotation.x = Math.PI / 2; } // shemagh
     part(torso, geo.cyl(0.055, 0.062, 0.1, 10), mSkinPlain, 0, 0.64, 0);                      // neck
     const head = new THREE.Group(); head.position.set(0, 0.66, 0); torso.add(head);
     const hs = part(head, geo.sph(0.112, 18, 14), mSkin, 0, 0.13, 0, 0.92, 1.06, 1.0); hs.rotation.y = 0;
@@ -393,6 +559,7 @@ BV.Models = (function () {
       part(a, geo.cyl(0.062, 0.052, 0.29, 10), mU, 0, -0.14, 0);
       const f = new THREE.Group(); f.position.set(0, -0.28, 0); a.add(f);
       part(f, geo.sph(0.054, 10, 8), mU, 0, 0, 0);
+      part(f, geo.sph(0.05, 8, 6), mRub, 0, 0, 0.03, 1, 1, 0.6);                               // elbow pad
       part(f, geo.cyl(0.052, 0.042, 0.26, 10), mUd, 0, -0.13, 0);
       part(f, geo.sph(0.048, 10, 8), mGlove, 0, -0.29, -0.01, 0.85, 1.15, 1.1);
       return { a, f };
@@ -420,28 +587,54 @@ BV.Models = (function () {
         currentGun.group.scale.set(s, s, s);
         if (def.cls === 'pistol' || def.cls === 'melee' || def.cls === 'grenade') { gunHolder.position.set(0.1, 0.33, -0.42); armL.rotation.set(-1.3, 0, -0.35); }
         else { gunHolder.position.set(0.1, 0.3, -0.3); armL.rotation.set(-1.1, 0, -0.5); }
+        api.armLBase = armL.rotation.x; api.switchT = 0.4;
         currentGun.group.traverse(o => { if (o.isMesh) o.castShadow = false; });
         gunHolder.add(currentGun.group);
-        api.flashAnchor = currentGun.muzzle;
+        api.flashAnchor = currentGun.muzzle; api.ejectAnchor = currentGun.eject;
       },
+      armLBase: -1.1, flinchT: 0, sprintK: 0, relPh: 0, switchT: 0, deathV: 0, state: null,
+      flinch() { api.flinchT = 0.28; api.flinchDir = Math.random() < 0.5 ? -1 : 1; },
       animate(dt, speed, crouch, pitch, phase, firing) {
-        const k = Math.min(1, speed / 4);
-        const sw = Math.sin(phase) * 0.55 * k;
+        const st = api.state || {};
+        const k = Math.min(1, speed / 4), run = st.sprint ? 1.35 : 1;
+        const sw = Math.sin(phase) * 0.55 * k * run;
         L.hip.rotation.x = sw - crouch * 1.1; R.hip.rotation.x = -sw - crouch * 1.1;
-        L.knee.rotation.x = Math.max(0, -Math.sin(phase)) * 0.7 * k + crouch * 1.9;
-        R.knee.rotation.x = Math.max(0, Math.sin(phase)) * 0.7 * k + crouch * 1.9;
-        body.position.y = -crouch * 0.42 + Math.abs(Math.cos(phase)) * 0.03 * k;
-        torso.rotation.x = -pitch * 0.45 + crouch * 0.15;
-        torso.rotation.y = Math.sin(phase) * 0.06 * k;
-        head.rotation.x = -pitch * 0.4;
-        armR.rotation.x = -0.6 - pitch * 0.4 + (firing ? 0.06 : 0);
+        L.knee.rotation.x = Math.max(0, -Math.sin(phase)) * 0.75 * k * run + crouch * 1.9;
+        R.knee.rotation.x = Math.max(0, Math.sin(phase)) * 0.75 * k * run + crouch * 1.9;
+        body.position.y = -crouch * 0.42 + Math.abs(Math.cos(phase)) * 0.035 * k * run;
+        body.rotation.z = Math.sin(phase) * 0.025 * k;
+        api.sprintK += ((st.sprint ? 1 : 0) - api.sprintK) * Math.min(1, dt * 7);
+        const sk = api.sprintK;
+        torso.rotation.x = -pitch * 0.45 * (1 - sk) + crouch * 0.15 + sk * 0.22;
+        torso.rotation.y = Math.sin(phase) * 0.07 * k;
+        head.rotation.x = -pitch * 0.4 * (1 - sk) - sk * 0.15;
+        head.rotation.y = -torso.rotation.y * 0.8;
+        armR.rotation.x = -0.6 - pitch * 0.4 * (1 - sk) + (firing ? 0.07 : 0) + sk * 0.55;
+        gunHolder.rotation.x = sk * 0.7; gunHolder.rotation.y = sk * 0.5;
+        armL.rotation.x = api.armLBase + sk * 0.5;
+        // reload: off hand dips to the vest and back, gun cants
+        if (st.reloading) { api.relPh += dt * 4.2; const r = Math.sin(api.relPh); armL.rotation.x = api.armLBase + 0.6 + r * 0.45; gunHolder.rotation.z = 0.45; torso.rotation.x += 0.08; }
+        else { api.relPh = 0; gunHolder.rotation.z *= 0.8; }
+        // weapon switch dip
+        if (api.switchT > 0) { api.switchT -= dt; const d = Math.sin(api.switchT / 0.4 * Math.PI); gunHolder.rotation.x += d * 0.9; armR.rotation.x += d * 0.4; }
+        // hit flinch
+        if (api.flinchT > 0) { api.flinchT -= dt; const f = Math.sin(api.flinchT / 0.28 * Math.PI); torso.rotation.x -= f * 0.22; torso.rotation.z = f * 0.12 * api.flinchDir; head.rotation.x -= f * 0.3; } else torso.rotation.z = 0;
       },
       die(t) {
-        const e = 1 - Math.pow(1 - Math.min(1, t), 3);
-        body.rotation.x = -e * 1.48; body.position.y = -e * 0.12;
+        const e = 1 - Math.pow(1 - Math.min(1, t), 3), buckle = Math.min(1, t * 3);
+        L.knee.rotation.x = R.knee.rotation.x = buckle * 1.2 * (1 - e * 0.6);
+        L.hip.rotation.x = R.hip.rotation.x = -buckle * 0.5 * (1 - e * 0.5);
+        torso.rotation.x = api.deathV === 1 ? 0.5 * buckle : -0.3 * buckle; head.rotation.x = api.deathV === 1 ? 0.6 : -0.5 * e;
+        if (api.deathV === 0) { body.rotation.x = -e * 1.48; body.position.y = -e * 0.12; }
+        else if (api.deathV === 1) { body.rotation.x = e * 1.45; body.position.y = -e * 0.1; armR.rotation.x = -2.6 * e; armL.rotation.x = -2.4 * e; }
+        else { body.rotation.z = e * 1.42 * api.deathSide; body.position.y = -e * 0.15; armL.rotation.z = -1.2 * e; }
         shadow.scale.set(1 + e * 0.6, 1 + e * 1.4, 1);
       },
-      reset() { body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); shadow.scale.set(1, 1, 1); },
+      reset() {
+        body.rotation.set(0, 0, 0); body.position.set(0, 0, 0); shadow.scale.set(1, 1, 1); torso.rotation.set(0, 0, 0); head.rotation.set(0, 0, 0);
+        armL.rotation.z = currentGun && api.armLBase ? armL.rotation.z : armL.rotation.z;
+        api.deathV = Math.floor(Math.random() * 3); api.deathSide = Math.random() < 0.5 ? -1 : 1; api.flinchT = 0;
+      },
       shade: 1,
       setShade(k) {
         if (Math.abs(k - api.shade) < 0.01) return; api.shade = k;

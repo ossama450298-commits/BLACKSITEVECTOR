@@ -326,6 +326,8 @@ BV.Map = (function () {
   const METAL = { metal: 0.45, roof: 0.35, container: 0.3, trim: 0.35, glass: 0.2, window: 0.3, door: 0.3 };
   const NORMAL_STR = { brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
 
+  const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0 };
+
   const FACES = {
     px: { n: [1, 0, 0], o: (a, b) => [b[0], a[1], b[2]], u: (a, b) => [0, 0, -(b[2] - a[2])], v: (a, b) => [0, b[1] - a[1], 0], uc: 2, us: -1, vc: 1 },
     nx: { n: [-1, 0, 0], o: (a) => [a[0], a[1], a[2]], u: (a, b) => [0, 0, b[2] - a[2]], v: (a, b) => [0, b[1] - a[1], 0], uc: 2, us: 1, vc: 1 },
@@ -382,7 +384,8 @@ BV.Map = (function () {
       const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
         map: BV.Textures.make(mat), vertexColors: true,
         normalMap: ns ? BV.Textures.normal(mat, ns) : null, normalScale: new THREE.Vector2(1, 1),
-        roughness: ROUGH[mat] !== undefined ? ROUGH[mat] : 0.92, metalness: METAL[mat] || 0, envMapIntensity: 0.55
+        roughnessMap: NO_RMAP[mat] ? null : BV.Textures.roughness(mat, ROUGH[mat] !== undefined ? ROUGH[mat] : 0.92, 0.7),
+        roughness: NO_RMAP[mat] ? (ROUGH[mat] !== undefined ? ROUGH[mat] : 0.92) : 1, metalness: METAL[mat] || 0, envMapIntensity: 0.6
       }));
       m.castShadow = true; m.receiveShadow = true;
       m.matrixAutoUpdate = false; m.updateMatrix();
@@ -411,8 +414,10 @@ BV.Map = (function () {
       mesh.castShadow = true; mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false; mesh.updateMatrix(); mesh.updateMatrixWorld(true); scene.add(mesh);
     }
-    buildProps(scene);
-    buildAtmosphere(scene);
+    let t1 = performance.now();
+    buildProps(scene); BV.timings.props1 = performance.now() - t1; t1 = performance.now();
+    buildAtmosphere(scene); BV.timings.atmos = performance.now() - t1; t1 = performance.now();
+    BV.Props.build(scene, boxes, isIndoor); BV.timings.props2 = performance.now() - t1;
     // lamp fixtures + glow sprites
     const glowMat = new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xffc070, transparent: true, opacity: 0.45, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: true });
     const glowMatCool = glowMat.clone(); glowMatCool.color = new THREE.Color(0x9cc4ff);
@@ -729,11 +734,13 @@ BV.Map = (function () {
   function build(scene) {
     if (!built) { define(); built = true; }
     BV.Physics.setBoxes(boxes);
-    buildGeometry(scene);
+    const T = (BV.timings = BV.timings || {}); let t0 = performance.now();
+    buildGeometry(scene); T.geometry = performance.now() - t0; t0 = performance.now();
     buildSky(scene);
-    if (!data.nodes) buildGraph();
+    if (!data.nodes) buildGraph(); T.graph = performance.now() - t0;
     return data;
   }
 
+  data.lamps = lamps;
   return { build, data, findPath, nearestNode, siteAt, nearestSite, zoneName, isIndoor, get boxes() { return boxes; } };
 })();

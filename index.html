@@ -18,7 +18,7 @@
 <!-- ============================ HUD ============================ -->
 <div id="hud" class="hidden">
   <div id="flash-dmg"></div><div id="flash-white"></div>
-  <div id="scope" class="hidden"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="scope"><div class="scope-lens"></div><svg class="reticle ret-sniper" viewBox="-100 -100 200 200"><g stroke="#050505" stroke-width="0.6" fill="none"><line x1="-100" y1="0" x2="-6" y2="0"/><line x1="6" y1="0" x2="100" y2="0"/><line x1="0" y1="-100" x2="0" y2="-6"/><line x1="0" y1="6" x2="0" y2="100"/><line x1="-100" y1="0" x2="-55" y2="0" stroke-width="2.6"/><line x1="55" y1="0" x2="100" y2="0" stroke-width="2.6"/><line x1="0" y1="55" x2="0" y2="100" stroke-width="2.6"/></g><g fill="#050505"><circle cx="-12" cy="0" r="0.9"/><circle cx="-24" cy="0" r="0.9"/><circle cx="-36" cy="0" r="0.9"/><circle cx="12" cy="0" r="0.9"/><circle cx="24" cy="0" r="0.9"/><circle cx="36" cy="0" r="0.9"/><circle cx="0" cy="12" r="0.9"/><circle cx="0" cy="24" r="0.9"/><circle cx="0" cy="36" r="0.9"/><circle cx="0" cy="-12" r="0.9"/><circle cx="0" cy="-24" r="0.9"/></g><circle cx="0" cy="0" r="0.7" fill="#d23a1c"/></svg><svg class="reticle ret-dmr" viewBox="-100 -100 200 200"><g stroke="#070707" stroke-width="0.8" fill="none"><path d="M-7 6 L0 0 L7 6"/><line x1="0" y1="8" x2="0" y2="100"/><line x1="-100" y1="0" x2="-14" y2="0"/><line x1="14" y1="0" x2="100" y2="0"/><line x1="-4" y1="16" x2="4" y2="16"/><line x1="-3" y1="26" x2="3" y2="26"/><line x1="-2" y1="36" x2="2" y2="36"/></g><circle cx="0" cy="0" r="38" stroke="rgba(0,0,0,0.35)" stroke-width="0.6" fill="none"/></svg></div>
   <div id="crosshair"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><i class="ch-dot"></i></div>
   <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
   <div id="dmg-ind"></div>
@@ -71,6 +71,7 @@
     <header class="brand">
       <div class="brand-title">BLACKSITE<span>:</span> VECTOR</div>
       <div class="brand-sub">Vanguard versus Raven · Sector&#8209;17 freight compound</div>
+      <div class="brand-status"><span class="dot"></span><span id="status-line">Uplink established · Sector-17 · dusk, wind 12 km/h NW</span></div>
     </header>
 
     <section class="panel" id="p-main">
@@ -97,7 +98,7 @@
       <h3>Settings</h3>
       <div class="tabs"><button class="tab on" data-tab="t-gfx">Graphics</button><button class="tab" data-tab="t-aud">Audio</button><button class="tab" data-tab="t-ctl">Controls</button></div>
       <div class="tabpane" id="t-gfx">
-        <div class="opt"><label>Render quality</label><div class="seg" data-set="quality"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button></div></div>
+        <div class="opt"><label>Render quality</label><div class="seg" data-set="quality"><button data-v="low">Low</button><button data-v="medium">Medium</button><button data-v="high">High</button><button data-v="ultra">Ultra</button></div><small class="hint">Texture resolution changes after reloading the page</small></div>
         <div class="opt"><label>Field of view <b id="v-fov"></b></label><input type="range" min="70" max="105" step="1" data-set="fov"></div>
         <div class="opt"><label>Retro pixel filtering</label><div class="seg" data-set="retroFilter"><button data-v="false">Off</button><button data-v="true">On</button></div></div>
         <div class="opt"><label>Particle effects</label><div class="seg" data-set="effects"><button data-v="true">Full</button><button data-v="false">Reduced</button></div></div>
@@ -119,6 +120,7 @@
           <tr><td>R</td><td>Reload</td><td>1 2 3 4 / wheel / Q</td><td>Weapons / last weapon</td></tr>
           <tr><td>E (hold)</td><td>Arm / disarm charge</td><td>B</td><td>Buy menu</td></tr>
           <tr><td>Tab</td><td>Scoreboard</td><td>Esc</td><td>Pause menu</td></tr>
+          <tr><td>F</td><td>Inspect weapon</td><td></td><td></td></tr>
         </table>
       </div>
       <div class="row"><button class="btn ghost" data-act="settings-back">Back</button></div>
@@ -172,6 +174,7 @@
 <script src="js/physics.js"></script>
 <script src="js/map.js"></script>
 <script src="js/models.js"></script>
+<script src="js/props.js"></script>
 <script src="js/effects.js"></script>
 <script src="js/combatant.js"></script>
 <script src="js/bot.js"></script>

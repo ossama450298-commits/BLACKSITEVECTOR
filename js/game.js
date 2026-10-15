@@ -278,8 +278,17 @@ BV.Game = class {
       this.engine.onPlayerShot(def);
     } else if (c.model.flashAnchor) {
       c.model.root.updateMatrixWorld(true);
-      c.model.flashAnchor.getWorldPosition(this.T3); BV.Effects.muzzle(this.T3);
-      if (c.pos.distanceTo(this.player.pos) < 45) this.engine.flashLight(this.T3, 0.7);
+      c.model.flashAnchor.getWorldPosition(this.T3); BV.Effects.muzzle(this.T3, def.cls === 'pistol' ? 0.35 : def.cls === 'smg' ? 0.42 : 0.6);
+      const near = c.pos.distanceTo(this.player.pos);
+      if (near < 45) this.engine.flashLight(this.T3, 0.7);
+      if (near < 30) {
+        BV.Effects.puff(this.T3.x, this.T3.y, this.T3.z, 0.2, 0.7, 0.22, 0xb0aca2);
+        if (c.model.ejectAnchor && def.cls !== 'shotgun') {
+          c.model.ejectAnchor.getWorldPosition(this.T4);
+          const rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
+          BV.Effects.ejectShell(this.T4, new THREE.Vector3(rx * 2 + (Math.random() - 0.5), 1.6 + Math.random(), rz * 2 + (Math.random() - 0.5)), def.cls);
+        }
+      }
     }
     BV.Audio.shot(def, c.isPlayer ? null : c.pos);
     this.emitNoise(c.pos, 50, c);
@@ -313,10 +322,9 @@ BV.Game = class {
       if (primary) BV.Audio.impact(end, 'flesh');
       this.damage(hitE, dmg, c, def, hitPart, dir);
     } else if (world) {
-      const m = world.box.mat;
-      const kind = (m === 'metal' || m === 'container' || m === 'car' || m === 'car2' || m === 'barrel' || m === 'roof' || m === 'hazard') ? 'metal' : 'wall';
+      const kind = this.surfaceKind(world);
       BV.Effects.impact(world.point, world.normal, kind);
-      if (primary) BV.Audio.impact(world.point, kind);
+      if (primary) BV.Audio.impact(world.point, kind === 'metal' ? 'metal' : 'wall');
     }
     // near-miss: bullets passing close to a bot alert it
     for (const e of this.ents) {
@@ -332,6 +340,16 @@ BV.Game = class {
     }
   }
 
+  /* which impact effect a surface produces */
+  surfaceKind(hit) {
+    const m = hit.box.mat;
+    if (m === 'ground') { const x = hit.point.x; return x < -40 ? 'dirt' : 'wall'; }
+    if (m === 'metal' || m === 'container' || m === 'car' || m === 'car2' || m === 'barrel' || m === 'roof' || m === 'hazard' || m === 'trim' || m === 'door') return 'metal';
+    if (m === 'crate' || m === 'crateMil') return 'wood';
+    if (m === 'dirt' || m === 'sandbag') return 'dirt';
+    if (m === 'glass' || m === 'window') return 'glass';
+    return 'wall';
+  }
   melee(c) {
     const def = c.weapon.def; c.nextFire = this.time + def.rate;
     BV.Audio.knife(c.isPlayer ? null : c.pos);
@@ -424,6 +442,7 @@ BV.Game = class {
     }
     dmg = Math.max(1, Math.round(dmg));
     t.hp -= dmg; t.lastAttacker = attacker; t.lastHitTime = this.time;
+    if (t.model && t.model.flinch && t.hp > 0) t.model.flinch();
     if (t.isBot) t.onDamaged(attacker);
     if (t.isPlayer) {
       BV.Audio.hurt(); BV.Effects.flashScreen(0.25 + Math.min(0.4, dmg / 120));
@@ -687,6 +706,7 @@ BV.Game = class {
       const sp = Math.hypot(e.vel.x, e.vel.z);
       if (e.alive) {
         e.walkPhase += sp * dt * 2.1;
+        m.state = m.state || {}; m.state.sprint = e.sprint && sp > 4; m.state.reloading = e.reloading;
         m.animate(dt, sp, e.crouch, e.pitch, e.walkPhase, this.time - e.lastShot < 0.08);
         m.root.visible = !e.isPlayer || (this.engine.thirdPerson === true);
       } else {

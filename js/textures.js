@@ -164,22 +164,133 @@ BV.Textures = (function () {
 
   /* Paint at a logical 128 px layout on a 2x canvas (256 px) for crisper
      detail, add per-pixel grain, then derive a normal map from luminance. */
-  const SCALE = 2;
+  // world surfaces are painted at 4x (512 px) for HIGH/ULTRA, 2x otherwise
+  const SCALE = (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 4 : 2;
   const imgData = {};
   function make(name, opts) {
     if (cache[name]) return cache[name];
+    const _t = performance.now(); try { return make2(name, opts); } finally { BV.timings = BV.timings || {}; BV.timings.tex = (BV.timings.tex || 0) + performance.now() - _t; }
+  }
+  function make2(name, opts) {
     const L = (opts && opts.size) || 128, LH = (opts && opts.h) || L;
-    const c = canvas(L * SCALE, LH * SCALE);
-    const g = c.getContext('2d');
-    g.save(); g.scale(SCALE, SCALE);
+    const sc = name === 'sky' ? 2 : SCALE;
+    const c = canvas(L * sc, LH * sc);
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.save(); g.scale(sc, sc);
     painters[name](g, L, LH, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31));
     g.restore();
-    if (name !== 'sky') grain(g, c.width, c.height, name);
+    if (name !== 'sky') { weather(g, c.width, c.height, name, sc); grain(g, c.width, c.height, name); }
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.encoding = THREE.sRGBEncoding;
     applyFilter(t);
     cache[name] = t; all.push(t);
+    return t;
+  }
+  /* ---------- full-resolution weathering layers, per material ---------- */
+  function crack(g, x, y, len, r, col, wdt) {
+    g.strokeStyle = col; g.lineWidth = wdt; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(x, y);
+    let a = r() * Math.PI * 2;
+    for (let i = 0; i < len; i++) {
+      a += (r() - 0.5) * 0.9; x += Math.cos(a) * 6; y += Math.sin(a) * 6; g.lineTo(x, y);
+      if (r() < 0.12) { const sx = x, sy = y; g.moveTo(sx, sy); let b = a + (r() - 0.5) * 2; for (let k = 0; k < 4; k++) { b += (r() - 0.5); g.lineTo(sx + Math.cos(b) * 6 * (k + 1), sy + Math.sin(b) * 6 * (k + 1)); } g.moveTo(x, y); }
+    }
+    g.stroke();
+  }
+  function stain(g, w, h, r, col, n, rmax) {
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h, rad = rmax * (0.3 + r() * 0.7);
+      const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.save(); g.translate(x, y); g.scale(1, 0.5 + r()); g.translate(-x, -y); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); g.restore();
+    }
+  }
+  function drips(g, w, h, r, col, n) {
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y0 = r() * h * 0.4, len = h * (0.2 + r() * 0.6);
+      const gr = g.createLinearGradient(0, y0, 0, y0 + len); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(x, y0, 1 + r() * 3, len);
+    }
+  }
+  function pebbles(g, w, h, r, n, s) {
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h, rad = (0.6 + r() * 1.8) * s, v = 70 + r() * 90;
+      g.fillStyle = `rgba(${v | 0},${v * 0.96 | 0},${v * 0.9 | 0},0.85)`; g.beginPath(); g.ellipse(x, y, rad, rad * (0.6 + r() * 0.4), r() * 3, 0, 7); g.fill();
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.ellipse(x + rad * 0.3, y + rad * 0.4, rad, rad * 0.5, 0, 0, 7); g.fill();
+    }
+  }
+  function peel(g, w, h, r, under, n, s) {
+    for (let i = 0; i < n; i++) {
+      const x = r() * w, y = r() * h; g.fillStyle = under; g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 9; k++) g.lineTo(x + (r() - 0.5) * 26 * s, y + (r() - 0.5) * 18 * s); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = s * 0.7; g.stroke();
+    }
+  }
+  function weather(g, w, h, name, s) {
+    const r = BV.U.rng(name.length * 389 + 17);
+    switch (name) {
+      case 'concrete': case 'concreteDark':
+        stain(g, w, h, r, 'rgba(40,38,30,0.18)', 8, w * 0.22);           // damp patches
+        stain(g, w, h, r, 'rgba(210,205,190,0.10)', 6, w * 0.18);        // dry dust
+        for (let i = 0; i < 4; i++) crack(g, r() * w, r() * h, 10 + r() * 16, r, 'rgba(25,24,20,0.55)', 0.6 * s);
+        pebbles(g, w, h, r, 90, s * 0.6);
+        drips(g, w, h, r, 'rgba(30,28,22,0.18)', 10);
+        for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(30,30,28,0.35)'; g.beginPath(); g.arc(r() * w, r() * h, (0.5 + r()) * s, 0, 7); g.fill(); } // air pockets
+        break;
+      case 'brick':
+        drips(g, w, h, r, 'rgba(240,235,220,0.10)', 14);                  // efflorescence
+        stain(g, w, h, r, 'rgba(20,15,10,0.22)', 6, w * 0.2);
+        for (let i = 0; i < 18; i++) { g.fillStyle = 'rgba(60,40,30,0.5)'; const x = r() * w, y = r() * h; g.fillRect(x, y, (2 + r() * 6) * s, (1 + r() * 2) * s); } // chips
+        break;
+      case 'plaster':
+        peel(g, w, h, r, 'rgba(120,110,95,0.55)', 6, s);
+        drips(g, w, h, r, 'rgba(70,58,40,0.22)', 18);
+        for (let i = 0; i < 3; i++) crack(g, r() * w, r() * h, 12, r, 'rgba(50,40,30,0.6)', 0.5 * s);
+        break;
+      case 'metal': case 'roof': case 'container': case 'door':
+        drips(g, w, h, r, 'rgba(120,60,25,0.32)', name === 'container' ? 26 : 16);   // rust streaks
+        stain(g, w, h, r, 'rgba(110,55,22,0.28)', 7, w * 0.08);
+        peel(g, w, h, r, 'rgba(95,90,82,0.55)', name === 'roof' ? 3 : 7, s * 0.6);     // chipped paint -> bare metal
+        for (let i = 0; i < 60; i++) { g.strokeStyle = 'rgba(210,210,200,0.10)'; g.lineWidth = 0.4 * s; const x = r() * w, y = r() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 30 * s, y + (r() - 0.5) * 6 * s); g.stroke(); } // scratches
+        for (let i = 0; i < 12; i++) { g.fillStyle = 'rgba(40,40,38,0.8)'; const x = r() * w, y = r() * h; g.beginPath(); g.arc(x, y, 1.2 * s, 0, 7); g.fill(); g.fillStyle = 'rgba(200,200,190,0.25)'; g.beginPath(); g.arc(x - 0.4 * s, y - 0.4 * s, 0.6 * s, 0, 7); g.fill(); } // rivets
+        break;
+      case 'asphalt':
+        pebbles(g, w, h, r, 260, s * 0.45);
+        stain(g, w, h, r, 'rgba(8,8,10,0.45)', 5, w * 0.12);                          // oil
+        for (let i = 0; i < 3; i++) crack(g, r() * w, r() * h, 18, r, 'rgba(10,10,10,0.7)', 0.8 * s);
+        g.fillStyle = 'rgba(15,15,15,0.12)'; for (let t = 0; t < 2; t++) { const x = r() * w; g.fillRect(x, 0, 9 * s, h); g.fillRect(x + 22 * s, 0, 9 * s, h); } // tyre marks
+        stain(g, w, h, r, 'rgba(180,170,150,0.08)', 6, w * 0.25);                     // dust
+        break;
+      case 'dirt':
+        pebbles(g, w, h, r, 220, s * 0.8);
+        stain(g, w, h, r, 'rgba(50,40,25,0.25)', 10, w * 0.15);
+        stain(g, w, h, r, 'rgba(160,145,110,0.18)', 8, w * 0.2);
+        for (let i = 0; i < 4; i++) { g.strokeStyle = 'rgba(40,32,22,0.25)'; g.lineWidth = 6 * s; g.beginPath(); const y = r() * h; g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 20, w * 0.6, y - 20, w, y + (r() - 0.5) * 30); g.stroke(); } // ruts
+        break;
+      case 'tile':
+        stain(g, w, h, r, 'rgba(30,28,20,0.3)', 8, w * 0.12);
+        for (let i = 0; i < 5; i++) crack(g, r() * w, r() * h, 6, r, 'rgba(20,20,20,0.6)', 0.5 * s);
+        break;
+      case 'crate': case 'crateMil':
+        for (let i = 0; i < 24; i++) { g.fillStyle = 'rgba(30,20,10,0.35)'; g.beginPath(); g.ellipse(r() * w, r() * h, (2 + r() * 3) * s, (0.8 + r()) * s, 0, 0, 7); g.fill(); } // knots / dents
+        drips(g, w, h, r, 'rgba(30,25,15,0.2)', 8);
+        for (let i = 0; i < 30; i++) { g.strokeStyle = 'rgba(230,210,170,0.15)'; g.lineWidth = 0.5 * s; const x = r() * w, y = r() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 20 * s, y + (r() - 0.5) * 4 * s); g.stroke(); }
+        break;
+    }
+  }
+  /* roughness map: base roughness modulated by local luminance (dirt rougher, polish smoother) */
+  function roughness(name, base, k) {
+    const key = 'r_' + name; if (cache[key]) return cache[key];
+    make(name); const src = imgData[name]; if (!src) return null;
+    const { d, w, h } = src;
+    const c = canvas(w, h), g = c.getContext('2d'), out = g.createImageData(w, h), o = out.data;
+    for (let i = 0; i < w * h; i++) {
+      const l = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) / 255;
+      const v = Math.max(0, Math.min(1, base + (0.5 - l) * k)) * 255;
+      o[i * 4] = o[i * 4 + 1] = o[i * 4 + 2] = v; o[i * 4 + 3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; applyFilter(t); cache[key] = t; all.push(t);
     return t;
   }
   function grain(g, w, h, name) {
@@ -196,6 +307,9 @@ BV.Textures = (function () {
   function normal(name, strength) {
     const key = 'n_' + name;
     if (cache[key]) return cache[key];
+    const _t = performance.now(); try { return normal2(name, strength, key); } finally { BV.timings.texN = (BV.timings.texN || 0) + performance.now() - _t; }
+  }
+  function normal2(name, strength, key) {
     make(name);
     const src = imgData[name]; if (!src) return null;
     const { d, w, h } = src, k = strength || 2;
@@ -311,5 +425,5 @@ BV.Textures = (function () {
     const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; return t;
   }
 
-  return { make, normal, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
+  return { make, normal, roughness, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
 })();
