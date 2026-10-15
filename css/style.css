@@ -196,3 +196,44 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 
 @media (max-width: 760px) { #buy-grid { grid-template-columns: repeat(3, 1fr); } .menu-frame { left: 5vw; top: 5vh; } }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover { transform: none; } #hud-timer.planted { animation: none; } }
+
+/* =====================================================================
+   CLASSIC THEME — early-2000s PC shooter interface (VGUI-like):
+   flat dark panels, thin borders, translucent amber HUD numerals.
+   ===================================================================== */
+body.classic { --hud-font: "Trebuchet MS", Verdana, Tahoma, Arial, sans-serif; --amber: #d9a441; }
+body.classic #menu { background: linear-gradient(90deg, rgba(8,9,7,0.9) 0%, rgba(8,9,7,0.6) 40%, rgba(8,9,7,0.15) 80%); }
+body.classic #menu::after, body.classic .brand-title { animation: none; }
+body.classic .brand-title { text-shadow: 2px 2px 0 #000; letter-spacing: 0.02em; }
+body.classic #menu .panel { background: rgba(28,30,26,0.93); backdrop-filter: none; border: 1px solid #5d6052; border-top: 1px solid #8a8c7c; box-shadow: 2px 2px 0 rgba(0,0,0,0.6); }
+body.classic #menu .panel::before { display: none; }
+body.classic .panel h3 { font-family: var(--hud-font); font-weight: bold; font-size: 20px; color: #e8dfbf; }
+body.classic .btn { font-family: var(--hud-font); font-size: 16px; font-weight: bold; background: #3a3d34; border: 1px solid #5f6255; border-left: 1px solid #5f6255; color: #e3d9b8; transition: none; padding: 7px 12px; }
+body.classic .btn:hover { background: #4f5345; transform: none; box-shadow: none; color: #fff2c8; border-color: #8a8c7c; }
+body.classic .btn.primary { background: #6b5a2a; color: #fff2c8; border-color: #a38a46; }
+body.classic .btn.primary:hover { background: #7e6a32; }
+body.classic .btn.ghost { background: #2c2e28; }
+body.classic .seg { border-color: #5f6255; } body.classic .seg button { font-family: var(--hud-font); background: #2e3029; }
+body.classic .seg button.on { background: #6b5a2a; color: #fff2c8; }
+body.classic .group-label { color: #b9a46a; }
+/* HUD: CS-era translucent amber numerals, no glass panels */
+body.classic .vital, body.classic #hud-ammo { background: none; border: 0; backdrop-filter: none; clip-path: none; padding: 0 4px; box-shadow: none; }
+body.classic .vital span:nth-child(2), body.classic #ammo-mag { color: rgba(255,190,70,0.88); text-shadow: 1px 1px 0 rgba(0,0,0,0.6); font-family: var(--hud-font); }
+body.classic .vital span:nth-child(2) { font-size: 34px; }
+body.classic #ammo-mag { font-size: 38px; } body.classic #ammo-res { color: rgba(255,190,70,0.7); font-size: 22px; }
+body.classic .vbar { display: none; }
+body.classic .ico-hp { background: linear-gradient(rgba(255,190,70,0.85), rgba(255,190,70,0.85)) center/20px 7px no-repeat, linear-gradient(rgba(255,190,70,0.85), rgba(255,190,70,0.85)) center/7px 20px no-repeat; width: 22px; height: 22px; }
+body.classic .ico-ar { background: rgba(255,190,70,0.85); }
+body.classic .vital.low span:nth-child(2) { color: rgba(230,60,30,0.95); }
+body.classic #hud-money { color: rgba(140,220,90,0.9); font-family: var(--hud-font); text-shadow: 1px 1px 0 rgba(0,0,0,0.6); }
+body.classic #hud-wname { color: rgba(255,190,70,0.75); }
+body.classic .tm, body.classic .tm-mid { backdrop-filter: none; background: rgba(0,0,0,0.42); box-shadow: none; }
+body.classic #hud-timer { color: rgba(255,190,70,0.92); font-family: var(--hud-font); }
+body.classic .slot.on { background: rgba(255,190,70,0.85); }
+body.classic #radar { backdrop-filter: none; box-shadow: 0 0 0 1px rgba(255,190,70,0.4); background: rgba(0,0,0,0.45); }
+body.classic .kf { backdrop-filter: none; border-right: 0; background: rgba(0,0,0,0.45); font-family: var(--hud-font); }
+body.classic #crosshair i { background: #50ff50; box-shadow: none; }
+body.classic #center-big { font-family: var(--hud-font); font-weight: bold; font-size: 38px; }
+body.classic #scoreboard, body.classic #buymenu { background: rgba(24,26,22,0.93); border: 1px solid #5d6052; border-top: 1px solid #8a8c7c; }
+body.classic .buy-item { background: #34372f; border-color: #5f6255; }
+body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }

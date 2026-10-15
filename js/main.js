@@ -12,10 +12,12 @@
   };
 
   /* ---------- height fog: ground haze that thickens near the floor ---------- */
+  if (!BV.classic) {
   THREE.ShaderChunk.fog_pars_vertex = '#ifdef USE_FOG\n\tvarying float fogDepth;\n\tvarying float vFogH;\n#endif';
   THREE.ShaderChunk.fog_vertex = '#ifdef USE_FOG\n\tfogDepth = - mvPosition.z;\n\tvFogH = dot( viewMatrix[1].xyz, mvPosition.xyz - viewMatrix[3].xyz );\n#endif';
   THREE.ShaderChunk.fog_pars_fragment = THREE.ShaderChunk.fog_pars_fragment.replace('varying float fogDepth;', 'varying float fogDepth;\n\tvarying float vFogH;');
   THREE.ShaderChunk.fog_fragment = '#ifdef USE_FOG\n\tfloat fogFactor = smoothstep( fogNear, fogFar, fogDepth );\n\tfloat hFog = ( 1.0 - exp( - fogDepth * 0.02 ) ) * exp( - max( vFogH, 0.0 ) * 0.3 ) * 0.42;\n\tfogFactor = clamp( max( fogFactor, hFog ), 0.0, 1.0 );\n\tgl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif';
+  }
 
   /* ---------- renderer & scenes ---------- */
   let renderer;
@@ -28,8 +30,10 @@
   renderer.autoClear = false;
   renderer.setClearColor(0x55534d);
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // classic: plain sRGB output, no filmic tone curve (era-correct direct colour)
+  renderer.toneMapping = BV.classic ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
+  if (BV.classic) document.body.classList.add('classic');
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   E.renderer = renderer;
@@ -38,8 +42,9 @@
   const camera = E.camera = new THREE.PerspectiveCamera(BV.settings.fov, 1, 0.05, 600);
   camera.rotation.order = 'YXZ'; scene.add(camera);
   // lighting: sky/ground ambience + a low dusk sun with soft shadows
-  scene.add(new THREE.HemisphereLight(0xb4c2d2, 0x6a5840, 0.95));
-  const sun = E.sun = new THREE.DirectionalLight(0xffd7a8, 2.6);
+  // classic: these lights only shade models/props (Gouraud); the world uses its baked lightmap
+  scene.add(new THREE.HemisphereLight(0xb4c2d2, 0x6a5840, BV.classic ? 0.75 : 0.95));
+  const sun = E.sun = new THREE.DirectionalLight(0xffd7a8, BV.classic ? 0.85 : 2.6);
   sun.position.set(-70, 28, -35); sun.target.position.set(0, 0, 0); scene.add(sun); scene.add(sun.target);
   sun.castShadow = true;
   const SH_R = 46; // shadow frustum follows the camera; snapped to texels to avoid shimmering
@@ -55,8 +60,8 @@
   const vmScene = E.vmScene = new THREE.Scene();
   const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
   vmScene.add(vmCamera);
-  const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, 0.55); vmScene.add(vmHemi);
-  const vmSun = new THREE.DirectionalLight(0xffe2bc, 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
+  const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, BV.classic ? 0.7 : 0.55); vmScene.add(vmHemi);
+  const vmSun = new THREE.DirectionalLight(0xffe2bc, BV.classic ? 0.75 : 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
   const vmRim = new THREE.DirectionalLight(0x8fb0d0, 0.45); vmRim.position.set(0.8, 0.2, 1); vmScene.add(vmRim);
 
   /* ---------- post-processing, muzzle light, dust ---------- */
@@ -67,7 +72,7 @@
   for (let i = 0; i < dustN; i++) { dustPos[i * 3] = (Math.random() - 0.5) * 24; dustPos[i * 3 + 1] = Math.random() * 6; dustPos[i * 3 + 2] = (Math.random() - 0.5) * 24; dustSeed[i] = Math.random() * 100; }
   const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
   const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xfff0d0, size: 0.035, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-  dust.frustumCulled = false; scene.add(dust);
+  dust.frustumCulled = false; scene.add(dust); dust.visible = !BV.classic;
   let dustT = 0;
   function updateDust(dt) {
     dustT += dt; const c = camera.position;
@@ -87,8 +92,8 @@
   const t0 = performance.now();
   BV.Map.build(scene);
   BV.timings.mapTotal = performance.now() - t0; const tEnv = performance.now();
-  // image-based lighting: capture the level once into a prefiltered env map
-  try {
+  // image-based lighting: capture the level once into a prefiltered env map (modern style only)
+  if (!BV.classic) try {
     const shWas = renderer.shadowMap.enabled; renderer.shadowMap.enabled = false;
     const cubeRT = new THREE.WebGLCubeRenderTarget(96, { encoding: THREE.sRGBEncoding, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
     const cubeCam = new THREE.CubeCamera(0.5, 400, cubeRT); cubeCam.position.set(0, 4, 0); scene.add(cubeCam);
@@ -132,12 +137,13 @@
     const dpr = window.devicePixelRatio || 1;
     const q = s.quality === 'ultra' ? Math.min(dpr, 2) : s.quality === 'high' ? Math.min(dpr, 1.5) : Q.pr;
     renderer.setPixelRatio(q);
-    if (lampLights.length !== Q.lights) setLampLights(Q.lights);
+    const nLights = BV.classic ? 0 : Q.lights;
+    if (lampLights.length !== nLights) setLampLights(nLights);
     BV.Props.setLevel(Q.props);
     post.mComp.uniforms.bloom.value = Q.bloom;
-    post.enabled = s.quality !== 'low' && s.postfx !== false;
-    document.getElementById('vignette').style.display = post.enabled ? 'none' : '';
-    const shadowSize = Q.shadow;
+    post.enabled = !BV.classic && s.quality !== 'low' && s.postfx !== false;
+    document.getElementById('vignette').style.display = post.enabled || BV.classic ? 'none' : '';
+    const shadowSize = BV.classic ? 0 : Q.shadow;
     const wantShadows = shadowSize > 0;
     if (renderer.shadowMap.enabled !== wantShadows || sun.shadow.mapSize.x !== (shadowSize || sun.shadow.mapSize.x)) {
       renderer.shadowMap.enabled = wantShadows;
@@ -146,7 +152,7 @@
       scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); });
     }
     canvas.style.imageRendering = 'auto';
-    scene.fog.far = Q.far; camera.far = Q.far + 420; camera.updateProjectionMatrix();
+    scene.fog.far = BV.classic ? Q.far * 0.85 : Q.far; scene.fog.near = BV.classic ? 30 : 35; camera.far = Q.far + 420; camera.updateProjectionMatrix();
     BV.HUD.fps(s.showFps, (E.fpsShown || 0) + ' FPS');
     resize();
   };

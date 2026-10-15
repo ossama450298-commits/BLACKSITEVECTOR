@@ -702,7 +702,12 @@ BV.Game = class {
     for (const e of this.ents) {
       const m = e.model; if (!m) continue;
       m.root.position.copy(e.pos); m.root.rotation.y = e.yaw;
-      if (this.frame % 10 === e.id % 10) m.setShade(this.map.isIndoor(e.pos.x, e.pos.y + 1, e.pos.z) ? 0.55 : 1);
+      if (this.frame % 10 === e.id % 10) {
+        if (BV.classic) { // models pick up the baked lighting of the spot they stand on (GoldSrc style)
+          const ind = this.map.isIndoor(e.pos.x, e.pos.y + 1, e.pos.z);
+          m.setShade(ind ? 0.5 : (this.map.data.sunVisible(e.pos.x, e.pos.y + 1.2, e.pos.z) ? 1 : 0.6));
+        } else m.setShade(this.map.isIndoor(e.pos.x, e.pos.y + 1, e.pos.z) ? 0.55 : 1);
+      }
       const sp = Math.hypot(e.vel.x, e.vel.z);
       if (e.alive) {
         e.walkPhase += sp * dt * 2.1;

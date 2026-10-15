@@ -165,7 +165,8 @@ BV.Textures = (function () {
   /* Paint at a logical 128 px layout on a 2x canvas (256 px) for crisper
      detail, add per-pixel grain, then derive a normal map from luminance. */
   // world surfaces are painted at 4x (512 px) for HIGH/ULTRA, 2x otherwise
-  const SCALE = (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 4 : 2;
+  // classic style: small painted textures (128 px, era-appropriate); modern: 256–512 px
+  const SCALE = BV.classic ? 1 : (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 4 : 2;
   const imgData = {};
   function make(name, opts) {
     if (cache[name]) return cache[name];
@@ -295,10 +296,13 @@ BV.Textures = (function () {
   }
   function grain(g, w, h, name) {
     const id = g.getImageData(0, 0, w, h), d = id.data, r = BV.U.rng(name.length * 131 + 7);
-    const amp = name === 'metal' || name === 'roof' || name === 'container' ? 5 : 7;
+    const amp = BV.classic ? 9 : (name === 'metal' || name === 'roof' || name === 'container' ? 5 : 7);
+    const desat = BV.classic ? 0.18 : 0;  // muted era palette
     for (let i = 0; i < d.length; i += 4) {
       const n = (r() - 0.5) * amp;
-      d[i] = d[i] + n; d[i + 1] = d[i + 1] + n; d[i + 2] = d[i + 2] + n;
+      let R = d[i] + n, G = d[i + 1] + n, B = d[i + 2] + n;
+      if (desat) { const l = R * 0.3 + G * 0.59 + B * 0.11; R += (l - R) * desat; G += (l - G) * desat; B += (l - B) * desat; }
+      d[i] = R; d[i + 1] = G; d[i + 2] = B;
     }
     g.putImageData(id, 0, 0);
     imgData[name] = { d: id.data, w, h };

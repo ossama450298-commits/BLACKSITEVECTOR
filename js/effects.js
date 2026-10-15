@@ -96,17 +96,17 @@ BV.Effects = (function () {
       s.visible = false; scene.add(s); fireballs.push({ s, life: 0, max: 1, size: 1 });
     }
     // bullet decals
-    const holeMat = new THREE.MeshStandardMaterial({ map: BV.Textures.bulletHole(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
+    const holeMat = BV.mat({ map: BV.Textures.bulletHole(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
     decalMats.wall = holeMat;
-    decalMats.metal = new THREE.MeshStandardMaterial({ map: holeTex('metal'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.3, metalness: 0.8 });
-    decalMats.wood = new THREE.MeshStandardMaterial({ map: holeTex('wood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
-    decalMats.dirt = new THREE.MeshStandardMaterial({ map: holeTex('dirt'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 1 });
+    decalMats.metal = BV.mat({ map: holeTex('metal'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.3, metalness: 0.8 });
+    decalMats.wood = BV.mat({ map: holeTex('wood'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 0.9 });
+    decalMats.dirt = BV.mat({ map: holeTex('dirt'), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, roughness: 1 });
     const scorchMat = new THREE.MeshBasicMaterial({ map: BV.Textures.scorch(), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
     const dg = new THREE.PlaneGeometry(0.12, 0.12);
     for (let i = 0; i < 140; i++) { const m = new THREE.Mesh(dg, holeMat); m.visible = false; m.receiveShadow = true; scene.add(m); decals.push(m); }
     // world-space brass casings (physics + bounce sounds)
     const brassGeo = new THREE.CylinderGeometry(0.0048, 0.0048, 0.024, 8), shellGeo = new THREE.CylinderGeometry(0.009, 0.009, 0.06, 10);
-    const brassMat = new THREE.MeshStandardMaterial({ color: 0xc9a14a, roughness: 0.28, metalness: 1 }), redMat = new THREE.MeshStandardMaterial({ color: 0x8e1f18, roughness: 0.5, metalness: 0.2 });
+    const brassMat = BV.mat({ color: 0xc9a14a, roughness: 0.28, metalness: 1 }), redMat = BV.mat({ color: 0x8e1f18, roughness: 0.5, metalness: 0.2 });
     for (let i = 0; i < 60; i++) {
       const m = new THREE.Mesh(brassGeo, brassMat); m.visible = false; m.castShadow = false; scene.add(m);
       worldShells.push({ m, v: new V(), spin: new V(), life: 0, bounces: 0, geoB: brassGeo, geoS: shellGeo, matB: brassMat, matS: redMat });
@@ -192,7 +192,7 @@ BV.Effects = (function () {
       s.m.rotation.x += s.spin.x * dt; s.m.rotation.y += s.spin.y * dt; s.m.rotation.z += s.spin.z * dt;
     }
   }
-  const mult = () => (BV.settings.effects ? 1 : 0.4) * ({ low: 0.5, medium: 0.8, high: 1, ultra: 1.3 }[BV.settings.quality] || 1);
+  const mult = () => (BV.settings.effects ? 1 : 0.4) * (BV.classic ? 0.7 : 1) * ({ low: 0.5, medium: 0.8, high: 1, ultra: 1.3 }[BV.settings.quality] || 1);
   function bloodHit(p, dir, head) {
     const cnt = low() ? 4 : (head ? 16 : 9);
     for (let i = 0; i < cnt; i++) {

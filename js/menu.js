@@ -26,6 +26,7 @@ BV.Menu = (function () {
     if (typeof BV.DEFAULT_SETTINGS[k] === 'boolean') v = (v === true || v === 'true');
     else if (typeof BV.DEFAULT_SETTINGS[k] === 'number') v = parseFloat(v);
     s[k] = v; BV.saveSettings(); syncSettings();
+    if (k === 'style') { setTimeout(() => location.reload(), 150); return; }
     if (k === 'retroFilter') BV.Textures.refreshFilters();
     if (k === 'master' || k === 'sfx' || k === 'music') BV.Audio.applyVolumes();
     engine.applySettings();

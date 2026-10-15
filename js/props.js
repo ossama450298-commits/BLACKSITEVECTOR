@@ -17,7 +17,7 @@ BV.Props = (function () {
     const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); paint(g, w, h);
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t;
   }
-  const S = (o) => new THREE.MeshStandardMaterial(o);
+  const S = (o) => BV.mat(o);
   function add(scene, obj, level) { scene.add(obj); groups.push({ obj, level }); return obj; }
   /* instanced helper: list of {p:[x,y,z], ry, s:[sx,sy,sz], rx, rz} */
   function instanced(scene, geo, mat, list, level, cast) {

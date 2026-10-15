@@ -77,7 +77,7 @@ BV.Viewmodel = class {
   inspect() { if (this.t.reload <= 0 && this.t.draw <= 0 && this.def && this.def.cls !== 'grenade') this.t.inspect = 2.6; }
   land(speed) { const k = Math.min(1, speed / 12); this.sp.pv.y -= 0.9 * k; this.sp.rv.x -= 3 * k; }
   shot(def) {
-    const k = def.cls === 'sniper' ? 2.6 : def.cls === 'shotgun' ? 2.2 : def.cls === 'dmr' ? 1.5 : def.cls === 'pistol' ? 1.2 : 1;
+    const k = (def.cls === 'sniper' ? 2.6 : def.cls === 'shotgun' ? 2.2 : def.cls === 'dmr' ? 1.5 : def.cls === 'pistol' ? 1.2 : 1) * (BV.classic ? 1.35 : 1);
     // spring impulses: back, up and a little random yaw/roll
     this.sp.pv.z += 0.9 * k; this.sp.pv.y += 0.12 * k;
     this.sp.rv.x += 4.2 * k; this.sp.rv.y += (Math.random() - 0.5) * 1.6 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.0 * k;
@@ -105,14 +105,15 @@ BV.Viewmodel = class {
     t.time += dt;
     // ---- springs (critically-damped-ish) ----
     // fixed sub-steps keep the springs stable at any frame rate
-    const K = 140, D = 18, KR = 120, DR = 15, n = Math.min(12, Math.ceil(dt / 0.008)), h = dt / n;
+    // classic: stiffer springs = quick, arcade snap-back like late-90s shooters
+    const C = BV.classic, K = C ? 300 : 140, D = C ? 26 : 18, KR = C ? 260 : 120, DR = C ? 22 : 15, n = Math.min(14, Math.ceil(dt / 0.007)), h = dt / n;
     for (let i = 0; i < n; i++) {
       sp.pv.addScaledVector(sp.p, -K * h); sp.pv.multiplyScalar(1 - D * h); sp.p.addScaledVector(sp.pv, h);
       sp.rv.addScaledVector(sp.r, -KR * h); sp.rv.multiplyScalar(1 - DR * h); sp.r.addScaledVector(sp.rv, h);
     }
     if (!isFinite(sp.p.x + sp.r.x)) { sp.p.set(0, 0, 0); sp.pv.set(0, 0, 0); sp.r.set(0, 0, 0); sp.rv.set(0, 0, 0); }
     // ---- locomotion bob: figure-eight, stronger when sprinting ----
-    const speed = st.speed, bobK = cfg.viewBob ? Math.min(1.3, speed / 4.6) : 0;
+    const speed = st.speed, bobK = cfg.viewBob ? Math.min(1.3, speed / 4.6) * (BV.classic ? 0.8 : 1) : 0;
     t.bob += dt * (speed > 0.3 ? 3.2 + speed * 1.15 : 0);
     const sprintK = st.sprint ? 1.6 : 1;
     let bx = Math.sin(t.bob) * 0.011 * bobK * sprintK;

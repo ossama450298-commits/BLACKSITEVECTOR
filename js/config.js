@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '1.3.0';
+BV.VERSION = '1.4.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -114,7 +114,8 @@ BV.RULES = {
 
 /* ---------- Settings (persisted) ----------------------------------- */
 BV.DEFAULT_SETTINGS = {
-  quality: 'medium',      // low | medium | high
+  style: 'classic',       // classic (GoldSrc-era) | modern (PBR)
+  quality: 'medium',      // low | medium | high | ultra
   fov: 85,
   retroFilter: false,     // nearest-neighbour texture sampling
   showFps: false,
@@ -132,6 +133,20 @@ BV.settings = (function () {
   } catch (e) { /* storage unavailable (file:// in some browsers) */ }
   return s;
 })();
+/* ---------- visual style ----------
+   'classic' (default): GoldSrc-era look — baked vertex lightmaps with sun
+   shadows, Lambert/Gouraud shading, small painted textures, low-poly models,
+   no post-processing. 'modern': the v1.3 PBR pipeline. Changing the style
+   reloads the page because materials are created at load time. */
+BV.classic = BV.settings.style !== 'modern';
+const LAMBERT_KEYS = ['color', 'map', 'emissive', 'emissiveMap', 'emissiveIntensity', 'transparent', 'opacity', 'side', 'alphaTest', 'depthWrite', 'depthTest',
+  'blending', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'vertexColors', 'fog', 'toneMapped', 'alphaMap', 'aoMap', 'lightMap'];
+BV.mat = function (o) {
+  o = o || {};
+  if (!BV.classic) return new THREE.MeshStandardMaterial(o);
+  const q = {}; for (const k of LAMBERT_KEYS) if (o[k] !== undefined) q[k] = o[k];
+  return new THREE.MeshLambertMaterial(q);
+};
 BV.saveSettings = function () {
   try { localStorage.setItem('blacksite-vector-settings', JSON.stringify(BV.settings)); } catch (e) { /* ignore */ }
 };

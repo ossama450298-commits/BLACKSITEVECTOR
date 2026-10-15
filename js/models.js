@@ -74,7 +74,7 @@ BV.Models = (function () {
       for (let i = 0; i < 10; i++) { g.strokeStyle = 'rgba(20,10,4,0.35)'; g.lineWidth = 1; g.beginPath(); const y = r() * h; g.moveTo(0, y); g.bezierCurveTo(w * 0.3, y + 6, w * 0.6, y - 6, w, y + (r() - 0.5) * 8); g.stroke(); }
     });
   }
-  function S(o) { return new THREE.MeshStandardMaterial(o); }
+  function S(o) { return BV.mat(o); }
   function mat(color, opts) {
     const key = color + JSON.stringify(opts || {});
     if (!matCache[key]) matCache[key] = S(Object.assign({ color, roughness: 0.7, metalness: 0 }, opts || {}));
@@ -112,6 +112,12 @@ BV.Models = (function () {
   }
   function wearMat(key, o, wear) {
     if (matCache[key]) return matCache[key];
+    if (BV.classic) {
+      // Gouraud/Lambert has no specular: darken metals and keep edge wear subtle, like painted skins
+      const metal = (o.metalness || 0) > 0.5;
+      o = Object.assign({}, o, { color: metal ? 0x7c7f82 : 0xb4b4b4 });
+      wear = Object.assign({}, wear, { amt: wear.amt * (metal ? 0.55 : 0.45), color: new THREE.Color(wear.color).multiplyScalar(0.72).getHex() });
+    }
     const m = S(o);
     m.userData.wear = wear;
     m.onBeforeCompile = (sh) => {
@@ -136,7 +142,7 @@ BV.Models = (function () {
     poly: () => wearMat('gpoly', { map: grimeTex(0x202122, 40), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.72, metalness: 0.02 }, { color: 0x4a4b4c, amt: 0.6, metal: 0 }),
     wood: () => wearMat('gwood', { map: woodTex(), roughness: 0.5, metalness: 0 }, { color: 0x7a5636, amt: 0.5, metal: 0 }),
     olive: () => wearMat('golive', { map: grimeTex(0x4a5034, 80), roughness: 0.62, metalness: 0.15 }, { color: 0x8a8f86, amt: 0.85, metal: 0.8 }),
-    bright: () => matCache.gbright || (matCache.gbright = S({ color: 0xd2d6da, roughness: 0.16, metalness: 1 })),
+    bright: () => matCache.gbright || (matCache.gbright = S({ color: BV.classic ? 0x9da2a6 : 0xd2d6da, roughness: 0.16, metalness: 1 })),
     tan: () => wearMat('gtan', { map: grimeTex(0x8a7656, 60), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.74, metalness: 0.04 }, { color: 0xb8a684, amt: 0.6, metal: 0 }),
     alu: () => wearMat('galu', { map: grimeTex(0x3b3e41, 160), roughnessMap: scratchRough(0.38), roughness: 1, metalness: 0.85 }, { color: 0xb0b4b8, amt: 0.9, metal: 1 }),
     rubber: () => matCache.grub || (matCache.grub = S({ color: 0x141414, roughness: 0.95, metalness: 0, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.3, 0.3) })),
@@ -156,10 +162,12 @@ BV.Models = (function () {
     const me = new THREE.Mesh(geo, m); me.position.set(x || 0, y || 0, z || 0);
     if (sx) me.scale.set(sx, sy || sx, sz || sx); me.castShadow = true; me.receiveShadow = true; parent.add(me); return me;
   }
+  // classic style: angular low-poly segment counts (Gouraud-shaded like late-90s models)
+  const seg = (n) => BV.classic ? Math.max(5, Math.round(n * 0.55)) : n;
   const geo = {
-    cyl: (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, s || 12),
-    sph: (r, ws, hs) => new THREE.SphereGeometry(r, ws || 14, hs || 10),
-    cap: (r, ts) => new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, 0, ts)
+    cyl: (rt, rb, h, s) => new THREE.CylinderGeometry(rt, rb, h, seg(s || 12)),
+    sph: (r, ws, hs) => new THREE.SphereGeometry(r, seg(ws || 14), Math.max(4, seg(hs || 10))),
+    cap: (r, ts) => new THREE.SphereGeometry(r, seg(16), Math.max(4, seg(10)), 0, Math.PI * 2, 0, ts)
   };
   /* ---------------- weapons (pointing -Z, origin at the grip) ----------------
      Each firearm is built from side-view profiles extruded with a bevel, so
@@ -169,7 +177,7 @@ BV.Models = (function () {
     const sh = new THREE.Shape();
     sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
     const bt = Math.min(0.006, thick * 0.18);
-    const g = new THREE.ExtrudeGeometry(sh, { depth: Math.max(0.002, thick - bt * 2), bevelEnabled: true, bevelThickness: bt, bevelSize: bt * 0.8, bevelSegments: 2, curveSegments: 4 });
+    const g = new THREE.ExtrudeGeometry(sh, { depth: Math.max(0.002, thick - bt * 2), bevelEnabled: true, bevelThickness: bt, bevelSize: bt * 0.8, bevelSegments: BV.classic ? 1 : 2, curveSegments: BV.classic ? 2 : 4 });
     g.rotateY(Math.PI / 2); g.translate(-(thick - bt * 2) / 2 + (x || 0), 0, 0);
     g.computeVertexNormals();
     addWear(g, 1);
@@ -185,7 +193,7 @@ BV.Models = (function () {
     g.setAttribute('wear', new THREE.BufferAttribute(w, 1)); return g;
   }
   function tube(parent, r, f0, f1, y, m, seg, x) {
-    const cg = new THREE.CylinderGeometry(r, r, Math.abs(f1 - f0), seg || 14);
+    const cg = new THREE.CylinderGeometry(r, r, Math.abs(f1 - f0), BV.classic ? Math.max(6, Math.round((seg || 14) * 0.55)) : (seg || 14));
     // wear on the cylinder rims only
     const p = cg.attributes.position, w = new Float32Array(p.count), hh = Math.abs(f1 - f0) / 2;
     for (let i = 0; i < p.count; i++) w[i] = Math.abs(Math.abs(p.getY(i)) - hh) < 1e-4 ? 0.8 : 0.12 * Math.random();
