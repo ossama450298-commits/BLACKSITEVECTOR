@@ -376,9 +376,14 @@
     }
   }
 
-  document.getElementById('loading').classList.add('hidden');
-  BV.Menu.showMenu('p-main');
+  // skinned operator models are decoded asynchronously; the menu opens once they are ready
+  document.getElementById('load-text').textContent = 'Deploying operators…';
   requestAnimationFrame(frame);
+  BV.CharModels.load().then((ok) => {
+    E.operatorsLoaded = ok;
+    document.getElementById('loading').classList.add('hidden');
+    BV.Menu.showMenu('p-main');
+  });
 
   /* debug/test handle */
   window.BV_DEBUG = { engine: E, game };

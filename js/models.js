@@ -583,7 +583,23 @@ BV.Models = (function () {
      head has jaw, nose and ears, and gear uses rounded boxes. Painted skins add
      folds, seams, pockets, webbing and faces — the way 2000s player models
      looked detailed without many polygons. */
+  /* helpers shared with the skinned operators (charmodels.js) */
+  function uniformSkinFor(teamId) { const T = BV.TEAMS[teamId]; return uniformSkin(T.uniform, teamId === 'VANGUARD' ? 'digital' : 'blot'); }
+  function ravenHead(mats) {
+    const T = BV.TEAMS.RAVEN, g = new THREE.Group();
+    const m = (o) => { const mm = BV.mat(Object.assign({ roughness: 0.85 }, o)); mm.userData.base = mm.color.clone(); mats.push(mm); return mm; };
+    const mHead = m({ map: headSkin(T.skin, 'mask') }), mHood = m({ map: uniformSkin(0x3b362f, 'blot'), color: 0xa8a8a8 }), mStrap = m({ color: 0x2a2924 });
+    const gm = m({ color: 0x281310, emissive: 0x5a1208 });
+    part(g, lathe([[0.0, 0.0], [0.055, 0.01], [0.085, 0.045], [0.1, 0.1], [0.11, 0.16], [0.108, 0.21], [0.092, 0.25], [0.06, 0.275], [0.0, 0.282]], 12, 0.9, 1.0), mHead, 0, 0, 0);
+    part(g, new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62), mHood, 0, 0.15, 0.03, 1.02, 1.04, 1.1);
+    for (const sx of [-1, 1]) { const lens = part(g, new THREE.CylinderGeometry(0.031, 0.034, 0.03, 12), gm, sx * 0.042, 0.165, -0.098); lens.rotation.x = Math.PI / 2; }
+    part(g, rbox(0.03, 0.018, 0.02, 0.005), mStrap, 0, 0.165, -0.105);
+    const strap = part(g, new THREE.TorusGeometry(0.11, 0.008, 4, 20), mStrap, 0, 0.165, 0); strap.rotation.x = Math.PI / 2;
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  }
   function soldier(teamId) {
+    if (BV.CharModels && BV.CharModels.ready) return BV.CharModels.create(teamId);
     const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD';
     const root = new THREE.Group();
     const body = new THREE.Group(); root.add(body);
@@ -786,5 +802,5 @@ BV.Models = (function () {
     return { group: g, right, left };
   }
 
-  return { gun: (m) => detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree };
+  return { gun: (m) => detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin };
 })();
