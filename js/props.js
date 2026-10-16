@@ -208,6 +208,12 @@ BV.Props = (function () {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), S({ map: t, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 }));
       m.position.set(sp.x + sp.nx * 0.015, 3.2 + r() * 1.2, sp.z + sp.nz * 0.015); m.rotation.y = sp.ry; m.receiveShadow = true; add(scene, m, 1);
     });
+    /* --- floor stains: break up texture tiling on large floors --- */
+    const stainTex = BV.Textures.make('stain'); stainTex.wrapS = stainTex.wrapT = THREE.ClampToEdgeWrapping;
+    const stainMat = new THREE.MeshBasicMaterial({ map: stainTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, color: 0xffffff });
+    const st = []; let gs = 0;
+    while (st.length < 130 && gs++ < 3000) { const x = -61 + r() * 122, z = -43 + r() * 86; if (BV.Physics.collide(x, 0.05, z, 0.6, 0.5)) continue; const k = 1.5 + r() * 3.5; st.push({ p: [x, 0.004, z], rx: -Math.PI / 2, rz: r() * 6.28, s: [k, k * (0.6 + r() * 0.8), 1] }); }
+    instanced(scene, new THREE.PlaneGeometry(1, 1), stainMat, st, 0, false);
     /* --- grime: dark streak decals at wall bases and corners --- */
     const grime = ctex(64, 128, (g, w, h) => { const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(20,16,10,0.55)'); gr.addColorStop(1, 'rgba(20,16,10,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     const grimeMat = S({ map: grime, transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 });

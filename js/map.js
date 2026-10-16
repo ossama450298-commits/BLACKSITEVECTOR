@@ -210,6 +210,35 @@ BV.Map = (function () {
     // skylights in the B hall roof (bright panels + cool light below)
     skylights.push([34, 27], [46, 27], [34, 38], [46, 38]);
     for (const [x, z] of skylights) { lamp(x, 5.8, z, 8, 0.55, false); lamps[lamps.length - 1].sky = true; }
+    /* ---- classic level dressing ---- */
+    const band = (x0, z0, x1, z1) => B(x0, z0, x1, z1, 0.55, 1.4, 'paintLow', { solid: false, faces: ['px', 'nx', 'pz', 'nz', 'py'] });
+    band(-40.06, 9.94, -20.1, 10); band(-18.5, 9.94, -5, 10); band(-40.06, 30, -5, 30.06); band(-11, -10, 4.9, -9.94); band(6.5, -10, 18, -9.94); band(-11, -28.06, 18, -28);   // S1 / N2
+    // B hall interior wainscot (split at the doors)
+    band(22, 15, 27, 15.06); band(31, 15, 52, 15.06); band(56, 15, 61.94, 15.06); band(61.94, 15, 62, 44); band(22, 43.94, 62, 44); band(22, 15, 22.06, 30); band(22, 40, 22.06, 44);
+    // tread plate on the A deck top and machinery
+    B(40, -34, 48, -26, 1.2, 1.205, 'plate', { solid: false, faces: ['py'] });
+    B(56, 36, 60, 42, 2.2, 2.205, 'plate', { solid: false, faces: ['py'] });
+    B(60.5, -3, 62, 3, 2.2, 2.205, 'plate', { solid: false, faces: ['py'] });
+    // road markings along North Street and stop line at the long doors
+    for (let x = -38; x < 16; x += 4) B(x, -36.08, x + 2, -35.92, 0, 0.006, 'roadLine', { solid: false, faces: ['py'], fit: true });
+    B(17.6, -43.8, 17.9, -28.2, 0, 0.006, 'roadLine', { solid: false, faces: ['py'], fit: true });
+    for (let z = -12; z <= 12; z += 3) B(48, z - 0.06, 51, z + 0.06, 0, 0.006, 'roadLine', { solid: false, faces: ['py'], fit: true }); // spawn bays
+    // painted site boundaries
+    for (const st of [[36, -40, 50, -22], [34, 24, 52, 42]]) {
+      const [x0, z0, x1, z1] = st, w = 0.14;
+      B(x0, z0, x1, z0 + w, 0, 0.007, 'siteLine', { solid: false, faces: ['py'], fit: true }); B(x0, z1 - w, x1, z1, 0, 0.007, 'siteLine', { solid: false, faces: ['py'], fit: true });
+      B(x0, z0, x0 + w, z1, 0, 0.007, 'siteLine', { solid: false, faces: ['py'], fit: true }); B(x1 - w, z0, x1, z1, 0, 0.007, 'siteLine', { solid: false, faces: ['py'], fit: true });
+    }
+    // steel door frames around every opening (jambs + header)
+    const frameX = (x0, x1, z0, z1, h) => { B(x0 - 0.2, z0 - 0.08, x0 + 0.02, z1 + 0.08, 0, h + 0.15, 'trim', { solid: false }); B(x1 - 0.02, z0 - 0.08, x1 + 0.2, z1 + 0.08, 0, h + 0.15, 'trim', { solid: false }); B(x0 - 0.2, z0 - 0.08, x1 + 0.2, z1 + 0.08, h, h + 0.18, 'trim', { solid: false }); };
+    const frameZ = (z0, z1, x0, x1, h) => { B(x0 - 0.08, z0 - 0.2, x1 + 0.08, z0 + 0.02, 0, h + 0.15, 'trim', { solid: false }); B(x0 - 0.08, z1 - 0.02, x1 + 0.08, z1 + 0.2, 0, h + 0.15, 'trim', { solid: false }); B(x0 - 0.08, z0 - 0.2, x1 + 0.08, z1 + 0.2, h, h + 0.18, 'trim', { solid: false }); };
+    frameX(27, 31, 14, 15, 3.4); frameX(52, 56, 14, 15, 3.4);
+    frameZ(32, 38, 21, 23, 3.4); frameZ(-40, -32, 21, 23, 4.4);
+    B(27.8, -15.1, 28.05, -13.9, 0, 5.1, 'hazard', { solid: false }); B(31.95, -15.1, 32.2, -13.9, 0, 5.1, 'hazard', { solid: false }); // A short posts
+    B(51.8, -15.1, 52.05, -13.9, 0, 5.1, 'hazard', { solid: false }); B(55.95, -15.1, 56.2, -13.9, 0, 5.1, 'hazard', { solid: false });
+    // manholes and drains
+    [[-30, -33], [6, -38], [28, 2], [-20, 4], [40, -34.5]].forEach(([x, z]) => B(x - 0.5, z - 0.5, x + 0.5, z + 0.5, 0, 0.006, 'manhole', { solid: false, faces: ['py'], fit: true }));
+    [[-12.4, -27.6], [-2.5, 29.5], [24, -13.5], [55, 13.5], [-39.5, 30.6]].forEach(([x, z]) => B(x - 0.45, z - 0.2, x + 0.45, z + 0.2, 0, 0.006, 'drain', { solid: false, faces: ['py'], fit: true }));
     /* ---- sandbag positions & puddles ---- */
     sandbags(33.2, -29.5, 34.2, -26.5, 1.05);
     sandbags(46, 4.2, 49, 5.2, 1.05);
@@ -310,7 +339,7 @@ BV.Map = (function () {
   function bakeClassic(x, y, z, nx, ny, nz) {
     const inside = isIndoor(x, y, z);
     const sky = ny > 0.5 ? 1 : ny < -0.5 ? 0.55 : 0.8;
-    let amb = (inside ? 0.26 : 0.5) * sky;
+    let amb = (inside ? 0.36 : 0.5) * sky;
     let ao = 1;
     if (Math.abs(ny) < 0.5) ao *= 0.62 + 0.38 * Math.min(1, y / 2.2);
     if (ny > 0.5 && y < 0.05) ao *= floorAO(x, z);
@@ -321,7 +350,7 @@ BV.Map = (function () {
     for (const L of lamps) {
       const dx = x - L.x, dy = y - L.y, dz = z - L.z, d = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (d < L.r) {
-        let k = (1 - d / L.r); k = k * k * L.i * (inside ? 2.6 : 1.3);
+        let k = (1 - d / L.r); k = k * k * L.i * (inside ? 3.0 : 1.3);
         const facing = d > 0.01 ? Math.max(0.2, -(dx * nx + dy * ny + dz * nz) / d) : 1;
         k *= facing * ao; r += k * L.c[0]; g += k * L.c[1]; b += k * L.c[2];
       }
@@ -350,14 +379,14 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = { concrete: 4, concreteDark: 4, brick: 3, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+  const TEX_SCALE = { plate: 1.5, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 3, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
     asphalt: 4, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
   const METAL = { metal: 0.45, roof: 0.35, container: 0.3, trim: 0.35, glass: 0.2, window: 0.3, door: 0.3 };
   const NORMAL_STR = { brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
 
-  const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0 };
+  const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, paintLow: 0, plate: 0 };
 
   const FACES = {
     px: { n: [1, 0, 0], o: (a, b) => [b[0], a[1], b[2]], u: (a, b) => [0, 0, -(b[2] - a[2])], v: (a, b) => [0, b[1] - a[1], 0], uc: 2, us: -1, vc: 1 },
@@ -384,10 +413,11 @@ BV.Map = (function () {
         const cell = BV.classic ? (fk === 'py' || fk === 'ny' ? 1.25 : 1.4) : (fk === 'py' || fk === 'ny' ? 2 : 2.5);
         const nu = b.fit ? 1 : Math.max(1, Math.ceil(lu / cell)), nv = b.fit ? 1 : Math.max(1, Math.ceil(lv / cell));
         const pt = (i, j) => [o[0] + U[0] * i / nu + V[0] * j / nv, o[1] + U[1] * i / nu + V[1] * j / nv, o[2] + U[2] * i / nu + V[2] * j / nv];
+        const bi = boxes.indexOf(b), uo = ((bi * 0.618) % 1), vo = ((bi * 0.382) % 1);
         const uvOf = (p, i, j) => {
           if (b.fit) return [i / nu, j / nv];
-          if (fk === 'py' || fk === 'ny') return [p[0] / sc, p[2] / sc];
-          return [p[F.uc] * F.us / sc, p[1] / sc];
+          if (fk === 'py' || fk === 'ny') return [p[0] / sc + uo, p[2] / sc + vo];
+          return [p[F.uc] * F.us / sc + uo, p[1] / sc];
         };
         const verts = [];
         for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
