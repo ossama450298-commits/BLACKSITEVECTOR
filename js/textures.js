@@ -227,13 +227,14 @@ BV.Textures = (function () {
      Loaded from data URIs in js/tex_data.js, then lightly weathered with the
      same procedural layers so they match the rest of the level. */
   const pending = [];
-  const PHOTO_MIX = { concrete: 0.85, concreteDark: 0.85, plaster: 0.8, tile: 0.35, plate: 0.25 };
+  const PHOTO_MIX = { concrete: 0.85, concreteDark: 0.85, plaster: 0.8, tile: 0.35, plate: 0.25, asphalt: 0.9, crate: 0.6 };
+  const PHOTO_DIRECT = { brick: 1, brick2: 1, asphaltCracked: 1 };   // photo used as-is (+ light weathering)
   function photoTex(name, kind) {
     const key = 'photo_' + name + kind; if (cache[key]) return cache[key];
     const D = BV.TEX_DATA && BV.TEX_DATA[name]; if (!D || !D[kind]) return null;
     const c = canvas(kind === 'color' ? 512 : 256), g = c.getContext('2d', { willReadFrequently: true });
     g.fillStyle = kind === 'normal' ? 'rgb(128,128,255)' : '#777'; g.fillRect(0, 0, c.width, c.height);
-    if (kind === 'color' && painters[name]) {   // designed base layer (panels, seams, grime)...
+    if (kind === 'color' && painters[name] && !PHOTO_DIRECT[name]) {   // designed base layer (panels, seams, grime)...
       g.save(); g.scale(4, 4); painters[name](g, 128, 128, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31)); g.restore();
       weather(g, 512, 512, name, 4);
     }
@@ -243,10 +244,13 @@ BV.Textures = (function () {
     const img = new Image();
     pending.push(new Promise((res) => {
       img.onload = () => {
-        if (kind === 'color' && painters[name]) {
+        if (kind === 'color' && painters[name] && !PHOTO_DIRECT[name]) {
           // ...with the photo blended on top as real-world micro detail
           g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = PHOTO_MIX[name] || 0.7; g.drawImage(img, 0, 0, c.width, c.height); g.restore();
-        } else g.drawImage(img, 0, 0, c.width, c.height);
+        } else {
+          g.drawImage(img, 0, 0, c.width, c.height);
+          if (kind === 'color') { g.save(); g.globalAlpha = 0.45; weather(g, c.width, c.height, name === 'asphaltCracked' ? 'asphalt' : 'brick', 4); g.restore(); }
+        }
         t.needsUpdate = true; res(true);
       };
       img.onerror = () => res(false);

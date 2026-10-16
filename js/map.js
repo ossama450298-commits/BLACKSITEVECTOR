@@ -48,7 +48,7 @@ BV.Map = (function () {
     floor(-5, 10, -1, 30, 'concreteDark');
     floor(-40, 30, 22, 40, 'concreteDark');
     floor(22, -44, 62, -14, 'concrete');
-    floor(18, -14, 62, 14, 'asphalt');
+    floor(18, -14, 62, 14, 'asphaltCracked');
     floor(22, 14, 62, 44, 'tile');
 
     // outer walls
@@ -62,7 +62,7 @@ BV.Map = (function () {
     B(-11, -28, 18, -10, 0, 7, 'concrete');     // N2 depot
     B(18, -28, 22, -14, 0, 7, 'concrete');      // NE block
     B(-40, 10, -5, 30, 0, 8, 'plaster');        // S1 offices
-    B(-1, 10, 18, 30, 0, 7, 'brick');           // S2 workshop
+    B(-1, 10, 18, 30, 0, 7, 'brick2');          // S2 workshop (factory brick)
     B(18, 14, 22, 30, 0, 7, 'brick');           // SE block
     B(-40, 40, 22, 44, 0, 10, 'concrete');      // tunnel back block
     B(-40, 30, 22, 40, 4.2, 5.0, 'roof', { faces: ['ny', 'py'] }); // tunnel roof
@@ -379,12 +379,12 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = { plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 3, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
-    asphalt: 4, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
+  const TEX_SCALE = { brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+    asphalt: 2.6, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
   const METAL = { metal: 0.45, roof: 0.35, container: 0.3, trim: 0.35, glass: 0.2, window: 0.3, door: 0.3 };
-  const NORMAL_STR = { brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
+  const NORMAL_STR = { brick2: 2.6, asphaltCracked: 1.0, brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
 
   const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, paintLow: 0, plate: 0 };
 
