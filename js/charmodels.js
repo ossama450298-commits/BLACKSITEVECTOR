@@ -1,123 +1,171 @@
 /* =====================================================================
-   charmodels.js — skinned, animated operators.
-   Base mesh + skeleton + animation clips: "Swat" from the Ultimate Modular
-   Men pack by Quaternius (CC0 1.0), embedded in js/char_data.js.
-   Each team re-skins it: Vanguard keeps the visored helmet, Raven swaps the
-   head for a hooded balaclava with goggles. Weapons are our own models,
-   attached to the right-hand bone. Exposes the same API as the procedural
-   soldier in models.js, so game logic and hitboxes are untouched.
+   charmodels.js — skinned, animated operators (v2.3)
+   Body: "Superhero_Male" from Universal Base Characters by Quaternius (CC0),
+   realistic proportions. Animations: Universal Animation Library by
+   Quaternius (CC0), same skeleton. Both embedded in js/char_data.js.
+
+   - Clothing: the base body is dressed per region (jacket, trousers, gloves,
+     boots, head) computed from the T-pose bind; clothing materials sample
+     painted skins with box projection in bind space (shader injection), so
+     the fabric sticks to the body while it animates.
+   - Layered animation: legs play locomotion (idle / walk / jog / sprint /
+     crouch), the upper body plays aiming (pistol aim up/neutral/down blended
+     by pitch), shooting, reloading and hit reactions. Death is full-body.
+   - Long guns are shouldered: the weapon sits at a chest/shoulder anchor and
+     both hands are placed on it with two-bone IK.
+   Same API as the procedural soldier in models.js; hitboxes are untouched.
    ===================================================================== */
 'use strict';
 BV.CharModels = (function () {
-  let tpl = null; const clips = {};
+  let body = null; const clips = {}, upper = {}, lower = {};
   let ready = false;
-  const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _s = new THREE.Vector3();
+  const LOWER = /^(root|pelvis|thigh_[lr]|calf_[lr]|foot_[lr]|ball_[lr])\./;
+  const _v = new THREE.Vector3();
+
+  function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
+  function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
 
   function load() {
-    return new Promise((resolve) => {
-      try {
-        if (!BV.CHAR_DATA || !THREE.GLTFLoader || !THREE.SkeletonUtils) return resolve(false);
-        const bin = atob(BV.CHAR_DATA.operator), buf = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-        new THREE.GLTFLoader().parse(buf.buffer, '', (g) => {
-          tpl = g; g.animations.forEach(a => { clips[a.name] = a; });
-          boxUVs(g.scene);
-          ready = true; resolve(true);
-        }, (err) => { console.warn('operator model failed to load', err); resolve(false); });
-      } catch (e) { console.warn(e); resolve(false); }
-    });
-  }
-
-  /* the source mesh is vertex-coloured by material with collapsed UVs: generate
-     box-projected UVs from the bind pose (in metres) so painted skins can be applied */
-  function boxUVs(scene) {
-    scene.updateMatrixWorld(true);
-    const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
-    scene.traverse(o => {
-      if (!o.isMesh || o.geometry.userData.boxUV) return;
-      const geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal; if (!P || !N) return;
-      nm.getNormalMatrix(o.matrixWorld);
-      const uv = new Float32Array(P.count * 2), K = 2.6;      // ~0.38 m per texture tile
-      for (let i = 0; i < P.count; i++) {
-        v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); n.fromBufferAttribute(N, i).applyMatrix3(nm);
-        const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
-        if (ax >= ay && ax >= az) { uv[i * 2] = v.z * K; uv[i * 2 + 1] = v.y * K; }
-        else if (az >= ay) { uv[i * 2] = v.x * K; uv[i * 2 + 1] = v.y * K; }
-        else { uv[i * 2] = v.x * K; uv[i * 2 + 1] = v.z * K; }
+    if (!BV.CHAR_DATA || !BV.CHAR_DATA.body || !THREE.GLTFLoader || !THREE.SkeletonUtils) return Promise.resolve(false);
+    return Promise.all([parse(BV.CHAR_DATA.body), parse(BV.CHAR_DATA.anims)]).then(([b, a]) => {
+      body = b;
+      for (const c of a.animations) {
+        clips[c.name] = c;
+        upper[c.name] = new THREE.AnimationClip(c.name + '_up', c.duration, c.tracks.filter(t => !LOWER.test(t.name)));
+        lower[c.name] = new THREE.AnimationClip(c.name + '_lo', c.duration, c.tracks.filter(t => LOWER.test(t.name)));
       }
-      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.userData.boxUV = true;
-    });
+      prepareBody(body.scene);
+      ready = true; return true;
+    }).catch((e) => { console.warn('operator model failed to load', e); return false; });
   }
 
-  /* attach an object to a bone so that, in the bind pose, it sits at a given
-     model-space transform (compensates the bone's own rotation and scale) */
-  function attachAtBind(bone, model, obj, pos, rotY, rotX) {
-    // bind-pose transform of the bone in mesh space = inverse(boneInverse)
-    let sk = null; model.traverse(o => { if (!sk && o.isSkinnedMesh) sk = o.skeleton; });
-    const want = new THREE.Matrix4().compose(pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(rotX || 0, rotY || 0, 0)), new THREE.Vector3(1, 1, 1));
-    let bind;
-    const i = sk ? sk.bones.indexOf(bone) : -1;
-    if (i >= 0) bind = new THREE.Matrix4().copy(sk.boneInverses[i]).invert();
-    else { model.updateMatrixWorld(true); bind = new THREE.Matrix4().multiplyMatrices(new THREE.Matrix4().copy(model.matrixWorld).invert(), bone.matrixWorld); }
-    const local = new THREE.Matrix4().copy(bind).invert().multiply(want);
-    local.decompose(obj.position, obj.quaternion, obj.scale);
-    bone.add(obj);
+  /* ---------- dressing: per-triangle regions + bind-space attributes ---------- */
+  const R_JACKET = 0, R_PANTS = 1, R_GLOVES = 2, R_BOOTS = 3, R_HEAD = 4;
+  function prepareBody(scene) {
+    scene.updateMatrixWorld(true);
+    scene.traverse(o => {
+      if (!o.isSkinnedMesh || o.geometry.userData.dressed) return;
+      // quantized skinned meshes dequantize through the bind matrices, so evaluate the
+      // skin itself (rest pose = T-pose bind) to get real-world bind positions in metres
+      const geo = o.geometry;
+      // r128 does not de-normalize quantized attributes on the CPU side: convert them once
+      for (const key of ['position', 'normal', 'uv', 'skinWeight']) {
+        const at = geo.attributes[key]; if (!at || !at.normalized || at.array instanceof Float32Array) continue;
+        const arr = at.array, div = arr instanceof Int16Array ? 32767 : arr instanceof Uint16Array ? 65535 : arr instanceof Int8Array ? 127 : 255;
+        const f = new Float32Array(arr.length); for (let i = 0; i < arr.length; i++) f[i] = Math.max(-1, arr[i] / div);
+        geo.setAttribute(key, new THREE.BufferAttribute(f, at.itemSize));
+      }
+      const P = geo.attributes.position;
+      o.skeleton.pose(); o.updateMatrixWorld(true);
+      const bp = new Float32Array(P.count * 3), bn = new Float32Array(P.count * 3), v = new THREE.Vector3();
+      // manual linear-blend skinning in the rest (= bind) pose, guarding bad indices
+      const SI = geo.attributes.skinIndex, SW = geo.attributes.skinWeight, sk = o.skeleton;
+      const bm = sk.bones.map((b, j) => b ? new THREE.Matrix4().multiplyMatrices(b.matrixWorld, sk.boneInverses[j]) : null);
+      const base = new THREE.Vector3(), acc = new THREE.Vector3(), tmp = new THREE.Vector3(), inv = new THREE.Matrix4().copy(o.bindMatrixInverse);
+      for (let i = 0; i < P.count; i++) {
+        base.fromBufferAttribute(P, i).applyMatrix4(o.bindMatrix); acc.set(0, 0, 0); let wsum = 0;
+        for (let k = 0; k < 4; k++) {
+          const j = SI.getComponent ? SI.getComponent(i, k) : SI.array[i * 4 + k], w = SW.array[i * 4 + k];
+          if (!w || !bm[j]) continue; tmp.copy(base).applyMatrix4(bm[j]).multiplyScalar(w); acc.add(tmp); wsum += w;
+        }
+        if (wsum > 0) acc.multiplyScalar(1 / wsum); else acc.copy(base);
+        v.copy(acc).applyMatrix4(inv).applyMatrix4(o.matrixWorld);
+        bp[i * 3] = v.x; bp[i * 3 + 1] = v.y; bp[i * 3 + 2] = v.z;
+      }
+      if (geo.index) {                                   // smooth normals from the bind positions
+        const ix = geo.index.array, e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), fn = new THREE.Vector3();
+        for (let t = 0; t < ix.length; t += 3) {
+          const a = ix[t] * 3, b = ix[t + 1] * 3, c = ix[t + 2] * 3;
+          e1.set(bp[b] - bp[a], bp[b + 1] - bp[a + 1], bp[b + 2] - bp[a + 2]); e2.set(bp[c] - bp[a], bp[c + 1] - bp[a + 1], bp[c + 2] - bp[a + 2]);
+          fn.crossVectors(e1, e2);
+          for (const q of [a, b, c]) { bn[q] += fn.x; bn[q + 1] += fn.y; bn[q + 2] += fn.z; }
+        }
+        for (let i = 0; i < P.count; i++) { const l = Math.hypot(bn[i * 3], bn[i * 3 + 1], bn[i * 3 + 2]) || 1; bn[i * 3] /= l; bn[i * 3 + 1] /= l; bn[i * 3 + 2] /= l; }
+      }
+      geo.setAttribute('bpos', new THREE.BufferAttribute(bp, 3)); geo.setAttribute('bnrm', new THREE.BufferAttribute(bn, 3));
+      if (o.material.name === 'MI_Superhero_Male' && geo.index) {
+        // T-pose bind: head above the neck, hands beyond the wrists, boots below the ankles, trousers below the belt
+        const idx = geo.index.array, tris = idx.length / 3, buckets = [[], [], [], [], []];
+        for (let t = 0; t < tris; t++) {
+          let cx = 0, cy = 0;
+          for (let k = 0; k < 3; k++) { const vi = idx[t * 3 + k]; cx += bp[vi * 3]; cy += bp[vi * 3 + 1]; }
+          cx /= 3; cy /= 3; const ax = Math.abs(cx);
+          const r = cy > 1.535 && ax < 0.2 ? R_HEAD : ax > 0.665 ? R_GLOVES : cy < 0.15 ? R_BOOTS : (cy < 0.985 && ax < 0.3) ? R_PANTS : R_JACKET;
+          buckets[r].push(idx[t * 3], idx[t * 3 + 1], idx[t * 3 + 2]);
+        }
+        const out = new (idx.constructor)(idx.length); let off = 0; geo.clearGroups();
+        buckets.forEach((b, r) => { out.set(b, off); geo.addGroup(off, b.length, r); off += b.length; });
+        geo.setIndex(new THREE.BufferAttribute(out, 1));
+      }
+      geo.userData.dressed = true;
+    });
+  }
+  /* box-projected sampling in bind space (fabric follows the animated body) */
+  function dressMat(map, K) {
+    const m = BV.mat({ map, color: 0xffffff, roughness: 0.9 }); m.skinning = true;
+    m.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'attribute vec3 bpos;\nattribute vec3 bnrm;\nvarying vec3 vBpos;\nvarying vec3 vBnrm;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vBpos = bpos; vBnrm = bnrm;');
+      sh.fragmentShader = 'varying vec3 vBpos;\nvarying vec3 vBnrm;\n' + sh.fragmentShader.replace('#include <map_fragment>', `
+  vec3 bAn = abs(vBnrm);
+  vec2 bUv = bAn.x > bAn.y && bAn.x > bAn.z ? vBpos.zy : (bAn.z > bAn.y ? vBpos.xy : vBpos.xz);
+  vec4 texelColor = texture2D( map, bUv * ${K.toFixed(2)} );
+  texelColor = mapTexelToLinear( texelColor );
+  diffuseColor *= texelColor;`);
+    };
+    m.customProgramCacheKey = () => 'dress' + K;
+    m.userData.base = m.color.clone();
+    return m;
   }
 
   /* ---------- analytic two-bone IK (world space) ---------- */
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d1 = new THREE.Vector3(), _d2 = new THREE.Vector3(), _ax = new THREE.Vector3();
-  const _pq = new THREE.Quaternion(), _bq = new THREE.Quaternion(), _rq = new THREE.Quaternion();
+  const _pq = new THREE.Quaternion(), _bq = new THREE.Quaternion(), _rq = new THREE.Quaternion(), _id = new THREE.Quaternion();
   function rotWorld(bone, q) {
     bone.parent.getWorldQuaternion(_pq); bone.getWorldQuaternion(_bq);
     _bq.premultiply(q); bone.quaternion.copy(_pq.invert().multiply(_bq)); bone.updateMatrixWorld(true);
   }
-  function ik(upper, lower, end, target, weight) {
+  function ik(upperB, lowerB, end, target, weight) {
     if (weight <= 0.001) return;
-    upper.getWorldPosition(_a); lower.getWorldPosition(_b); end.getWorldPosition(_c);
+    upperB.getWorldPosition(_a); lowerB.getWorldPosition(_b); end.getWorldPosition(_c);
     const l1 = _a.distanceTo(_b), l2 = _b.distanceTo(_c);
-    const t = _d1.copy(target).sub(_a); const d = BV.U.clamp(t.length(), 0.02, l1 + l2 - 0.002);
-    // elbow: set interior angle from the law of cosines
+    const d = BV.U.clamp(_d1.copy(target).sub(_a).length(), 0.02, l1 + l2 - 0.002);
     const want = Math.acos(BV.U.clamp((l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2), -1, 1));
     const ba = _d2.copy(_a).sub(_b).normalize(), bc = _ax.copy(_c).sub(_b).normalize();
     const cur = Math.acos(BV.U.clamp(ba.dot(bc), -1, 1));
     const axis = new THREE.Vector3().crossVectors(bc, ba); if (axis.lengthSq() < 1e-8) axis.set(1, 0, 0); axis.normalize();
-    rotWorld(lower, _rq.setFromAxisAngle(axis, -(want - cur) * weight));
-    // shoulder: swing the chain so the hand reaches the target
+    rotWorld(lowerB, _rq.setFromAxisAngle(axis, -(want - cur) * weight));
     end.getWorldPosition(_c);
     const from = _d2.copy(_c).sub(_a).normalize(), to = _ax.copy(target).sub(_a).normalize();
-    _rq.setFromUnitVectors(from, to); if (weight < 1) _rq.slerp(new THREE.Quaternion(), 1 - weight);
-    rotWorld(upper, _rq);
+    _rq.setFromUnitVectors(from, to); if (weight < 1) _rq.slerp(_id, 1 - weight);
+    rotWorld(upperB, _rq);
   }
 
   function create(teamId) {
-    const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD';
-    const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-    const model = THREE.SkeletonUtils.clone(tpl.scene);
-    model.rotation.y = Math.PI;                  // source faces +Z, game faces -Z
-    body.add(model);
+    const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD', M = BV.Models;
+    const root = new THREE.Group(), bodyG = new THREE.Group(); root.add(bodyG);
+    const model = THREE.SkeletonUtils.clone(body.scene);
+    model.rotation.y = Math.PI;                      // source faces +Z, game faces -Z
+    bodyG.add(model);
     const bones = {}; model.traverse(o => { if (o.isBone) bones[o.name] = o; });
-    // ---- team re-skin ----
     const mats = [];
-    // distinct team palettes (silhouette + colour, like classic CT/T skins)
-    // muted, period-style palettes; the colour now comes from the painted skins
-    const pal = { Swat: 0xffffff, Swat_Black: 0xffffff, Skin: T.skin, Visor: 0x1c2328 };
-    const M = BV.Models;
-    const skins = {
-      Swat: M.operatorFabric(V ? 0x59636a : 0x6f6551, V ? 'digital' : 'blot'),
-      Swat_Black: M.gearTex(V ? 0x2c3236 : 0x3b3329)
-    };
+    const reg = (m) => { if (m.color && !m.userData.base) m.userData.base = m.color.clone(); mats.push(m); return m; };
+    // ---- clothing ----
+    const jacket = reg(dressMat(M.operatorFabric(V ? 0x59636a : 0x6f6551, V ? 'digital' : 'blot'), 2.6));
+    const pants = reg(dressMat(M.operatorFabric(V ? 0x4d565c : 0x5f5646, V ? 'digital' : 'blot'), 2.6));
+    const gloves = reg(dressMat(M.gearTex(0x262626), 4));
+    const boots = reg(dressMat(M.gearTex(0x221f1b), 4));
     model.traverse(o => {
       if (!o.isMesh) return;
       o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
-      const src = o.material, name = src.name;
-      const opts = { color: pal[name] !== undefined ? pal[name] : src.color.getHex(), skinning: true };
-      if (skins[name]) opts.map = skins[name];
-      const m = BV.mat(Object.assign({ roughness: name === 'Visor' ? 0.2 : 0.85, metalness: name === 'Visor' ? 0.5 : 0 }, opts));
-      m.skinning = true; m.userData.base = m.color.clone(); mats.push(m); o.material = m;
+      if (o.material.name === 'MI_Eyes') { const em = reg(BV.mat({ map: o.material.map })); em.skinning = true; o.material = em; o.visible = V; return; }
+      const src = o.material;
+      const headMat = reg(BV.mat({ map: src.map, color: 0xb3aaa2, roughness: 0.7 })); headMat.skinning = true;
+      const hidden = new THREE.MeshBasicMaterial({ visible: false }); hidden.skinning = true;
+      o.material = [jacket, pants, gloves, boots, V ? headMat : hidden];
     });
-    // ---- pose the rig in the aim clip, then attach props in world space ----
+    // pose in the neutral aim to attach gear in world space
     const mixer = new THREE.AnimationMixer(model);
-    if (clips.Idle_Gun_Pointing) { mixer.clipAction(clips.Idle_Gun_Pointing).play(); mixer.update(0.01); }
+    if (clips.Pistol_Aim_Neutral) { mixer.clipAction(clips.Pistol_Aim_Neutral).play(); mixer.update(0.01); mixer.stopAllAction(); }
     root.updateMatrixWorld(true);
     const attachWorld = (bone, obj, pos, quat) => {
       const want = new THREE.Matrix4().compose(pos, quat || new THREE.Quaternion(), new THREE.Vector3(1, 1, 1));
@@ -125,138 +173,161 @@ BV.CharModels = (function () {
       local.decompose(obj.position, obj.quaternion, obj.scale); bone.add(obj);
     };
     const wp = (b) => b.getWorldPosition(new THREE.Vector3());
-    if (!V && bones.Head && BV.Models.ravenHead) {
-      model.traverse(o => { if (o.isMesh && o.parent && o.parent.name === 'Swat_Head') o.visible = false; });
-      const h = BV.Models.ravenHead(mats);
-      attachWorld(bones.Head, h, wp(bones.Head).add(new THREE.Vector3(0, -0.07, 0.01)));
+    const mk = (o) => reg(BV.mat(Object.assign({ roughness: 0.8 }, o)));
+    const add = (g, geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.castShadow = true; g.add(me); return me; };
+    const webbing = mk({ map: M.vestSkin(V ? 0x46505a : 0x564733) }), strap = mk({ color: V ? 0x2b302d : 0x2a2420 }), accent = mk({ color: T.accent });
+    // ---- torso gear (plate carrier / chest rig) on spine_03 ----
+    if (bones.spine_03) {
+      const g = new THREE.Group(), c = wp(bones.spine_03);
+      if (V) {
+        add(g, M.rbox(0.36, 0.36, 0.07, 0.03), webbing, 0, -0.02, -0.15);
+        add(g, M.rbox(0.36, 0.38, 0.07, 0.03), webbing, 0, -0.02, 0.15);
+        add(g, M.rbox(0.44, 0.13, 0.32, 0.04), webbing, 0, -0.16, 0);
+        for (const sx of [-1, 1]) add(g, M.rbox(0.07, 0.05, 0.32, 0.015), webbing, sx * 0.12, 0.17, 0);
+        for (let i = -1; i <= 1; i++) { add(g, M.rbox(0.08, 0.13, 0.05, 0.014), webbing, i * 0.095, -0.07, -0.205); add(g, M.rbox(0.083, 0.028, 0.055, 0.008), strap, i * 0.095, 0.0, -0.205); }
+        add(g, M.rbox(0.06, 0.09, 0.045, 0.014), strap, 0.2, -0.05, -0.08);
+        add(g, new THREE.CylinderGeometry(0.005, 0.005, 0.26, 4), strap, 0.21, 0.12, -0.06);
+        add(g, M.rbox(0.075, 0.045, 0.012, 0.004), accent, -0.11, 0.08, -0.19);
+      } else {
+        add(g, M.rbox(0.34, 0.2, 0.08, 0.03), webbing, 0, -0.1, -0.13);
+        for (let i = -1; i <= 1; i++) { add(g, M.rbox(0.085, 0.12, 0.055, 0.016), webbing, i * 0.1, -0.1, -0.19); add(g, M.rbox(0.088, 0.028, 0.06, 0.008), strap, i * 0.1, -0.03, -0.19); }
+        for (const sx of [-1, 1]) { const x = add(g, M.rbox(0.045, 0.5, 0.014, 0.006), strap, 0, 0.02, -0.14); x.rotation.z = sx * 0.55; }
+        add(g, M.rbox(0.3, 0.38, 0.16, 0.04), webbing, 0, -0.04, 0.2);
+        const roll = add(g, new THREE.CylinderGeometry(0.06, 0.06, 0.32, 10), strap, 0, 0.19, 0.2); roll.rotation.z = Math.PI / 2;
+      }
+      attachWorld(bones.spine_03, g, c);
     }
-    // load-bearing gear on the chest bone (moves with the torso)
-    const chestBone = bones.Chest || bones.Torso;
-    if (chestBone && BV.Models.rbox) {
-      const M = BV.Models, gear = new THREE.Group();
-      const mk = (o) => { const mm = BV.mat(Object.assign({ roughness: 0.8 }, o)); mm.userData.base = mm.color.clone(); mats.push(mm); return mm; };
-      const webbing = mk({ map: M.vestSkin(V ? 0x4f5a62 : 0x5a4a34) }), strap = mk({ color: V ? 0x2b302d : 0x2a2420 }), accent = mk({ color: T.accent });
-      const add = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.castShadow = true; gear.add(me); return me; };
-      for (let i = -1; i <= 1; i++) { add(M.rbox(0.075, 0.12, 0.05, 0.014), webbing, i * 0.085, -0.06, -0.03); add(M.rbox(0.078, 0.025, 0.055, 0.008), strap, i * 0.085, 0.0, -0.03); }
-      add(M.rbox(0.06, 0.09, 0.045, 0.014), strap, 0.17, -0.02, 0.02);                      // radio
-      add(new THREE.CylinderGeometry(0.005, 0.005, 0.24, 4), strap, 0.18, 0.13, 0.03);       // antenna
-      if (V) add(M.rbox(0.07, 0.04, 0.012, 0.004), accent, -0.1, 0.1, -0.035);               // ID patch
-      else { const x1 = add(M.rbox(0.04, 0.42, 0.012, 0.005), strap, 0, 0.02, -0.04); x1.rotation.z = 0.6; const x2 = add(M.rbox(0.04, 0.42, 0.012, 0.005), strap, 0, 0.02, -0.04); x2.rotation.z = -0.6; }
-      add(M.rbox(0.3, 0.05, 0.22, 0.015), strap, 0, -0.3, 0.05);                              // belt
-      add(M.rbox(0.05, 0.14, 0.08, 0.015), strap, 0.17, -0.38, 0.04);                         // holster
-      const cp = wp(chestBone);
-      attachWorld(chestBone, gear, new THREE.Vector3(0, cp.y, cp.z - 0.12));
+    if (bones.pelvis) {
+      const g = new THREE.Group(), c = wp(bones.pelvis);
+      add(g, M.rbox(0.36, 0.055, 0.25, 0.015), strap, 0, 0.03, 0);
+      add(g, M.rbox(0.055, 0.17, 0.09, 0.015), strap, 0.2, -0.08, -0.02);
+      add(g, M.rbox(0.1, 0.1, 0.06, 0.02), webbing, -0.2, -0.02, 0.0);
+      attachWorld(bones.pelvis, g, c);
     }
-    if (bones.UpperArmL && bones.LowerArmL) {        // team armband
-      const a = wp(bones.UpperArmL), b = wp(bones.LowerArmL), dir = b.clone().sub(a).normalize();
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.066, 0.066, 0.06, 12, 1, true), BV.mat({ color: T.accent, side: THREE.DoubleSide }));
-      band.material.userData.base = band.material.color.clone(); mats.push(band.material);
-      attachWorld(bones.UpperArmL, band, a.clone().addScaledVector(dir, 0.11), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+    for (const s of ['l', 'r']) if (bones['calf_' + s]) {
+      const p = new THREE.Mesh(M.rbox(0.12, 0.13, 0.06, 0.02), V ? webbing : strap); p.castShadow = true;
+      attachWorld(bones['calf_' + s], p, wp(bones['calf_' + s]).add(new THREE.Vector3(0, -0.02, -0.07)));
     }
-    // weapon: follows the right hand's position every frame but always points
-    // where the operator aims (classic shooter convention, no wrist wobble)
-    const gunHolder = new THREE.Group(); body.add(gunHolder);
-    const supportLocal = new THREE.Vector3(), _tw = new THREE.Vector3(), _belt = new THREE.Vector3();
-    let kick = 0, relPh = 0, ikW = 0;
-    const handOff = new THREE.Vector3(0, -0.03, -0.05), _hw = new THREE.Vector3();
-    const placeGun = (pitch) => {
-      if (!bones.WristR) { gunHolder.position.set(0.15, 1.3, -0.4); return; }
-      root.updateMatrixWorld(true);
-      bones.WristR.getWorldPosition(_hw); body.worldToLocal(_hw);
-      gunHolder.position.copy(_hw).add(handOff);
-      gunHolder.position.z += kick * 0.04; gunHolder.position.y += kick * 0.01;
-      gunHolder.rotation.set(pitch * 0.8 + kick * 0.12, 0, relPh > 0 ? Math.sin(Math.min(1, relPh) * Math.PI * 0.5) * 0.45 : 0);
-    };
-    // ---- blob shadow ----
+    if (bones.upperarm_l && bones.lowerarm_l) {
+      const a = wp(bones.upperarm_l), b = wp(bones.lowerarm_l), dir = b.clone().sub(a).normalize();
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.06, 12, 1, true), reg(BV.mat({ color: T.accent, side: THREE.DoubleSide })));
+      attachWorld(bones.upperarm_l, band, a.clone().addScaledVector(dir, 0.1), new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+    }
+    if (bones.Head) {
+      const h = wp(bones.Head);
+      if (V) {
+        const g = new THREE.Group();
+        const mH = mk({ color: T.helmet, roughness: 0.75 }), mBlk = mk({ color: 0x1a1a1a });
+        const shell = add(g, new THREE.SphereGeometry(0.135, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), mH, 0, 0.06, 0.005); shell.scale.set(1, 0.95, 1.1);
+        const rim = add(g, new THREE.TorusGeometry(0.133, 0.012, 6, 20), mH, 0, 0.065, 0.005); rim.rotation.x = Math.PI / 2; rim.scale.set(1, 1.1, 1);
+        add(g, M.rbox(0.05, 0.04, 0.03, 0.008), mBlk, 0, 0.17, -0.13);
+        for (const sx of [-1, 1]) { const e = add(g, new THREE.CylinderGeometry(0.045, 0.045, 0.045, 12), strap, sx * 0.105, 0.01, 0.01); e.rotation.z = Math.PI / 2; }
+        attachWorld(bones.Head, g, h);
+      } else if (M.ravenHead) {
+        attachWorld(bones.Head, M.ravenHead(mats), h.clone().add(new THREE.Vector3(0, -0.1, 0.01)));
+      }
+    }
+    const gunHolder = new THREE.Group(); bodyG.add(gunHolder);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.015; root.add(shadow);
 
-    // ---- animation ----
-    const act = (n, once) => { const c = clips[n]; if (!c) return null; const a = mixer.clipAction(c); if (once) { a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } return a; };
-    const A = { aim: act('Idle_Gun_Pointing'), run: act('Run_Shoot'), shoot: act('Idle_Gun_Shoot'), hit: act('HitRecieve', true), death: act('Death', true) };
-    ['aim', 'run', 'shoot'].forEach(k => { if (A[k]) { A[k].play(); A[k].setEffectiveWeight(k === 'aim' ? 1 : 0); } });
-    const w = { aim: 1, run: 0, shoot: 0 };
-    let currentGun = null, dying = false, lastDie = 0;
+    // ---- animation layers ----
+    const act = (clip) => { if (!clip) return null; const a = mixer.clipAction(clip); a.play(); a.setEffectiveWeight(0); return a; };
+    const L = { idle: act(lower.Idle_Loop), walk: act(lower.Walk_Loop), jog: act(lower.Jog_Fwd_Loop), sprint: act(lower.Sprint_Loop), cidle: act(lower.Crouch_Idle_Loop), cwalk: act(lower.Crouch_Fwd_Loop) };
+    const U = { aim: act(upper.Pistol_Aim_Neutral), up: act(upper.Pistol_Aim_Up), down: act(upper.Pistol_Aim_Down), shoot: act(upper.Pistol_Shoot), reload: act(upper.Pistol_Reload), run: act(upper.Sprint_Loop) };
+    const hit = upper.Hit_Chest ? mixer.clipAction(upper.Hit_Chest) : null; if (hit) hit.setLoop(THREE.LoopOnce, 1);
+    const death = clips.Death01 ? mixer.clipAction(clips.Death01) : null; if (death) { death.setLoop(THREE.LoopOnce, 1); death.clampWhenFinished = true; }
+    const wL = {}, wU = {}; for (const k in L) wL[k] = 0; for (const k in U) wU[k] = 0;
+    const supportLocal = new THREE.Vector3(), gripLocal = new THREE.Vector3(), _tw = new THREE.Vector3(), _belt = new THREE.Vector3(), _sh = new THREE.Vector3();
+    let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle';
     const api = {
-      root, body, torso: body, head: body, gunHolder, shadow, flashAnchor: null, ejectAnchor: null, state: null, shade: 1, skinned: true,
+      root, body: bodyG, torso: bodyG, head: bodyG, gunHolder, shadow, flashAnchor: null, ejectAnchor: null, state: null, shade: 1, skinned: true,
       setWeapon(def) {
         if (currentGun) gunHolder.remove(currentGun.group);
-        currentGun = BV.Models.gun(def.model);
+        currentGun = M.gun(def.model);
         const s = def.cls === 'melee' ? 1.2 : 1.05; currentGun.group.scale.set(s, s, s);
         currentGun.group.traverse(o => { if (o.isMesh) o.castShadow = false; });
         gunHolder.add(currentGun.group);
         api.flashAnchor = currentGun.muzzle; api.ejectAnchor = currentGun.eject;
-        // where the support (left) hand goes: handguard for long guns, cupping the grip for pistols
-        api.cls = def.cls;
+        cls = def.cls;
         const len = -currentGun.muzzle.position.z * s;
-        if (def.cls === 'pistol') supportLocal.set(-0.035, -0.05, 0.02);
-        else if (def.cls === 'melee' || def.cls === 'grenade') supportLocal.set(0, 0, 0);
-        else supportLocal.set(0, Math.min(0.06, currentGun.muzzle.position.y * s * 0.45), -len * (def.cls === 'shotgun' ? 0.55 : 0.5));
+        supportLocal.set(0, Math.min(0.06, currentGun.muzzle.position.y * s * 0.45), -len * (def.cls === 'shotgun' ? 0.55 : 0.5));
+        gripLocal.set(0, 0, 0);
       },
       animate(dt, speed, crouch, pitch, phase, firing) {
         if (dying) return;
-        const st = api.state || {};
-        const moving = Math.min(1, speed / 1.2);
-        w.run += (moving - w.run) * Math.min(1, dt * 10);
-        w.shoot += ((firing && speed < 1 ? 1 : 0) - w.shoot) * Math.min(1, dt * 18);
-        w.aim = Math.max(0, 1 - w.run - w.shoot);
-        if (A.run) { A.run.setEffectiveWeight(w.run); A.run.timeScale = BV.U.clamp(speed / 4.4, 0.55, 1.5); }
-        if (A.shoot) A.shoot.setEffectiveWeight(w.shoot);
-        if (A.aim) A.aim.setEffectiveWeight(w.aim);
-        mixer.update(dt);
-        // procedural layers on top of the clips: crouch, aim pitch, sprint carry
-        body.position.y = -crouch * 0.42;
-        if (crouch > 0.01) {
-          // bend around the character's own right axis (bone axes are mirrored L/R)
-          root.updateMatrixWorld(true);
-          _v.set(1, 0, 0).applyQuaternion(root.getWorldQuaternion(_q)).normalize();
-          for (const s of ['L', 'R']) {
-            const ul = bones['UpperLeg' + s], ll = bones['LowerLeg' + s];
-            if (ul) ul.rotateOnWorldAxis(_v, 1.15 * crouch);
-            if (ll) { ul && ul.updateMatrixWorld(true); ll.rotateOnWorldAxis(_v, -2.1 * crouch); }
-          }
-        }
-        const chest = bones.Chest || bones.Torso;
-        if (chest) chest.rotateX(-pitch * 0.55 + (st.sprint ? 0.15 : 0));
-        if (bones.Head) bones.Head.rotateX(-pitch * 0.3);
-        // weapon handling layers: recoil kick and reload motion
+        const st = api.state || {}, k = Math.min(1, dt * 9);
+        const crouching = crouch > 0.5, moving = speed > 0.35;
+        const tL = { idle: 0, walk: 0, jog: 0, sprint: 0, cidle: 0, cwalk: 0 };
+        if (crouching) tL[moving ? 'cwalk' : 'cidle'] = 1;
+        else if (!moving) tL.idle = 1;
+        else if (st.sprint) tL.sprint = 1;
+        else if (speed < 2.6) tL.walk = 1; else tL.jog = 1;
+        for (const n in L) { if (!L[n]) continue; wL[n] += (tL[n] - wL[n]) * k; L[n].setEffectiveWeight(wL[n]); }
+        const dir = st.back ? -1 : 1;
+        if (L.walk) L.walk.timeScale = dir * BV.U.clamp(speed / 1.6, 0.6, 1.6);
+        if (L.jog) L.jog.timeScale = dir * BV.U.clamp(speed / 4.2, 0.7, 1.5);
+        if (L.sprint) L.sprint.timeScale = BV.U.clamp(speed / 6.5, 0.8, 1.3);
+        if (L.cwalk) L.cwalk.timeScale = dir * BV.U.clamp(speed / 1.4, 0.6, 1.6);
         if (firing) kick = Math.min(1, kick + dt * 30); else kick = Math.max(0, kick - dt * 9);
         if (st.reloading) relPh = Math.min(3, relPh + dt * 2.2); else relPh = Math.max(0, relPh - dt * 4);
-        placeGun(pitch);
-        // support hand: two-handed hold (IK), reaching to the belt and back while reloading
-        const wantIK = api.cls && api.cls !== 'melee' && api.cls !== 'grenade' ? 1 : 0;
-        ikW += (wantIK - ikW) * Math.min(1, dt * 8);
-        if (ikW > 0.01 && bones.UpperArmL && bones.LowerArmL && bones.WristL) {
-          gunHolder.updateMatrixWorld(true);
+        const tU = { aim: 0, up: 0, down: 0, shoot: 0, reload: 0, run: 0 };
+        const pu = BV.U.clamp(pitch / 0.9, -1, 1);
+        if (st.sprint && !firing) tU.run = 1;
+        else if (st.reloading && cls === 'pistol') tU.reload = 1;
+        else if (firing && cls === 'pistol') tU.shoot = 1;
+        else { tU.aim = 1 - Math.abs(pu); if (pu > 0) tU.up = pu; else tU.down = -pu; }
+        if (U.reload && tU.reload && wU.reload < 0.05) U.reload.time = 0;
+        for (const n in U) { if (!U[n]) continue; wU[n] += (tU[n] - wU[n]) * Math.min(1, dt * 14); U[n].setEffectiveWeight(wU[n]); }
+        mixer.update(dt);
+        api.place(pitch, st);
+      },
+      place(pitch, st) {
+        root.updateMatrixWorld(true);
+        if (!currentGun) return;
+        if (cls === 'pistol' || cls === 'melee' || cls === 'grenade' || (st && st.sprint)) {
+          ikW = Math.max(0, ikW - 0.25);
+          if (bones.hand_r) { bones.hand_r.getWorldPosition(_tw); bodyG.worldToLocal(_tw); gunHolder.position.copy(_tw).add(_v.set(0.0, -0.035, -0.06)); }
+          gunHolder.rotation.set((st && st.sprint ? -0.5 : pitch * 0.85) + kick * 0.15, 0, 0);
+          return;
+        }
+        // long guns: shouldered at a chest anchor, both hands placed with IK
+        if (bones.spine_03) { bones.spine_03.getWorldPosition(_sh); bodyG.worldToLocal(_sh); }
+        const p = BV.U.clamp(pitch, -1.1, 1.1);
+        gunHolder.position.set(_sh.x + 0.13, _sh.y + 0.08 + Math.sin(p) * 0.25, _sh.z - 0.32 * Math.cos(p) + kick * 0.04);
+        gunHolder.rotation.set(p + kick * 0.1, 0, relPh > 0 ? Math.sin(Math.min(1, relPh) * Math.PI * 0.5) * 0.45 : 0);
+        gunHolder.updateMatrixWorld(true);
+        ikW += (1 - ikW) * 0.3;
+        if (bones.upperarm_r && bones.lowerarm_r && bones.hand_r) { _tw.copy(gripLocal); gunHolder.localToWorld(_tw); ik(bones.upperarm_r, bones.lowerarm_r, bones.hand_r, _tw, ikW); }
+        if (bones.upperarm_l && bones.lowerarm_l && bones.hand_l) {
           _tw.copy(supportLocal); gunHolder.localToWorld(_tw);
-          if (relPh > 0) {                                   // hand to the mag pouch and back
-            _belt.set(-0.12, 1.0, -0.1); body.localToWorld(_belt);
-            const k = Math.sin(BV.U.clamp(relPh / 1.4, 0, 1) * Math.PI);
-            _tw.lerp(_belt, k);
-          }
-          ik(bones.UpperArmL, bones.LowerArmL, bones.WristL, _tw, ikW);
+          if (relPh > 0) { _belt.set(-0.15, 1.0, -0.12); bodyG.localToWorld(_belt); _tw.lerp(_belt, Math.sin(BV.U.clamp(relPh / 1.4, 0, 1) * Math.PI)); }
+          ik(bones.upperarm_l, bones.lowerarm_l, bones.hand_l, _tw, ikW);
         }
       },
-      flinch() { if (A.hit && !dying) { A.hit.reset(); A.hit.setEffectiveWeight(0.7); A.hit.fadeOut(0.35); A.hit.play(); } },
+      flinch() { if (hit && !dying) { hit.reset(); hit.setEffectiveWeight(0.8); hit.fadeOut(0.3); hit.play(); } },
       die(t) {
         if (!dying) {
           dying = true; lastDie = 0;
-          ['aim', 'run', 'shoot'].forEach(k => A[k] && A[k].fadeOut(0.15));
-          if (A.death) { A.death.reset(); A.death.setEffectiveWeight(1); A.death.fadeIn(0.1); A.death.play(); }
+          for (const n in L) if (L[n]) L[n].setEffectiveWeight(0);
+          for (const n in U) if (U[n]) U[n].setEffectiveWeight(0);
+          if (death) { death.reset(); death.setEffectiveWeight(1); death.play(); }
         }
         const tt = t * 0.6, dt = Math.max(0, tt - lastDie); lastDie = tt;
-        mixer.update(dt); placeGun(-0.6 * Math.min(1, t * 2));
+        mixer.update(dt);
+        if (currentGun) { root.updateMatrixWorld(true); if (bones.hand_r) { bones.hand_r.getWorldPosition(_tw); bodyG.worldToLocal(_tw); gunHolder.position.copy(_tw); } gunHolder.rotation.set(-0.8 * Math.min(1, t * 2), 0, 0); }
         const e = Math.min(1, t); shadow.scale.set(1 + e * 0.6, 1 + e * 1.2, 1);
       },
       reset() {
-        dying = false; lastDie = 0; body.position.y = 0;
-        if (A.death) A.death.stop();
-        ['aim', 'run', 'shoot'].forEach(k => { if (A[k]) { A[k].stop(); A[k].play(); } });
-        w.aim = 1; w.run = 0; w.shoot = 0; shadow.scale.set(1, 1, 1);
+        dying = false; lastDie = 0; bodyG.position.y = 0;
+        if (death) death.stop();
+        for (const n in L) if (L[n]) { L[n].stop(); L[n].play(); wL[n] = n === 'idle' ? 1 : 0; L[n].setEffectiveWeight(wL[n]); }
+        for (const n in U) if (U[n]) { U[n].stop(); U[n].play(); wU[n] = n === 'aim' ? 1 : 0; U[n].setEffectiveWeight(wU[n]); }
+        shadow.scale.set(1, 1, 1);
       },
       setShade(k) {
         if (Math.abs(k - api.shade) < 0.01) return; api.shade = k;
-        for (const m of mats) m.color.copy(m.userData.base).multiplyScalar(k);
+        for (const m of mats) if (m.color && m.userData.base) m.color.copy(m.userData.base).multiplyScalar(k);
       }
     };
     api.reset();
