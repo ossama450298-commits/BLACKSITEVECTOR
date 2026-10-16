@@ -68,6 +68,8 @@ BV.Viewmodel = class {
     this.base = def.cls === 'pistol' ? [0.13, -0.13, -0.33] : def.cls === 'melee' ? [0.17, -0.2, -0.33] : def.cls === 'grenade' ? [0.17, -0.19, -0.34]
       : def.cls === 'sniper' ? [0.17, -0.165, -0.55] : [0.17, -0.185, -0.47];
     this.baseRot = def.cls === 'melee' ? [0.1, 0.25, -0.15] : [0, 0.03, 0];
+    // imported meshes carry the bore higher above the grip: drop them so the sights line up
+    if (this.gun.imported) { this.base = this.base.slice(); this.base[1] -= Math.max(0, this.gun.muzzle.position.y - 0.04) * 0.9; }
     this.holder.add(g);
     this.t.draw = this.t.drawMax = def.cls === 'melee' ? 0.3 : 0.5; this.t.reload = 0; this.t.swing = 0; this.t.inspect = 0; this.t.pump = 0;
     this.sp.pv.y += 0.4; this.sp.rv.x += 2.5; // settle impulse after the raise

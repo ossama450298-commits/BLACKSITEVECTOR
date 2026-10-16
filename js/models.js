@@ -112,13 +112,16 @@ BV.Models = (function () {
   }
   function wearMat(key, o, wear) {
     if (matCache[key]) return matCache[key];
-    if (BV.classic) {
+    if (BV.classic && o.keepColor) {
+      wear = Object.assign({}, wear, { amt: wear.amt * 0.55, color: new THREE.Color(wear.color).multiplyScalar(0.72).getHex() });
+    } else if (BV.classic) {
       // Gouraud/Lambert has no specular: darken metals and keep edge wear subtle, like painted skins
       const metal = (o.metalness || 0) > 0.5;
       o = Object.assign({}, o, { color: metal ? 0x7c7f82 : 0xb4b4b4 });
       wear = Object.assign({}, wear, { amt: wear.amt * (metal ? 0.55 : 0.45), color: new THREE.Color(wear.color).multiplyScalar(0.72).getHex() });
     }
-    const m = S(o);
+    const { keepColor, ...oo } = o;
+    const m = S(oo);
     m.userData.wear = wear;
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uWearColor = { value: new THREE.Color(wear.color) };
@@ -423,6 +426,57 @@ BV.Models = (function () {
     // ejection-port anchor for world-space brass
     const ej = new THREE.Object3D(); ej.position.set((THICK[model] || 0.04) / 2 + 0.01, 0.045, model === 'pistol' || model === 'pistolHeavy' ? 0.04 : -0.12); g.add(ej);
     return { group: g, muzzle, mag, magHome: mag ? mag.position.clone() : null, eject: ej };
+  }
+
+  /* ---------- imported weapon meshes (Quaternius Ultimate Guns Pack, CC0) ----------
+     Decoded from js/gun_data.js. Each source material keeps its own colour but
+     gets our grime map + edge-wear shader; the magazine (or shotgun pump) is a
+     separate part so reloads can animate it. */
+  const GUN_MAT = {
+    Black: ['poly', 0x1c1d1e], DarkMetal: ['dark', 0x2c2f31], Metal: ['steel', 0x5e6367], LightMetal: ['steel', 0x8a8f93], Grey: ['alu', 0x55595c],
+    Wood: ['wood', 0x6b4a30], DarkWood: ['wood', 0x4a3220], Main: ['dark', 0x2f3234], MainDark: ['poly', 0x1d1e1f], MainLight: ['alu', 0x5c6064]
+  };
+  const gunGeoCache = {};
+  function dec16(b64, scale) { const bin = atob(b64), n = bin.length >> 1, out = new Float32Array(n); for (let i = 0; i < n; i++) { let v = bin.charCodeAt(i * 2) | (bin.charCodeAt(i * 2 + 1) << 8); if (v > 32767) v -= 65536; out[i] = v / scale; } return out; }
+  function dec8(b64) { const bin = atob(b64), out = new Float32Array(bin.length); for (let i = 0; i < bin.length; i++) { let v = bin.charCodeAt(i); if (v > 127) v -= 256; out[i] = v / 127; } return out; }
+  function decU8(b64) { const bin = atob(b64), out = new Float32Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i) / 255; return out; }
+  function importedMat(mname, kd) {
+    const key = 'imp_' + mname + kd.join(',');
+    if (matCache[key]) return matCache[key];
+    if (mname === 'Glass') return (matCache[key] = new THREE.MeshBasicMaterial({ color: 0x0c151c }));
+    const spec = GUN_MAT[mname] || ['dark', 0x333333];
+    const base = M[spec[0]]();                                    // reuse wear settings of the family
+    const neutral = spec[0] === 'wood' ? woodTex() : grimeTex(0xb4b4b4, spec[0] === 'poly' ? 40 : 160);
+    const m = wearMat(key, { map: neutral, roughnessMap: base.roughnessMap, normalMap: base.normalMap, normalScale: base.normalScale,
+      roughness: base.roughness, metalness: base.metalness, color: spec[0] === 'wood' ? 0xd0b090 : spec[1], keepColor: true }, base.userData.wear);
+    return m;
+  }
+  function importedGun(model) {
+    const D = BV.GUN_DATA && BV.GUN_DATA[model]; if (!D) return null;
+    const g = new THREE.Group(), muzzle = new THREE.Object3D();
+    let mag = null;
+    for (const part of ['body', 'mag']) {
+      const list = D.parts[part]; if (!list) continue;
+      const parent = part === 'mag' ? (mag = new THREE.Group()) : g;
+      for (const L of list) {
+        const ck = model + part + L.mat;
+        let geo = gunGeoCache[ck];
+        if (!geo) {
+          geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(dec16(L.p, 16384), 3));
+          geo.setAttribute('normal', new THREE.BufferAttribute(dec8(L.nrm), 3));
+          geo.setAttribute('uv', new THREE.BufferAttribute(dec16(L.uv, 2048), 2));
+          geo.setAttribute('wear', new THREE.BufferAttribute(decU8(L.w), 1));
+          geo.computeBoundingSphere(); gunGeoCache[ck] = geo;
+        }
+        const me = new THREE.Mesh(geo, importedMat(L.mat, L.kd)); me.castShadow = true; parent.add(me);
+      }
+    }
+    if (mag) g.add(mag);
+    muzzle.position.set(D.muzzle[0], D.muzzle[1], D.muzzle[2] - 0.01); g.add(muzzle);
+    const len = -D.muzzle[2];
+    const ej = new THREE.Object3D(); ej.position.set(0.03, D.muzzle[1] * 0.8 + 0.01, model === 'pistol' || model === 'pistolHeavy' ? -len * 0.35 : -len * 0.18); g.add(ej);
+    return { group: g, muzzle, mag, magHome: mag ? mag.position.clone() : null, eject: ej, imported: true };
   }
 
   /* extra detail common to firearms: trigger guard + muzzle device */
@@ -802,5 +856,5 @@ BV.Models = (function () {
     return { group: g, right, left };
   }
 
-  return { gun: (m) => detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin };
+  return { gun: (m) => importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin };
 })();
