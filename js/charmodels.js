@@ -21,9 +21,31 @@ BV.CharModels = (function () {
         for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
         new THREE.GLTFLoader().parse(buf.buffer, '', (g) => {
           tpl = g; g.animations.forEach(a => { clips[a.name] = a; });
+          boxUVs(g.scene);
           ready = true; resolve(true);
         }, (err) => { console.warn('operator model failed to load', err); resolve(false); });
       } catch (e) { console.warn(e); resolve(false); }
+    });
+  }
+
+  /* the source mesh is vertex-coloured by material with collapsed UVs: generate
+     box-projected UVs from the bind pose (in metres) so painted skins can be applied */
+  function boxUVs(scene) {
+    scene.updateMatrixWorld(true);
+    const v = new THREE.Vector3(), n = new THREE.Vector3(), nm = new THREE.Matrix3();
+    scene.traverse(o => {
+      if (!o.isMesh || o.geometry.userData.boxUV) return;
+      const geo = o.geometry, P = geo.attributes.position, N = geo.attributes.normal; if (!P || !N) return;
+      nm.getNormalMatrix(o.matrixWorld);
+      const uv = new Float32Array(P.count * 2), K = 2.6;      // ~0.38 m per texture tile
+      for (let i = 0; i < P.count; i++) {
+        v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); n.fromBufferAttribute(N, i).applyMatrix3(nm);
+        const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
+        if (ax >= ay && ax >= az) { uv[i * 2] = v.z * K; uv[i * 2 + 1] = v.y * K; }
+        else if (az >= ay) { uv[i * 2] = v.x * K; uv[i * 2 + 1] = v.y * K; }
+        else { uv[i * 2] = v.x * K; uv[i * 2 + 1] = v.z * K; }
+      }
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.userData.boxUV = true;
     });
   }
 
@@ -77,15 +99,19 @@ BV.CharModels = (function () {
     // ---- team re-skin ----
     const mats = [];
     // distinct team palettes (silhouette + colour, like classic CT/T skins)
-    const pal = V ? { Swat: 0x6f7f8c, Swat_Black: 0x3a4148, Skin: T.skin, Visor: 0x26343e }
-                  : { Swat: 0x8f7c58, Swat_Black: 0x4a3b2c, Skin: T.skin, Visor: 0x26343e };
-    const camo = BV.Models.uniformSkinFor ? BV.Models.uniformSkinFor(teamId) : null;
+    // muted, period-style palettes; the colour now comes from the painted skins
+    const pal = { Swat: 0xffffff, Swat_Black: 0xffffff, Skin: T.skin, Visor: 0x1c2328 };
+    const M = BV.Models;
+    const skins = {
+      Swat: M.operatorFabric(V ? 0x59636a : 0x6f6551, V ? 'digital' : 'blot'),
+      Swat_Black: M.gearTex(V ? 0x2c3236 : 0x3b3329)
+    };
     model.traverse(o => {
       if (!o.isMesh) return;
       o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
       const src = o.material, name = src.name;
       const opts = { color: pal[name] !== undefined ? pal[name] : src.color.getHex(), skinning: true };
-      if (name === 'Swat' && camo) opts.map = camo;
+      if (skins[name]) opts.map = skins[name];
       const m = BV.mat(Object.assign({ roughness: name === 'Visor' ? 0.2 : 0.85, metalness: name === 'Visor' ? 0.5 : 0 }, opts));
       m.skinning = true; m.userData.base = m.color.clone(); mats.push(m); o.material = m;
     });

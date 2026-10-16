@@ -85,7 +85,7 @@ BV.Game = class {
     this.scene.add(e.model.root);
     if (this.player && e.team === this.player.team && e !== this.player) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BV.Textures.nameTag(e.name, BV.TEAMS[e.team].css), transparent: true, depthWrite: false, depthTest: true }));
-      s.scale.set(0.85, 0.21, 1); this.scene.add(s); e.tag = s;
+      s.scale.set(0.5, 0.125, 1); this.scene.add(s); e.tag = s;
     }
     this.ents.push(e);
   }

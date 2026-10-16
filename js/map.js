@@ -560,7 +560,7 @@ BV.Map = (function () {
     // distant industrial skyline beyond the compound walls
     const sky = new THREE.Group();
     const [ft, fe] = facadeTexture(5);
-    const fm = BV.mat({ map: ft, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: 0.9, roughness: 0.9, color: 0x8a8a88 });
+    const fm = BV.mat({ map: ft, emissiveMap: fe, emissive: 0xffffff, emissiveIntensity: BV.classic ? 0.5 : 0.9, roughness: 0.9, color: BV.classic ? 0x8c949b : 0x8a8a88 });
     const r = BV.U.rng(77);
     for (let i = 0; i < 46; i++) {
       const a = (i / 46) * Math.PI * 2 + r() * 0.08, dist = 95 + r() * 70;

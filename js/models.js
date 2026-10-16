@@ -145,7 +145,7 @@ BV.Models = (function () {
     poly: () => wearMat('gpoly', { map: grimeTex(0x202122, 40), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.6, 0.6), roughness: 0.72, metalness: 0.02 }, { color: 0x4a4b4c, amt: 0.6, metal: 0 }),
     wood: () => wearMat('gwood', { map: woodTex(), roughness: 0.5, metalness: 0 }, { color: 0x7a5636, amt: 0.5, metal: 0 }),
     olive: () => wearMat('golive', { map: grimeTex(0x4a5034, 80), roughness: 0.62, metalness: 0.15 }, { color: 0x8a8f86, amt: 0.85, metal: 0.8 }),
-    bright: () => matCache.gbright || (matCache.gbright = S({ color: BV.classic ? 0x9da2a6 : 0xd2d6da, roughness: 0.16, metalness: 1 })),
+    bright: () => matCache.gbright || (matCache.gbright = S({ color: BV.classic ? 0x6f7376 : 0xd2d6da, roughness: 0.16, metalness: 1 })),
     tan: () => wearMat('gtan', { map: grimeTex(0x8a7656, 60), normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.74, metalness: 0.04 }, { color: 0xb8a684, amt: 0.6, metal: 0 }),
     alu: () => wearMat('galu', { map: grimeTex(0x3b3e41, 160), roughnessMap: scratchRough(0.38), roughness: 1, metalness: 0.85 }, { color: 0xb0b4b8, amt: 0.9, metal: 1 }),
     rubber: () => matCache.grub || (matCache.grub = S({ color: 0x141414, roughness: 0.95, metalness: 0, normalMap: stippleNormal(), normalScale: new THREE.Vector2(0.3, 0.3) })),
@@ -446,7 +446,7 @@ BV.Models = (function () {
     if (mname === 'Glass') return (matCache[key] = new THREE.MeshBasicMaterial({ color: 0x0c151c }));
     const spec = GUN_MAT[mname] || ['dark', 0x333333];
     const base = M[spec[0]]();                                    // reuse wear settings of the family
-    const neutral = spec[0] === 'wood' ? woodTex() : grimeTex(0xb4b4b4, spec[0] === 'poly' ? 40 : 160);
+    const neutral = spec[0] === 'wood' ? woodTex() : grimeTex(0xa9a9a9, spec[0] === 'poly' ? 120 : 240);
     const m = wearMat(key, { map: neutral, roughnessMap: base.roughnessMap, normalMap: base.normalMap, normalScale: base.normalScale,
       roughness: base.roughness, metalness: base.metalness, color: spec[0] === 'wood' ? 0xd0b090 : spec[1], keepColor: true }, base.userData.wear);
     return m;
@@ -637,13 +637,47 @@ BV.Models = (function () {
      head has jaw, nose and ears, and gear uses rounded boxes. Painted skins add
      folds, seams, pockets, webbing and faces — the way 2000s player models
      looked detailed without many polygons. */
+  /* painted "skins" for the skinned operators: box-projected, so no pockets or seams
+     that would repeat oddly; camo + creases + grime + scuffs, period-style contrast */
+  function operatorFabric(base, pattern) {
+    return ctex('opfab_' + base + pattern, 256, 256, (g, w, h, r) => {
+      g.drawImage(fabric(base, pattern).image, 0, 0, w, h);
+      for (let i = 0; i < 40; i++) {                       // creases: dark fold + lit edge
+        const x = r() * w, y = r() * h, len = 18 + r() * 40, a = Math.PI / 2 + (r() - 0.5) * 1.2;
+        const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len, cx = (x + ex) / 2 + (r() - 0.5) * 14, cy = (y + ey) / 2;
+        g.strokeStyle = 'rgba(0,0,0,0.38)'; g.lineWidth = 2 + r() * 3; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(cx, cy, ex, ey); g.stroke();
+        g.strokeStyle = 'rgba(255,250,235,0.12)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x + 2, y); g.quadraticCurveTo(cx + 2, cy, ex + 2, ey); g.stroke();
+      }
+      for (let i = 0; i < 6; i++) {                        // dirt / sweat patches
+        const x = r() * w, y = r() * h, rr = 20 + r() * 40, gr = g.createRadialGradient(x, y, 0, x, y, rr);
+        gr.addColorStop(0, 'rgba(55,42,25,0.30)'); gr.addColorStop(1, 'rgba(55,42,25,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2);
+      }
+      g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1.5; g.setLineDash([3, 2]);  // stitched seams
+      for (let k = 0; k < 2; k++) { const y = (0.3 + k * 0.45) * h; g.beginPath(); g.moveTo(0, y); g.lineTo(w, y + (r() - 0.5) * 6); g.stroke(); }
+      g.setLineDash([]);
+      for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(${r() < 0.5 ? '0,0,0' : '255,255,240'},${r() * 0.07})`; g.fillRect(r() * w, r() * h, 1 + r() * 2, 1); }
+    });
+  }
+  function gearTex(base) {
+    return ctex('opgear_' + base, 256, 256, (g, w, h, r) => {
+      g.fillStyle = hex(base); g.fillRect(0, 0, w, h);
+      for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(0,0,0,${r() * 0.12})`; g.fillRect(r() * w, r() * h, 2, 1); }   // nylon weave
+      for (let y = 10; y < h; y += 26) {                      // webbing rows + bar-tacks
+        g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(0, y + 9, w, 2); g.fillStyle = shadeHex(base, 0.85); g.fillRect(0, y, w, 9);
+        g.fillStyle = 'rgba(255,255,240,0.08)'; g.fillRect(0, y, w, 1);
+        for (let x = (y * 7) % 30; x < w; x += 30) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(x, y, 2, 9); }
+      }
+      for (let i = 0; i < 30; i++) { g.strokeStyle = `rgba(200,195,175,${0.08 + r() * 0.1})`; g.lineWidth = 1; g.beginPath(); const x = r() * w, y = r() * h; g.moveTo(x, y); g.lineTo(x + (r() - 0.5) * 30, y + (r() - 0.5) * 10); g.stroke(); } // scuffs
+      for (let i = 0; i < 5; i++) { const x = r() * w, y = r() * h, rr = 25 + r() * 35, gr = g.createRadialGradient(x, y, 0, x, y, rr); gr.addColorStop(0, 'rgba(70,58,40,0.28)'); gr.addColorStop(1, 'rgba(70,58,40,0)'); g.fillStyle = gr; g.fillRect(x - rr, y - rr, rr * 2, rr * 2); }
+    });
+  }
   /* helpers shared with the skinned operators (charmodels.js) */
   function uniformSkinFor(teamId) { const T = BV.TEAMS[teamId]; return uniformSkin(T.uniform, teamId === 'VANGUARD' ? 'digital' : 'blot'); }
   function ravenHead(mats) {
     const T = BV.TEAMS.RAVEN, g = new THREE.Group();
     const m = (o) => { const mm = BV.mat(Object.assign({ roughness: 0.85 }, o)); mm.userData.base = mm.color.clone(); mats.push(mm); return mm; };
     const mHead = m({ map: headSkin(T.skin, 'mask') }), mHood = m({ map: uniformSkin(0x3b362f, 'blot'), color: 0xa8a8a8 }), mStrap = m({ color: 0x2a2924 });
-    const gm = m({ color: 0x281310, emissive: 0x5a1208 });
+    const gm = m({ color: 0x15171a });
     part(g, lathe([[0.0, 0.0], [0.055, 0.01], [0.085, 0.045], [0.1, 0.1], [0.11, 0.16], [0.108, 0.21], [0.092, 0.25], [0.06, 0.275], [0.0, 0.282]], 12, 0.9, 1.0), mHead, 0, 0, 0);
     part(g, new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62), mHood, 0, 0.15, 0.03, 1.02, 1.04, 1.1);
     for (const sx of [-1, 1]) { const lens = part(g, new THREE.CylinderGeometry(0.031, 0.034, 0.03, 12), gm, sx * 0.042, 0.165, -0.098); lens.rotation.x = Math.PI / 2; }
@@ -856,5 +890,5 @@ BV.Models = (function () {
     return { group: g, right, left };
   }
 
-  return { gun: (m) => importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin };
+  return { gun: (m) => importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex };
 })();

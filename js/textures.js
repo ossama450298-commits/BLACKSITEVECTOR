@@ -383,7 +383,7 @@ BV.Textures = (function () {
       case 'concrete': case 'concreteDark':
         stain(g, w, h, r, 'rgba(40,38,30,0.18)', 8, w * 0.22);           // damp patches
         stain(g, w, h, r, 'rgba(210,205,190,0.10)', 6, w * 0.18);        // dry dust
-        for (let i = 0; i < 4; i++) crack(g, r() * w, r() * h, 10 + r() * 16, r, 'rgba(25,24,20,0.55)', 0.6 * s);
+        for (let i = 0; i < 4; i++) crack(g, r() * w, r() * h, 10 + r() * 16, r, 'rgba(25,24,20,0.28)', 0.5 * s);
         pebbles(g, w, h, r, 90, s * 0.6);
         drips(g, w, h, r, 'rgba(30,28,22,0.18)', 10);
         for (let i = 0; i < 40; i++) { g.fillStyle = 'rgba(30,30,28,0.35)'; g.beginPath(); g.arc(r() * w, r() * h, (0.5 + r()) * s, 0, 7); g.fill(); } // air pockets
