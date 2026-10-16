@@ -379,7 +379,7 @@
   // skinned operator models are decoded asynchronously; the menu opens once they are ready
   document.getElementById('load-text').textContent = 'Deploying operators…';
   requestAnimationFrame(frame);
-  BV.CharModels.load().then((ok) => {
+  Promise.all([BV.CharModels.load(), BV.Textures.whenReady()]).then(([ok]) => {
     E.operatorsLoaded = ok;
     document.getElementById('loading').classList.add('hidden');
     BV.Menu.showMenu('p-main');

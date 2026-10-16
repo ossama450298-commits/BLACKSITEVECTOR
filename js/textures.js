@@ -223,8 +223,41 @@ BV.Textures = (function () {
   // classic style: small painted textures (128 px, era-appropriate); modern: 256–512 px
   const SCALE = BV.classic ? 1 : (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 4 : 2;
   const imgData = {};
+  /* ---------- photo-sourced surfaces (ambientCG, CC0) ----------
+     Loaded from data URIs in js/tex_data.js, then lightly weathered with the
+     same procedural layers so they match the rest of the level. */
+  const pending = [];
+  const PHOTO_MIX = { concrete: 0.85, concreteDark: 0.85, plaster: 0.8, tile: 0.35, plate: 0.25 };
+  function photoTex(name, kind) {
+    const key = 'photo_' + name + kind; if (cache[key]) return cache[key];
+    const D = BV.TEX_DATA && BV.TEX_DATA[name]; if (!D || !D[kind]) return null;
+    const c = canvas(kind === 'color' ? 512 : 256), g = c.getContext('2d', { willReadFrequently: true });
+    g.fillStyle = kind === 'normal' ? 'rgb(128,128,255)' : '#777'; g.fillRect(0, 0, c.width, c.height);
+    if (kind === 'color' && painters[name]) {   // designed base layer (panels, seams, grime)...
+      g.save(); g.scale(4, 4); painters[name](g, 128, 128, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31)); g.restore();
+      weather(g, 512, 512, name, 4);
+    }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    if (kind === 'color') t.encoding = THREE.sRGBEncoding;
+    applyFilter(t); cache[key] = t; all.push(t);
+    const img = new Image();
+    pending.push(new Promise((res) => {
+      img.onload = () => {
+        if (kind === 'color' && painters[name]) {
+          // ...with the photo blended on top as real-world micro detail
+          g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = PHOTO_MIX[name] || 0.7; g.drawImage(img, 0, 0, c.width, c.height); g.restore();
+        } else g.drawImage(img, 0, 0, c.width, c.height);
+        t.needsUpdate = true; res(true);
+      };
+      img.onerror = () => res(false);
+    }));
+    img.src = D[kind];
+    return t;
+  }
+  function whenReady() { return Promise.all(pending); }
   function make(name, opts) {
     if (cache[name]) return cache[name];
+    const photo = photoTex(name, 'color'); if (photo) { cache[name] = photo; return photo; }
     const _t = performance.now(); try { return make2(name, opts); } finally { BV.timings = BV.timings || {}; BV.timings.tex = (BV.timings.tex || 0) + performance.now() - _t; }
   }
   function make2(name, opts) {
@@ -337,6 +370,7 @@ BV.Textures = (function () {
   /* roughness map: base roughness modulated by local luminance (dirt rougher, polish smoother) */
   function roughness(name, base, k) {
     const key = 'r_' + name; if (cache[key]) return cache[key];
+    const pr = photoTex(name, 'rough'); if (pr) { cache[key] = pr; return pr; }
     make(name); const src = imgData[name]; if (!src) return null;
     const { d, w, h } = src;
     const c = canvas(w, h), g = c.getContext('2d'), out = g.createImageData(w, h), o = out.data;
@@ -366,6 +400,7 @@ BV.Textures = (function () {
   function normal(name, strength) {
     const key = 'n_' + name;
     if (cache[key]) return cache[key];
+    const pn = photoTex(name, 'normal'); if (pn) { cache[key] = pn; return pn; }
     const _t = performance.now(); try { return normal2(name, strength, key); } finally { BV.timings.texN = (BV.timings.texN || 0) + performance.now() - _t; }
   }
   function normal2(name, strength, key) {
@@ -484,5 +519,5 @@ BV.Textures = (function () {
     const t = new THREE.CanvasTexture(c); t.userData = { noFilter: true }; return t;
   }
 
-  return { make, normal, roughness, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
+  return { make, normal, roughness, whenReady, refreshFilters, glow, smoke, flash, bulletHole, scorch, stencil, sign, emblem, nameTag };
 })();

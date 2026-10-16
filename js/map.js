@@ -379,7 +379,7 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = { plate: 1.5, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 3, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+  const TEX_SCALE = { plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 3, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
     asphalt: 4, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
