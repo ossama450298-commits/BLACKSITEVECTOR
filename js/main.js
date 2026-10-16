@@ -58,7 +58,7 @@
   }
   sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.03; sun.shadow.radius = 2.5; sun.shadow.mapSize.set(2048, 2048);
   const vmScene = E.vmScene = new THREE.Scene();
-  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(62, 1, 0.01, 10);
+  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(BV.classic ? 74 : 62, 1, 0.01, 10);
   vmScene.add(vmCamera);
   const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, BV.classic ? 0.7 : 0.55); vmScene.add(vmHemi);
   const vmSun = new THREE.DirectionalLight(0xffe2bc, BV.classic ? 0.75 : 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);

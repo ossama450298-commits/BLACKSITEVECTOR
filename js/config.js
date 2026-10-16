@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '2.0.0';
+BV.VERSION = '2.1.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -116,7 +116,7 @@ BV.RULES = {
 BV.DEFAULT_SETTINGS = {
   style: 'classic',       // classic (GoldSrc-era) | modern (PBR)
   quality: 'medium',      // low | medium | high | ultra
-  fov: 85,
+  fov: 74,
   retroFilter: false,     // nearest-neighbour texture sampling
   showFps: false,
   effects: true,
@@ -131,6 +131,8 @@ BV.settings = (function () {
     const raw = window.localStorage && localStorage.getItem('blacksite-vector-settings');
     if (raw) Object.assign(s, JSON.parse(raw));
   } catch (e) { /* storage unavailable (file:// in some browsers) */ }
+  // v2.1: default field of view is now 74° vertical (= 90° horizontal at 4:3, the period standard)
+  if (!s.fovV21) { if (s.fov === 85) s.fov = 74; s.fovV21 = true; }
   return s;
 })();
 /* ---------- visual style ----------

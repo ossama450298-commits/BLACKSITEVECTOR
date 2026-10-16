@@ -227,16 +227,72 @@ BV.Textures = (function () {
      Loaded from data URIs in js/tex_data.js, then lightly weathered with the
      same procedural layers so they match the rest of the level. */
   const pending = [];
+  /* ---------- retro finish (Classic style) ----------
+     Style rules measured from period texture sets (aggregate statistics only):
+     ≤256 px, 8-bit palettes, mid luminance, moderate internal contrast, low and
+     warm saturation. Each material is pulled toward its category's values and
+     then reduced to its own 256-colour palette without dithering. */
+  const RETRO = {   // [luminance, contrast (luma std-dev), saturation]
+    concrete: [0.40, 0.090, 0.06], concreteDark: [0.30, 0.080, 0.05], brick: [0.42, 0.130, 0.18], brick2: [0.40, 0.130, 0.17],
+    plaster: [0.46, 0.107, 0.16], metal: [0.36, 0.150, 0.16], roof: [0.28, 0.120, 0.10], container: [0.32, 0.140, 0.22],
+    crate: [0.30, 0.113, 0.17], crateMil: [0.30, 0.110, 0.16], tile: [0.42, 0.118, 0.08], plate: [0.38, 0.140, 0.06],
+    asphalt: [0.26, 0.100, 0.03], asphaltCracked: [0.28, 0.100, 0.04], dirt: [0.38, 0.120, 0.18], door: [0.28, 0.136, 0.20], paintLow: [0.34, 0.110, 0.18]
+  };
+  const TEXEL_PER_M = 64;
+  function texPx(name) {        // power-of-two size giving ~64 texels per metre (128..256)
+    const sc = (BV.TEX_SCALE && BV.TEX_SCALE[name]) || 2;
+    return Math.max(128, Math.min(256, Math.pow(2, Math.round(Math.log2(sc * TEXEL_PER_M)))));
+  }
+  function retroFinish(g, w, h, name) {
+    const id = g.getImageData(0, 0, w, h), d = id.data, n = d.length / 4;
+    const tgt = RETRO[name];
+    if (tgt) {
+      let sl = 0, sl2 = 0, ss = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, l = 0.2126 * r + 0.7152 * gg + 0.0722 * b;
+        sl += l; sl2 += l * l; const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b); ss += mx - mn;
+      }
+      const mean = sl / n, sd = Math.sqrt(Math.max(1e-6, sl2 / n - mean * mean)), chroma = ss / n;
+      const mT = mean + (tgt[0] - mean) * 0.6, sdT = sd + (tgt[1] - sd) * 0.75;
+      const gain = BV.U.clamp(sdT / sd, 0.6, 2.4);
+      const satK = BV.U.clamp((chroma + (tgt[2] * 0.75 - chroma) * 0.6) / Math.max(0.01, chroma), 0.4, 1.6);
+      for (let i = 0; i < d.length; i += 4) {
+        let r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255;
+        const l = 0.2126 * r + 0.7152 * gg + 0.0722 * b, l2 = mT + (l - mean) * gain;
+        r = l2 + (r - l) * satK; gg = l2 + (gg - l) * satK; b = l2 + (b - l) * satK;
+        d[i] = BV.U.clamp(r * 255, 0, 255); d[i + 1] = BV.U.clamp(gg * 255, 0, 255); d[i + 2] = BV.U.clamp(b * 255, 0, 255);
+      }
+    }
+    // 8-bit palette: popularity on a 5-bit cube, then nearest-colour lookup (no dithering)
+    const hist = new Uint32Array(32768);
+    for (let i = 0; i < d.length; i += 4) hist[(d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3)]++;
+    const bins = []; for (let k = 0; k < 32768; k++) if (hist[k]) bins.push(k);
+    bins.sort((a, b) => hist[b] - hist[a]);
+    const pal = bins.slice(0, 256).map(k => [((k >> 10) & 31) * 8 + 4, ((k >> 5) & 31) * 8 + 4, (k & 31) * 8 + 4]);
+    const lut = new Int16Array(32768).fill(-1);
+    for (let i = 0; i < d.length; i += 4) {
+      const k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3);
+      let p = lut[k];
+      if (p < 0) {
+        let best = 1e9; const r = ((k >> 10) & 31) * 8 + 4, gg = ((k >> 5) & 31) * 8 + 4, b = (k & 31) * 8 + 4;
+        for (let j = 0; j < pal.length; j++) { const dr = r - pal[j][0], dg = gg - pal[j][1], db = b - pal[j][2], e = dr * dr * 3 + dg * dg * 4 + db * db * 2; if (e < best) { best = e; p = j; } }
+        lut[k] = p;
+      }
+      d[i] = pal[p][0]; d[i + 1] = pal[p][1]; d[i + 2] = pal[p][2];
+    }
+    g.putImageData(id, 0, 0);
+  }
   const PHOTO_MIX = { concrete: 0.85, concreteDark: 0.85, plaster: 0.8, tile: 0.35, plate: 0.25, asphalt: 0.9, crate: 0.6 };
   const PHOTO_DIRECT = { brick: 1, brick2: 1, asphaltCracked: 1 };   // photo used as-is (+ light weathering)
   function photoTex(name, kind) {
     const key = 'photo_' + name + kind; if (cache[key]) return cache[key];
     const D = BV.TEX_DATA && BV.TEX_DATA[name]; if (!D || !D[kind]) return null;
-    const c = canvas(kind === 'color' ? 512 : 256), g = c.getContext('2d', { willReadFrequently: true });
+    const px = kind === 'color' ? (BV.classic ? texPx(name) : 512) : 256, k4 = px / 128;
+    const c = canvas(px), g = c.getContext('2d', { willReadFrequently: true });
     g.fillStyle = kind === 'normal' ? 'rgb(128,128,255)' : '#777'; g.fillRect(0, 0, c.width, c.height);
     if (kind === 'color' && painters[name] && !PHOTO_DIRECT[name]) {   // designed base layer (panels, seams, grime)...
-      g.save(); g.scale(4, 4); painters[name](g, 128, 128, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31)); g.restore();
-      weather(g, 512, 512, name, 4);
+      g.save(); g.scale(k4, k4); painters[name](g, 128, 128, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31)); g.restore();
+      weather(g, px, px, name, k4);
     }
     const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping;
     if (kind === 'color') t.encoding = THREE.sRGBEncoding;
@@ -249,8 +305,9 @@ BV.Textures = (function () {
           g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = PHOTO_MIX[name] || 0.7; g.drawImage(img, 0, 0, c.width, c.height); g.restore();
         } else {
           g.drawImage(img, 0, 0, c.width, c.height);
-          if (kind === 'color') { g.save(); g.globalAlpha = 0.45; weather(g, c.width, c.height, name === 'asphaltCracked' ? 'asphalt' : 'brick', 4); g.restore(); }
+          if (kind === 'color') { g.save(); g.globalAlpha = 0.45; weather(g, c.width, c.height, name === 'asphaltCracked' ? 'asphalt' : 'brick', k4); g.restore(); }
         }
+        if (kind === 'color' && BV.classic) retroFinish(g, c.width, c.height, name);
         t.needsUpdate = true; res(true);
       };
       img.onerror = () => res(false);
@@ -266,13 +323,14 @@ BV.Textures = (function () {
   }
   function make2(name, opts) {
     const L = (opts && opts.size) || 128, LH = (opts && opts.h) || L;
-    const sc = name === 'sky' ? 2 : SCALE;
+    const sc = name === 'sky' ? 2 : (BV.classic && RETRO[name] ? texPx(name) / 128 : SCALE);
     const c = canvas(L * sc, LH * sc);
     const g = c.getContext('2d', { willReadFrequently: true });
     g.save(); g.scale(sc, sc);
     painters[name](g, L, LH, BV.U.rng(name.length * 977 + name.charCodeAt(0) * 31));
     g.restore();
     if (name !== 'sky') { weather(g, c.width, c.height, name, sc); grain(g, c.width, c.height, name); }
+    if (BV.classic && name !== 'sky') retroFinish(g, c.width, c.height, name);
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.encoding = THREE.sRGBEncoding;

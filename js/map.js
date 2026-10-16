@@ -355,7 +355,9 @@ BV.Map = (function () {
         k *= facing * ao; r += k * L.c[0]; g += k * L.c[1]; b += k * L.c[2];
       }
     }
-    return [Math.min(r, 1.6), Math.min(g, 1.6), Math.min(b, 1.6)];
+    // classic gamma: period renderers lifted lightmap mid-tones (brightness/gamma ramp)
+    const gm = (v) => Math.min(1.6, Math.pow(Math.max(0, v), 0.82) * 1.05);
+    return [gm(r), gm(g), gm(b)];
   }
   function bake(x, y, z, nx, ny, nz, mat) {
     if (BV.classic) return bakeClassic(x, y, z, nx, ny, nz);
@@ -379,7 +381,7 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = { brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+  const TEX_SCALE = BV.TEX_SCALE = { brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
     asphalt: 2.6, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
@@ -410,7 +412,7 @@ BV.Map = (function () {
         const o = F.o(b.min, b.max), U = F.u(b.min, b.max), V = F.v(b.min, b.max);
         const lu = Math.hypot(U[0], U[1], U[2]), lv = Math.hypot(V[0], V[1], V[2]);
         if (lu < 1e-4 || lv < 1e-4) continue;
-        const cell = BV.classic ? (fk === 'py' || fk === 'ny' ? 1.25 : 1.4) : (fk === 'py' || fk === 'ny' ? 2 : 2.5);
+        const cell = BV.classic ? (fk === 'py' || fk === 'ny' ? 0.6 : 0.9) : (fk === 'py' || fk === 'ny' ? 2 : 2.5);
         const nu = b.fit ? 1 : Math.max(1, Math.ceil(lu / cell)), nv = b.fit ? 1 : Math.max(1, Math.ceil(lv / cell));
         const pt = (i, j) => [o[0] + U[0] * i / nu + V[0] * j / nv, o[1] + U[1] * i / nu + V[1] * j / nv, o[2] + U[2] * i / nu + V[2] * j / nv];
         const bi = boxes.indexOf(b), uo = ((bi * 0.618) % 1), vo = ((bi * 0.382) % 1);
