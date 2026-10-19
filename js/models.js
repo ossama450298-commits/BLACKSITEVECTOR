@@ -433,7 +433,7 @@ BV.Models = (function () {
      gets our grime map + edge-wear shader; the magazine (or shotgun pump) is a
      separate part so reloads can animate it. */
   const GUN_MAT = {
-    Black: ['poly', 0x1c1d1e], DarkMetal: ['dark', 0x2c2f31], Metal: ['steel', 0x5e6367], LightMetal: ['steel', 0x8a8f93], Grey: ['alu', 0x55595c],
+    Black: ['poly', 0x1c1d1e], DarkMetal: ['dark', 0x2c2f31], Metal: ['dark', 0x3e4245], LightMetal: ['dark', 0x4a4e52], Grey: ['alu', 0x4a4e51],
     Wood: ['wood', 0x6b4a30], DarkWood: ['wood', 0x4a3220], Main: ['dark', 0x2f3234], MainDark: ['poly', 0x1d1e1f], MainLight: ['alu', 0x5c6064]
   };
   const gunGeoCache = {};

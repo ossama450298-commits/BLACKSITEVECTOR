@@ -17,7 +17,9 @@ BV.Real = (function () {
     g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.04, -0.17, -0.17, 0.04, 0.09, 0.065], clipAll: true }
   };
   // game weapon model id -> [asset, extra scale]
-  const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
+  // pistols: the G19 source is a display scene (rotated pistol + loose parts); the clean CC0
+  // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
+  const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
   const guns = {}, kit = {}, outpost = {}; let soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 

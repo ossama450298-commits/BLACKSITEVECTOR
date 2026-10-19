@@ -4565,7 +4565,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.6.0';
+BV.VERSION = '3.6.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -6968,7 +6968,7 @@ BV.Models = (function () {
      gets our grime map + edge-wear shader; the magazine (or shotgun pump) is a
      separate part so reloads can animate it. */
   const GUN_MAT = {
-    Black: ['poly', 0x1c1d1e], DarkMetal: ['dark', 0x2c2f31], Metal: ['steel', 0x5e6367], LightMetal: ['steel', 0x8a8f93], Grey: ['alu', 0x55595c],
+    Black: ['poly', 0x1c1d1e], DarkMetal: ['dark', 0x2c2f31], Metal: ['dark', 0x3e4245], LightMetal: ['dark', 0x4a4e52], Grey: ['alu', 0x4a4e51],
     Wood: ['wood', 0x6b4a30], DarkWood: ['wood', 0x4a3220], Main: ['dark', 0x2f3234], MainDark: ['poly', 0x1d1e1f], MainLight: ['alu', 0x5c6064]
   };
   const gunGeoCache = {};
@@ -7760,7 +7760,9 @@ BV.Real = (function () {
     g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.04, -0.17, -0.17, 0.04, 0.09, 0.065], clipAll: true }
   };
   // game weapon model id -> [asset, extra scale]
-  const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
+  // pistols: the G19 source is a display scene (rotated pistol + loose parts); the clean CC0
+  // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
+  const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
   const guns = {}, kit = {}, outpost = {}; let soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
@@ -8049,9 +8051,9 @@ BV.CharModels = (function () {
       animate(dt, speed, crouch, pitch, phase, firing) {
         if (dying) return;
         // animation LOD: distant operators update every 2nd / 3rd frame with the accumulated time
-        lodAcc += dt; lodN++;
+        lodAcc += dt;
         const far = BV.camPos ? root.position.distanceTo(BV.camPos) : 0, step = far > 40 ? 3 : far > 20 ? 2 : 1;
-        if (lodN % step) return;
+        if (lodN++ % step) return;            // the first update after a (re)spawn is never skipped
         dt = lodAcc; lodAcc = 0;
         const st = api.state || {}, k = Math.min(1, dt * 9);
         const crouching = crouch > 0.5, moving = speed > 0.35;
@@ -8115,6 +8117,7 @@ BV.CharModels = (function () {
         if (death) death.stop();
         for (const n in L) if (L[n]) { L[n].stop(); L[n].play(); wL[n] = n === 'idle' ? 1 : 0; L[n].setEffectiveWeight(wL[n]); }
         for (const n in U) if (U[n]) { U[n].stop(); U[n].play(); wU[n] = n === 'aim' ? 1 : 0; U[n].setEffectiveWeight(wU[n]); }
+        lodN = 0; lodAcc = 0; mixer.update(0.001);   // posed before the first render (never shown in the T-pose)
         shadow.scale.set(1, 1, 1);
       },
       setShade(k) {

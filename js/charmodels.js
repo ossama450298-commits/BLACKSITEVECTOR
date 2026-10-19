@@ -102,9 +102,9 @@ BV.CharModels = (function () {
       animate(dt, speed, crouch, pitch, phase, firing) {
         if (dying) return;
         // animation LOD: distant operators update every 2nd / 3rd frame with the accumulated time
-        lodAcc += dt; lodN++;
+        lodAcc += dt;
         const far = BV.camPos ? root.position.distanceTo(BV.camPos) : 0, step = far > 40 ? 3 : far > 20 ? 2 : 1;
-        if (lodN % step) return;
+        if (lodN++ % step) return;            // the first update after a (re)spawn is never skipped
         dt = lodAcc; lodAcc = 0;
         const st = api.state || {}, k = Math.min(1, dt * 9);
         const crouching = crouch > 0.5, moving = speed > 0.35;
@@ -168,6 +168,7 @@ BV.CharModels = (function () {
         if (death) death.stop();
         for (const n in L) if (L[n]) { L[n].stop(); L[n].play(); wL[n] = n === 'idle' ? 1 : 0; L[n].setEffectiveWeight(wL[n]); }
         for (const n in U) if (U[n]) { U[n].stop(); U[n].play(); wU[n] = n === 'aim' ? 1 : 0; U[n].setEffectiveWeight(wU[n]); }
+        lodN = 0; lodAcc = 0; mixer.update(0.001);   // posed before the first render (never shown in the T-pose)
         shadow.scale.set(1, 1, 1);
       },
       setShade(k) {
