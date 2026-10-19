@@ -19,7 +19,7 @@ BV.Real = (function () {
   // game weapon model id -> [asset, extra scale]
   const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}; let soldier = null, city = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}; let soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -93,6 +93,8 @@ BV.Real = (function () {
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    if (BV.REAL.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
+    if (BV.REAL.warehouse) jobs.push(parse(BV.REAL.warehouse).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } }); warehouse = g.scene; }));
     if (BV.REAL.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; kit[c.name] = f; }); }));
     return Promise.all(jobs).then(() => {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
@@ -147,5 +149,52 @@ BV.Real = (function () {
     }
     return n;
   }
-  return { load, gun, skyTexture, placeCity, dressMap, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  /* outpost cover at both spawns: real colliders, placed only where they cannot block bot routes */
+  function placeOutpost(scene) {
+    if (!Object.keys(outpost).length || !BV.Map || !BV.Map.data) return 0;
+    const D = BV.Map.data, solids = (D.boxes || []).filter(b => b.solid), nodes = D.nodes || [], r = BV.U.rng(4242), placed = [];
+    const spawns = [].concat(D.spawns.attack || [], D.spawns.defend || []);
+    const edges = []; nodes.forEach(n => (n.nb || []).forEach(j => { const m = nodes[typeof j === 'number' ? j : j.id]; if (m && m.id > n.id) edges.push([n.x, n.z, m.x, m.z]); }));
+    const segDist = (px, pz, e) => { const dx = e[2] - e[0], dz = e[3] - e[1], L = dx * dx + dz * dz || 1, t = BV.U.clamp(((px - e[0]) * dx + (pz - e[1]) * dz) / L, 0, 1); return Math.hypot(px - e[0] - dx * t, pz - e[1] - dz * t); };
+    const size = (o) => new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3());
+    const overlaps = (x0, z0, x1, z1, h) => solids.concat(placed).some(b => x0 < b.max[0] + 0.1 && x1 > b.min[0] - 0.1 && z0 < b.max[2] + 0.1 && z1 > b.min[2] - 0.1 && b.min[1] < h && b.max[1] > 0.05);
+    const nearWall = (x0, z0, x1, z1) => solids.some(b => b.max[1] > 1.5 && x0 < b.max[0] + 0.3 && x1 > b.min[0] - 0.3 && z0 < b.max[2] + 0.3 && z1 > b.min[2] - 0.3);
+    const MAT = { hesco: 'dirt', hesco_small: 'dirt', sandbags: 'dirt', twall: 'concrete', twall_long: 'concrete', twall_tall: 'concrete', crate_big: 'metal', case: 'metal', ammo_can: 'metal' };
+    const plan = ['hesco', 'hesco', 'twall_long', 'twall', 'sandbags', 'crate_big', 'case', 'ammo_can'];
+    let n = 0;
+    for (const [rx0, rx1] of [[-61.5, -46], [46, 61.5]]) {
+      for (const name of plan) {
+        const tpl = outpost[name]; if (!tpl) continue;
+        const sz = size(tpl); let best = null;
+        for (let k = 0; k < 260; k++) {
+          const rot = r() < 0.5 ? 0 : Math.PI / 2, w = rot ? sz.z : sz.x, d = rot ? sz.x : sz.z;
+          const x = rx0 + r() * (rx1 - rx0), z = -15 + r() * 30, x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
+          if (x0 < D.bounds.minX + 0.3 || x1 > D.bounds.maxX - 0.3 || overlaps(x0, z0, x1, z1, sz.y)) continue;
+          const rad = Math.hypot(w, d) / 2;
+          if (nodes.some(nd => Math.hypot(nd.x - x, nd.z - z) < rad + 1.8)) continue;
+          if (edges.some(e => segDist(x, z, e) < rad + 1.1)) continue;
+          if (spawns.some(sp => Math.hypot(sp[0] - x, sp[1] - z) < rad + 1.6)) continue;
+          const score = (nearWall(x0, z0, x1, z1) ? 10 : 0) + r();
+          if (!best || score > best.score) best = { x, z, rot, x0, x1, z0, z1, score };
+        }
+        if (!best) continue;
+        const o = tpl.clone(); o.position.set(best.x, 0, best.z); o.rotation.y = best.rot + (r() < 0.5 ? 0 : Math.PI);
+        o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+        scene.add(o);
+        placed.push({ min: [best.x0, 0, best.z0], max: [best.x1, sz.y, best.z1], solid: true, mat: MAT[name] || 'concrete', outpost: name });
+        n++;
+      }
+    }
+    if (placed.length) { D.boxes.push(...placed); BV.Physics.setBoxes(D.boxes); }
+    return n;
+  }
+  /* the abandoned warehouse as a landmark south of the compound, outside the play area */
+  function placeWarehouse(scene) {
+    if (!warehouse) return false;
+    const box = new THREE.Box3().setFromObject(warehouse), c = box.getCenter(new THREE.Vector3());
+    const g = new THREE.Group(), inner = warehouse; inner.position.set(-c.x, -box.min.y - 0.2, -c.z); g.add(inner);
+    g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
+    return true;
+  }
+  return { load, gun, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

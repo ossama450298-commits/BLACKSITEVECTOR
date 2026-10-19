@@ -23,11 +23,13 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 |---|---|---|---|
 | Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
 | [City](https://sketchfab.com/3d-models/city-1f50f0d6ec5a493d8e91d7db1106b324) | SpatialNeglect | CC BY 4.0 | Ciudad del horizonte: cuatro copias giradas alrededor del recinto (texturas a 512 px) |
+| [Military Outpost Kit 1.0](https://sketchfab.com/3d-models/military-outpost-kit-10-cc0-010dc4f0a73a48e7a53598c6f24fe9cf) | britdawgmasterfunk | CC0 1.0 | Coberturas en los spawns con colisión real: barreras HESCO, muros de hormigón, sacos terreros y cajas militares (simplificados) |
+| [Abandoned Warehouse](https://sketchfab.com/3d-models/abandoned-warehouse-698a34300af34095ac6593f348585daa) | Arsen Ismailov | CC BY 4.0 | Nave exterior al sur del recinto (simplificada, texturas a 256 px) |
 | [Abandoned Factory Modular Kit](https://sketchfab.com/3d-models/abandoned-factory-modular-kit-ec040b2034e949ffbc106f0784deb3fc) | Andy B | CC BY 4.0 | Atrezo junto a los muros: palés, barriles, soportes de tubería, cajas, bombonas y escombros |
 | Concrete034, PaintedPlaster017, MetalPlates006, Tiles074, Bricks090, Bricks085, Asphalt015, Asphalt026B, Planks019 | ambientCG | CC0 1.0 | Superficies del mapa (`js/tex_data.js`) |
 | Ultimate Guns Pack (Quaternius) | Quaternius | CC0 1.0 | Armas de respaldo si los modelos realistas no cargan (`js/gun_data.js`) |
 
-## Recibidos, pendientes de integrar
-Abandoned Warehouse (Arsen Ismailov, CC BY), Military Outpost Kit 1.0 (britdawgmasterfunk, CC0), Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY), FREE Military Soldier RIGGED (BAMEN, CC BY).
+## Recibidos y descartados
+Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY): su malla y su esqueleto no coinciden en la pose de reposo y se deforma al animarlo. FREE Military Soldier RIGGED (BAMEN, CC BY): no incluye texturas.
 
 Three.js r128, GLTFLoader y SkeletonUtils: licencia MIT, © three.js authors.
