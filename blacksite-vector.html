@@ -4565,7 +4565,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.1.0';
+BV.VERSION = '3.2.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -7985,7 +7985,7 @@ BV.CharModels = (function () {
     api.reset();
     return api;
   }
-  return { load, create, get ready() { return ready; } };
+  return { load, create, ik, get ready() { return ready; } };
 })();
 
 </script>
@@ -9571,6 +9571,9 @@ BV.Viewmodel = class {
     if (def.cls === 'sniper') { this.arms.left.position.set(-0.06, -0.03, -0.32); }
     this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
     g.add(this.arms.group);
+    // realistic arms: the operator's own sleeves and gloves, posed onto the weapon with IK
+    this.rig = this.armsRig(team);
+    if (this.rig) { this.arms.group.traverse(o => { if (o.isMesh) o.visible = false; }); this.rig.left = def.cls !== 'melee'; }
     this.gun.muzzle.add(this.flash); this.gun.muzzle.add(this.cone);
     this.fp = this.flashProfile(def);
     this.base = def.cls === 'pistol' ? [0.13, -0.13, -0.33] : def.cls === 'melee' ? [0.17, -0.2, -0.33] : def.cls === 'grenade' ? [0.17, -0.19, -0.34]
@@ -9580,6 +9583,7 @@ BV.Viewmodel = class {
     if (this.gun.imported) { this.base = this.base.slice(); this.base[1] -= Math.max(0, this.gun.muzzle.position.y - 0.04) * 0.9; }
     if (this.gun.real && def.cls === 'pistol') { this.base = this.base.slice(); this.base[1] += 0.075; this.base[2] += 0.03; }
     if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
+    if (this.gun.real && def.cls !== 'pistol' && def.cls !== 'melee' && def.cls !== 'grenade') { this.base = this.base.slice(); this.base[1] += 0.035; this.base[2] += 0.04; }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);
@@ -9710,6 +9714,93 @@ BV.Viewmodel = class {
       this.flashLight.intensity = 2.6 * k; this.flashLight.color.setHex(this.fp.c);
     } else { this.flash.visible = this.cone.visible = false; this.flashLight.intensity = 0; }
     this.root.visible = st.visible;
+    if (this.rig) this.poseRig();
+  }
+  /* ---------- realistic first-person arms ---------- */
+  armsRig(team) {
+    if (!BV.Real || !BV.Real.ready || !BV.CharModels.ready || !BV.Real.soldier) return null;
+    this.rigs = this.rigs || {};
+    if (this.rigs[team]) { this.rigs[team].group.visible = true; for (const k in this.rigs) if (k !== team) this.rigs[k].group.visible = false; return this.rigs[team]; }
+    const model = THREE.SkeletonUtils.clone(BV.Real.soldier.scene), bones = {};
+    model.traverse(o => { if (o.isBone) bones[o.name.replace(/^mixamorig/, '').replace(/_\d+$/, '')] = o; });
+    const tint = team === 'VANGUARD' ? null : new THREE.Color(0x8c7b66);
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false;
+      const fix = (m) => { const n = m.clone(); if (tint && n.color && !/skin|face|head|body_m|eye/i.test(n.name || '')) n.color.multiply(tint); return n; };
+      o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
+    });
+    // pose: two-handed pistol aim (natural elbows and curled fingers), captured once
+    const mixer = new THREE.AnimationMixer(model), clip = BV.Real.clips.Pistol_Aim_Neutral;
+    if (clip) { mixer.clipAction(clip).play(); mixer.update(0.2); }
+    const chain = ['RightShoulder', 'RightArm', 'RightForeArm', 'RightHand', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand'];
+    const pose = {}; model.traverse(o => { if (o.isBone) pose[o.uuid] = o.quaternion.clone(); });
+    // hide everything that is not an arm: collapse head and legs
+    for (const k of ['Head', 'Neck', 'LeftUpLeg', 'RightUpLeg']) if (bones[k]) bones[k].scale.setScalar(0.0001);
+    // place the body so the eye sits at the camera: shoulders just below and behind the view
+    const group = new THREE.Group(); group.add(model);
+    model.rotation.y = Math.PI; model.position.set(0.0, -1.58, 0.16);
+    this.root.add(group);
+    // shift the body so the right shoulder sits just below/behind the eye (camera space)
+    this.root.updateMatrixWorld(true);
+    if (bones.RightArm) {
+      const sh = bones.RightArm.getWorldPosition(new THREE.Vector3()); this.root.worldToLocal(sh);
+      model.position.add(new THREE.Vector3(0.16, -0.2, 0.1).sub(sh));
+    }
+    const rig = { group, model, bones, pose, chain, left: true };
+    this.rigs[team] = rig; for (const k in this.rigs) if (k !== team) this.rigs[k].group.visible = false;
+    return rig;
+  }
+  poseRig() {
+    const R = this.rig, B = R.bones, ik = BV.CharModels.ik;
+    // restore the captured aim pose, then solve both arms onto the weapon
+    R.model.traverse(o => { if (o.isBone && R.pose[o.uuid] && R.chain.includes(o.name.replace(/^mixamorig/, '').replace(/_\d+$/, ''))) o.quaternion.copy(R.pose[o.uuid]); });
+    this.root.updateMatrixWorld(true);
+    // wrist targets: behind and right of the grip (fingers wrap it), under the handguard for the support hand
+    const pistol = this.def.cls === 'pistol';
+    const grip = this.gun.group.localToWorld(new THREE.Vector3(0.03, pistol ? 0.005 : 0.0, pistol ? 0.06 : 0.08));
+    ik(B.RightArm, B.RightForeArm, B.RightHand, grip, 1);
+    this.alignHand(B.RightHand, 0);
+    if (R.left) {
+      // support point: real handguard position for long guns, plus the animated reload offset
+      const lp = this.arms.left.position, dl = lp.clone().sub(this.leftHome);
+      const mz = this.gun.muzzle.position.z, my = this.gun.muzzle.position.y;
+      const base = pistol ? lp.clone().sub(dl) : new THREE.Vector3(0, my * 0.35 - 0.02, mz * (this.def.cls === 'shotgun' ? 0.58 : 0.5));
+      const sup = this.gun.group.localToWorld(base.add(dl).add(new THREE.Vector3(pistol ? -0.01 : -0.045, pistol ? -0.03 : -0.045, pistol ? 0.05 : 0.02)));
+      ik(B.LeftArm, B.LeftForeArm, B.LeftHand, sup, 1);
+      this.alignHand(B.LeftHand, 1);
+    }
+  }
+  // full hand orientation: fingers + palm directions expressed in the weapon's axes
+  alignHand(hand, side) {
+    const R = this.rig;
+    if (!R.handAxes) {
+      // local finger / palm axes from the T-pose bind (model faces +Z: right hand on -X, palms down)
+      let sk = null; R.model.traverse(o => { if (!sk && o.isSkinnedMesh) sk = o.skeleton; });
+      R.handAxes = {};
+      for (const [nm, fx] of [['RightHand', -1], ['LeftHand', 1]]) {
+        const b = R.bones[nm], i = sk ? sk.bones.indexOf(b) : -1; if (i < 0) continue;
+        const q = new THREE.Quaternion(); new THREE.Matrix4().copy(sk.boneInverses[i]).invert().decompose(new THREE.Vector3(), q, new THREE.Vector3());
+        const qi = q.clone().invert();
+        R.handAxes[nm] = { f: new THREE.Vector3(fx, 0, 0).applyQuaternion(qi).normalize(), p: new THREE.Vector3(0, -1, 0).applyQuaternion(qi).normalize() };
+      }
+    }
+    const ax = R.handAxes[side === 0 ? 'RightHand' : 'LeftHand']; if (!ax) return;
+    const gq = this.gun.group.getWorldQuaternion(new THREE.Quaternion());
+    const F = new THREE.Vector3(0, 0, -1).applyQuaternion(gq), U = new THREE.Vector3(0, 1, 0).applyQuaternion(gq), X = new THREE.Vector3(1, 0, 0).applyQuaternion(gq);
+    const pistol = this.def.cls === 'pistol';
+    let wf, wp;
+    if (side === 0) { wf = F.clone().multiplyScalar(0.55).addScaledVector(U, -0.83); wp = X.clone().negate(); }                       // grip: palm on the left of the hand, fingers forward-down
+    else if (pistol) { wf = F.clone().multiplyScalar(0.6).addScaledVector(U, -0.6).addScaledVector(X, 0.3); wp = X.clone().multiplyScalar(0.75).addScaledVector(U, 0.65); } // cup the right hand
+    else { wf = F.clone().multiplyScalar(0.45).addScaledVector(X, 0.9); wp = U.clone(); }                                         // under the handguard, palm up
+    wf.normalize(); wp.addScaledVector(wf, -wp.dot(wf)).normalize();
+    const lp = ax.p.clone().addScaledVector(ax.f, -ax.p.dot(ax.f)).normalize();
+    const A = new THREE.Matrix4().makeBasis(ax.f, lp, new THREE.Vector3().crossVectors(ax.f, lp));
+    const Bm = new THREE.Matrix4().makeBasis(wf, wp, new THREE.Vector3().crossVectors(wf, wp));
+    const Rm = Bm.multiply(A.transpose());
+    const want = new THREE.Quaternion().setFromRotationMatrix(Rm);
+    const pq = hand.parent.getWorldQuaternion(new THREE.Quaternion());
+    hand.quaternion.copy(pq.invert().multiply(want)); hand.updateMatrixWorld(true);
   }
 };
 

@@ -171,5 +171,5 @@ BV.CharModels = (function () {
     api.reset();
     return api;
   }
-  return { load, create, get ready() { return ready; } };
+  return { load, create, ik, get ready() { return ready; } };
 })();
