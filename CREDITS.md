@@ -1,17 +1,31 @@
 # Créditos de recursos externos
 
-Todos los recursos externos de BLACKSITE: VECTOR tienen licencia **CC0 1.0 Universal (dominio público)**: https://creativecommons.org/publicdomain/zero/1.0/
+BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias libres: **CC0** (dominio público), **CC BY** (atribución) o **CC BY-SA** (atribución y compartir igual). Las versiones modificadas que se incluyen aquí (texturas reducidas, mallas recortadas, cuantizadas o reorientadas, animaciones adaptadas) se distribuyen bajo la misma licencia que su original.
 
-| Recurso | Autor | Licencia | Uso en el juego |
+## Personajes y animación
+| Recurso | Autor | Licencia | Uso |
 |---|---|---|---|
-| Universal Base Characters [Standard] — «Superhero_Male» (malla y esqueleto) | Quaternius (https://quaternius.com) | CC0 1.0 | Cuerpo de los operadores Vanguard y Raven (`js/char_data.js`), sin pelo, «vestido» por zonas con pieles pintadas propias y equipo propio |
-| Universal Animation Library [Standard] — 15 animaciones | Quaternius | CC0 1.0 | Locomoción, agachado, apuntado, disparo, recarga, impacto y muerte (`js/char_data.js`), en capas de piernas y torso |
+| [Rigged and Textured Mid-Poly Soldier](https://sketchfab.com/3d-models/rigged-and-textured-mid-poly-soldier-29883983eddd4808a4f90aec5ca57f16) | DenisAlbu | CC BY-SA 4.0 | Operadores Vanguard y Raven (texturas reducidas a 512 px; Raven con tinte propio) |
+| Universal Animation Library [Standard] | Quaternius | CC0 1.0 | 15 animaciones, adaptadas al esqueleto Mixamo del soldado |
 
-| Ultimate Guns Pack — Pistol_2, Pistol_6, SubmachineGun_1, SubmachineGun_4, Shotgun_1, AssaultRifle_1, AssaultRifle2_3, SniperRifle_5, SniperRifle_6 | Quaternius | CC0 1.0 | Mallas de las armas (`js/gun_data.js`): orientadas, escaladas, con cargador o guardamanos separado, coordenadas de textura proyectadas y desgaste de bordes |
-| ambientCG — Concrete034, PaintedPlaster017, MetalPlates006, Tiles074, Bricks090, Bricks085, Asphalt015, Asphalt026B, Planks019 | ambientCG (https://ambientcg.com) | CC0 1.0 | Superficies fotográficas (`js/tex_data.js`): ladrillo y asfalto agrietado directos; hormigón, yeso, chapa, baldosas, asfalto y madera como capa de detalle sobre el diseño propio |
+## Armas (todas de Sketchfab, CC BY 4.0)
+| Arma del juego | Modelo | Autor |
+|---|---|---|
+| Viper-9, Falcon .45 | [G19 Pistol, Game Ready, Free version](https://sketchfab.com/3d-models/g19-pistol-game-ready-free-version-e3412d9803f04bdaa97ad9b68ed665d7) (pistola montada recortada de la escena de exposición) | Rotuma |
+| Specter-9, Vector-MP | [MP5 Submachine Gun](https://sketchfab.com/3d-models/mp5-submachine-gun-a73b61932a0e4eecb5db5c63c158aa24) | Rotuma |
+| Hammer-12 | [Remington 870 (PBR GR)](https://sketchfab.com/3d-models/remington-870-pbr-and-game-ready-26e37df4c38c4e8a9da8adeb4b66bff6) | tris.blend |
+| ARX-17 | [AK-47 - Game Ready Assault Rifle Weapon](https://sketchfab.com/3d-models/ak-47-game-ready-assault-rifle-weapon-dc58144409534abbb60970638d171f9f) | Billy Jackman |
+| Halberd-4, Kestrel-5 | [M4A1 Assault Rifle Game Ready](https://sketchfab.com/3d-models/m4a1-assault-rifle-game-ready-c2a3c7b3ed4844b895a504f1bbe4f931) | polupan.andrew |
+| Lynx-7 | [Sniper rifle GameReady Free](https://sketchfab.com/3d-models/sniper-rifle-gameready-free-e520b234140049e7890db0b6c29d3925) | pashtetuser |
 
-Paquetes recibidos pero aún no integrados (también CC0): Animated Guns Pack y Ultimate Modular Men Pack (Quaternius; el modelo «Swat» se usó hasta la v2.2).
+## Cielo y superficies
+| Recurso | Autor | Licencia | Uso |
+|---|---|---|---|
+| Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
+| Concrete034, PaintedPlaster017, MetalPlates006, Tiles074, Bricks090, Bricks085, Asphalt015, Asphalt026B, Planks019 | ambientCG | CC0 1.0 | Superficies del mapa (`js/tex_data.js`) |
+| Ultimate Guns Pack (Quaternius) | Quaternius | CC0 1.0 | Armas de respaldo si los modelos realistas no cargan (`js/gun_data.js`) |
+
+## Recibidos, pendientes de integrar
+Abandoned Factory Modular Kit (Andy B, CC BY), Abandoned Warehouse (Arsen Ismailov, CC BY), Military Outpost Kit 1.0 (britdawgmasterfunk, CC0), City (SpatialNeglect, CC BY), Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY), FREE Military Soldier RIGGED (BAMEN, CC BY).
 
 Three.js r128, GLTFLoader y SkeletonUtils: licencia MIT, © three.js authors.
-
-El resto del contenido (mapa, texturas, armas, sonido, música, interfaz) se genera por código y es original.

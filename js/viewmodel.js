@@ -70,6 +70,8 @@ BV.Viewmodel = class {
     this.baseRot = def.cls === 'melee' ? [0.1, 0.25, -0.15] : [0, 0.03, 0];
     // imported meshes carry the bore higher above the grip: drop them so the sights line up
     if (this.gun.imported) { this.base = this.base.slice(); this.base[1] -= Math.max(0, this.gun.muzzle.position.y - 0.04) * 0.9; }
+    if (this.gun.real && def.cls === 'pistol') { this.base = this.base.slice(); this.base[1] += 0.075; this.base[2] += 0.03; }
+    if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);

@@ -692,7 +692,7 @@ BV.Map = (function () {
 
   /* ---------------- sky ---------------- */
   function buildSky(scene) {
-    const tex = BV.Textures.make('sky', { size: 512, h: 256 });
+    const tex = (BV.Real && BV.Real.skyTexture()) || BV.Textures.make('sky', { size: 512, h: 256 });
     tex.wrapT = THREE.ClampToEdgeWrapping;
     const geo = new THREE.SphereGeometry(400, 24, 12);
     const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false });

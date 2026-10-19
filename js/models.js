@@ -890,5 +890,5 @@ BV.Models = (function () {
     return { group: g, right, left };
   }
 
-  return { gun: (m) => importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex };
+  return { gun: (m) => (BV.Real && BV.Real.gun(m)) || importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex };
 })();
