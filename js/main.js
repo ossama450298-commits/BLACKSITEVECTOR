@@ -381,6 +381,10 @@
   requestAnimationFrame(frame);
   Promise.all([BV.CharModels.load(), BV.Textures.whenReady()]).then(([ok]) => {
     E.operatorsLoaded = ok;
+    try {
+      if (BV.Real.placeCity(scene) && BV.Map.data.skyline) BV.Map.data.skyline.visible = false;
+      E.kitProps = BV.Real.dressMap(scene);
+    } catch (err) { console.warn('scenery dressing failed', err); }
     document.getElementById('loading').classList.add('hidden');
     BV.Menu.showMenu('p-main');
   });

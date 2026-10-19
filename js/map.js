@@ -480,7 +480,7 @@ BV.Map = (function () {
     let t1 = performance.now();
     buildProps(scene); BV.timings.props1 = performance.now() - t1; t1 = performance.now();
     buildAtmosphere(scene); BV.timings.atmos = performance.now() - t1; t1 = performance.now();
-    BV.Props.build(scene, boxes, isIndoor); BV.timings.props2 = performance.now() - t1;
+    BV.Props.build(scene, boxes, isIndoor); BV.timings.props2 = performance.now() - t1; data.boxes = boxes;
     // lamp fixtures + glow sprites
     const glowMat = new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xffc070, transparent: true, opacity: 0.45, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: true });
     const glowMatCool = glowMat.clone(); glowMatCool.color = new THREE.Color(0x9cc4ff);
@@ -571,7 +571,7 @@ BV.Map = (function () {
       sky.add(m);
       if (r() < 0.3) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.3, 22, 10), fm); ch.position.set(m.position.x + 3, h + 10, m.position.z); sky.add(ch); }
     }
-    BV.Models.mergeTree(sky); scene.add(sky);
+    BV.Models.mergeTree(sky); scene.add(sky); data.skyline = sky;
     // two harbour gantry cranes
     const cm = BV.mat({ color: 0x7a2a1c, roughness: 0.7, metalness: 0.4 });
     const crane = (x, z, rot) => {

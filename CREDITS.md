@@ -22,10 +22,12 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | Recurso | Autor | Licencia | Uso |
 |---|---|---|---|
 | Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
+| [City](https://sketchfab.com/3d-models/city-1f50f0d6ec5a493d8e91d7db1106b324) | SpatialNeglect | CC BY 4.0 | Ciudad del horizonte: cuatro copias giradas alrededor del recinto (texturas a 512 px) |
+| [Abandoned Factory Modular Kit](https://sketchfab.com/3d-models/abandoned-factory-modular-kit-ec040b2034e949ffbc106f0784deb3fc) | Andy B | CC BY 4.0 | Atrezo junto a los muros: palés, barriles, soportes de tubería, cajas, bombonas y escombros |
 | Concrete034, PaintedPlaster017, MetalPlates006, Tiles074, Bricks090, Bricks085, Asphalt015, Asphalt026B, Planks019 | ambientCG | CC0 1.0 | Superficies del mapa (`js/tex_data.js`) |
 | Ultimate Guns Pack (Quaternius) | Quaternius | CC0 1.0 | Armas de respaldo si los modelos realistas no cargan (`js/gun_data.js`) |
 
 ## Recibidos, pendientes de integrar
-Abandoned Factory Modular Kit (Andy B, CC BY), Abandoned Warehouse (Arsen Ismailov, CC BY), Military Outpost Kit 1.0 (britdawgmasterfunk, CC0), City (SpatialNeglect, CC BY), Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY), FREE Military Soldier RIGGED (BAMEN, CC BY).
+Abandoned Warehouse (Arsen Ismailov, CC BY), Military Outpost Kit 1.0 (britdawgmasterfunk, CC0), Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY), FREE Military Soldier RIGGED (BAMEN, CC BY).
 
 Three.js r128, GLTFLoader y SkeletonUtils: licencia MIT, © three.js authors.

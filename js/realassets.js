@@ -19,7 +19,7 @@ BV.Real = (function () {
   // game weapon model id -> [asset, extra scale]
   const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}; let soldier = null, clips = {}, ready = false;
+  const guns = {}, kit = {}; let soldier = null, city = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -73,6 +73,8 @@ BV.Real = (function () {
     if (!BV.REAL || !THREE.GLTFLoader) return Promise.resolve(false);
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
+    if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); city = g.scene; }));
+    if (BV.REAL.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { kit[c.name] = c; c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); }); }));
     return Promise.all(jobs).then(() => {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;
@@ -92,5 +94,39 @@ BV.Real = (function () {
     img.onload = () => { t.needsUpdate = true; }; img.src = BV.REAL.sky;
     t.encoding = THREE.sRGBEncoding; return t;
   }
-  return { load, gun, skyTexture, get ready() { return ready; }, get soldier() { return soldier; }, clips };
+  /* realistic city around the compound (four rotated copies, beyond the play area) */
+  function placeCity(scene) {
+    if (!city) return false;
+    const box = new THREE.Box3().setFromObject(city), c = box.getCenter(new THREE.Vector3()), y = -box.min.y - 0.5;
+    const spots = [[0, 0, -315], [Math.PI, 0, 315], [Math.PI / 2, 365, 0], [-Math.PI / 2, -365, 0]];
+    for (const [rot, x, z] of spots) {
+      const g = new THREE.Group(), inner = city.clone(); inner.position.set(-c.x, y, -c.z); g.add(inner);
+      g.rotation.y = rot; g.position.set(x, 0, z); scene.add(g);
+    }
+    return true;
+  }
+  /* kit props along the foot of walls (decorative only: no collision, never in walkways) */
+  function dressMap(scene) {
+    if (!Object.keys(kit).length || !BV.Map || !BV.Map.data) return 0;
+    const D = BV.Map.data, boxes = D.boxes || [], r = BV.U.rng(1717);
+    const pieces = [['pallet_broken', 1.6], ['barrel3', 1.9], ['pipe_support', 2.4], ['box', 1.7], ['pallet16', 1.6], ['gas_tank1', 0.75], ['debris', 1.5], ['plank1', 1.6]];
+    const blocked = (x, z, rad) => boxes.some(b => b.solid && x > b.min[0] - rad && x < b.max[0] + rad && z > b.min[2] - rad && z < b.max[2] + rad && b.max[1] > 0.2 && b.min[1] < 1.6);
+    let n = 0;
+    for (const b of boxes) {
+      if (!b.solid || (b.max[1] - b.min[1]) < 3 || !/brick|plaster|concrete|metal/.test(b.mat || '')) continue;
+      const faces = [[b.min[0], b.max[0], b.min[2] - 0.45, 0], [b.min[0], b.max[0], b.max[2] + 0.45, Math.PI], [b.min[2], b.max[2], b.min[0] - 0.45, Math.PI / 2], [b.min[2], b.max[2], b.max[0] + 0.45, -Math.PI / 2]];
+      faces.forEach(([a0, a1, off, rot], fi) => {
+        for (let t = a0 + 2.5 + r() * 4; t < a1 - 2.5; t += 9 + r() * 9) {
+          const x = fi < 2 ? t : off, z = fi < 2 ? off : t;
+          if (Math.abs(x) > 60 || Math.abs(z) > 42 || blocked(x, z, 0.35) || r() < 0.35) continue;
+          const [name, sc] = pieces[Math.floor(r() * pieces.length)]; const tpl = kit[name]; if (!tpl) continue;
+          const o = tpl.clone(); o.scale.setScalar(sc); o.position.set(x, b.min[1] > 0.5 ? b.min[1] : 0, z); o.rotation.y = rot + (r() - 0.5) * 0.5;
+          o.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+          scene.add(o); n++;
+        }
+      });
+    }
+    return n;
+  }
+  return { load, gun, skyTexture, placeCity, dressMap, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
