@@ -14,7 +14,7 @@ BV.Real = (function () {
     mp5:    { f: [0, 0, 1],  u: [0, 1, 0], g: [0.0065, -0.013, -0.032], m: [0.0065, 0.013, 0.3258], s: 1.05 },
     r870:   { f: [1, 0, 0],  u: [0, 1, 0], g: [-0.362, -0.083, 0],      m: [1.1703, 0.016, 0],      s: 0.443 },
     sniper: { f: [0, 0, -1], u: [0, 1, 0], g: [0.334, -0.24, 6.9],      m: [0.334, 2.46, -16.29],   s: 0.0369 },
-    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92 }
+    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.045, -0.15, -0.21, 0.045, 0.08, 0.065] }
   };
   // game weapon model id -> [asset, extra scale]
   const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
@@ -53,6 +53,15 @@ BV.Real = (function () {
     }
     return geo;
   }
+  function clipGeo(geo, b) {
+    const P = geo.attributes.position, n = geo.index ? geo.index.count : P.count, src = geo.index ? geo.index.array : null, keep = [];
+    for (let t = 0; t < n; t += 3) {
+      const ia = src ? src[t] : t, ib = src ? src[t + 1] : t + 1, ic = src ? src[t + 2] : t + 2;
+      const cx = (P.getX(ia) + P.getX(ib) + P.getX(ic)) / 3, cy = (P.getY(ia) + P.getY(ib) + P.getY(ic)) / 3, cz = (P.getZ(ia) + P.getZ(ib) + P.getZ(ic)) / 3;
+      if (cx > b[0] && cx < b[3] && cy > b[1] && cy < b[4] && cz > b[2] && cz < b[5]) keep.push(ia, ib, ic);
+    }
+    geo.setIndex(keep);
+  }
   function calibrate(scene, c) {
     const f = new THREE.Vector3(...c.f).normalize(), u = new THREE.Vector3(...c.u).normalize();
     const r = new THREE.Vector3().crossVectors(f, u).normalize(); u.crossVectors(r, f).normalize();
@@ -64,6 +73,7 @@ BV.Real = (function () {
     scene.traverse(o => {
       if (!o.isMesh) return;
       const geo = deNorm(o.geometry.clone()); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(M, o.matrixWorld));
+      if (c.clip) clipGeo(geo, c.clip);      // drop stray pieces outside the weapon's real volume
       geo.computeBoundingSphere();
       const me = new THREE.Mesh(geo, o.material); tpl.add(me);
     });

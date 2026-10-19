@@ -74,7 +74,7 @@ BV.Viewmodel = class {
     this.baseRot = def.cls === 'melee' ? [0.1, 0.25, -0.15] : [0, 0.03, 0];
     // imported meshes carry the bore higher above the grip: drop them so the sights line up
     if (this.gun.imported) { this.base = this.base.slice(); this.base[1] -= Math.max(0, this.gun.muzzle.position.y - 0.04) * 0.9; }
-    if (this.gun.real && def.cls === 'pistol') { this.base = this.base.slice(); this.base[1] += 0.075; this.base[2] += 0.03; }
+    if (this.gun.real && def.cls === 'pistol') { this.base = [0.15, -0.105, -0.45]; }
     if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
     if (this.gun.real && def.cls !== 'pistol' && def.cls !== 'melee' && def.cls !== 'grenade') { this.base = this.base.slice(); this.base[1] += 0.035; this.base[2] += 0.04; }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame

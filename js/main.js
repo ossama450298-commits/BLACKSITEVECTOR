@@ -129,7 +129,7 @@
   }
   E.QUALITY = {
     low:    { pr: 0.6,  shadow: 0,    far: 110, props: 0, lights: 0,  post: false, bloom: 0 },
-    medium: { pr: 0.85, shadow: 1024, far: 160, props: 1, lights: 4,  post: true,  bloom: 0.45 },
+    medium: { pr: 0.8,  shadow: 1024, far: 160, props: 1, lights: 2,  post: false, bloom: 0.45 },
     high:   { pr: 1.0,  shadow: 2048, far: 210, props: 2, lights: 8,  post: true,  bloom: 0.55 },
     ultra:  { pr: 1.0,  shadow: 4096, far: 260, props: 2, lights: 12, post: true,  bloom: 0.6 }
   };
@@ -142,7 +142,7 @@
     if (lampLights.length !== nLights) setLampLights(nLights);
     BV.Props.setLevel(Q.props);
     post.mComp.uniforms.bloom.value = Q.bloom;
-    post.enabled = !BV.classic && s.quality !== 'low' && s.postfx !== false;
+    post.enabled = !BV.classic && Q.post && s.postfx !== false;
     document.getElementById('vignette').style.display = post.enabled || BV.classic ? 'none' : '';
     const shadowSize = BV.classic ? 0 : Q.shadow;
     const wantShadows = shadowSize > 0;
@@ -332,6 +332,16 @@
     try { step(dt); } catch (err) { E.frameErrors++; if (E.frameErrors < 5) console.error(err); }
     E.fpsN++; E.fpsT += dt;
     if (E.fpsT >= 0.5) { E.fpsShown = Math.round(E.fpsN / E.fpsT); E.fpsN = 0; E.fpsT = 0; BV.HUD.fps(BV.settings.showFps, E.fpsShown + ' FPS'); }
+    // adaptive quality: while playing, sustained low FPS steps the preset down (never up on its own)
+    if (E.state === 'play' && BV.settings.autoQuality !== false && document.visibilityState === 'visible') {
+      E.aqT = (E.aqT || 0) + dt; E.aqLow = (E.aqLow || 0) + (E.fpsShown && E.fpsShown < 45 ? dt : -dt * 0.5); E.aqLow = Math.max(0, E.aqLow);
+      const order = ['ultra', 'high', 'medium', 'low'], i = order.indexOf(BV.settings.quality);
+      if (E.aqLow > 3 && E.aqT > 4 && i >= 0 && i < order.length - 1) {
+        BV.settings.quality = order[i + 1]; BV.saveSettings && BV.saveSettings(); E.applySettings();
+        E.aqLow = 0; E.aqT = 0;
+        if (BV.HUD.notice) BV.HUD.notice('Calidad ajustada a ' + order[i + 1].toUpperCase() + ' para ganar fluidez');
+      }
+    }
   }
   function step(dt) {
     const playing = E.state === 'play' || E.state === 'buy';

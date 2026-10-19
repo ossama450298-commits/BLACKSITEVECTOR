@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.3.0';
+BV.VERSION = '3.4.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -135,6 +135,8 @@ BV.settings = (function () {
   if (!s.fovV21) { if (s.fov === 85) s.fov = 74; s.fovV21 = true; }
   // v3.0: realistic assets -> Modern renderer by default (Classic stays available in Settings)
   if (!s.v30) { s.style = 'modern'; s.v30 = true; }
+  // v3.4: lighter defaults (realistic assets are heavy on integrated GPUs); adaptive quality on
+  if (!s.v34) { if (s.quality === 'high' || s.quality === 'ultra') s.quality = 'medium'; s.autoQuality = true; s.v34 = true; }
   return s;
 })();
 /* ---------- visual style ----------
