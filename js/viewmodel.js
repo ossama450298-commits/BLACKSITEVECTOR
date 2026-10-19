@@ -56,7 +56,7 @@ BV.Viewmodel = class {
     this.gun = BV.Models.gun(def.model);
     this.arms = BV.Models.viewArms(team);
     const g = this.gun.group;
-    if (def.cls === 'pistol') { this.arms.left.position.set(-0.03, -0.085, 0.05); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.018, -0.075, 0.075); this.arms.group.scale.setScalar(0.88); }
+    if (def.cls === 'pistol') { this.arms.left.position.set(-0.024, -0.062, 0.03); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.012, -0.048, 0.042); this.arms.right.rotation.set(0.15, 0.1, -1.3); this.arms.group.scale.setScalar(0.85); }
     if (def.cls === 'melee') { this.arms.left.visible = false; }
     if (def.cls === 'grenade') { this.arms.left.position.set(-0.12, -0.08, 0.05); this.arms.left.rotation.set(0.4, -0.2, 0.3); }
     if (def.cls === 'shotgun') { this.arms.left.position.set(-0.04, -0.03, -0.4); }
@@ -77,6 +77,23 @@ BV.Viewmodel = class {
     if (this.gun.real && def.cls === 'pistol') { this.base = [0.15, -0.105, -0.45]; }
     if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
     if (this.gun.real && def.cls !== 'pistol' && def.cls !== 'melee' && def.cls !== 'grenade') { this.base = this.base.slice(); this.base[1] += 0.035; this.base[2] += 0.04; }
+    // geometric framing for firearms: the grip sits at a per-class point in camera space and the
+    // barrel is aimed at a far point on the crosshair, so every weapon reads as held and pointed at
+    // the centre of the screen regardless of the model's size
+    if (def.cls !== 'melee' && def.cls !== 'grenade') {
+      const G = { pistol: [0.1, -0.112, -0.3], smg: [0.11, -0.13, -0.28], shotgun: [0.115, -0.135, -0.27], sniper: [0.12, -0.14, -0.29] }[def.cls] || [0.115, -0.135, -0.27];
+      const aim = new THREE.Vector3(0, -0.035, -9), grip = new THREE.Vector3(G[0], G[1], G[2]);
+      const d = aim.sub(grip).normalize();
+      this.base = G.slice();
+      this.baseRot = [Math.asin(BV.U.clamp(d.y, -1, 1)), Math.atan2(-d.x, -d.z), def.cls === 'pistol' ? 0 : -0.04];
+      if (this.gun.real && def.cls !== 'pistol') {
+        // support hand on the weapon's real handguard
+        const mz = this.gun.muzzle.position.z, my = this.gun.muzzle.position.y;
+        this.arms.left.position.set(-0.005, my * 0.35 - 0.04, mz * (def.cls === 'shotgun' ? 0.58 : 0.5));
+        this.arms.left.rotation.set(0.25, -0.35, 1.2);
+        this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
+      }
+    }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);

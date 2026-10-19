@@ -11,10 +11,10 @@ BV.Real = (function () {
   const CAL = {
     ak47:   { f: [1, 0, 0],  u: [0, 1, 0], g: [-0.18, -0.015, 0],       m: [0.50, 0.086, 0],        s: 0.88 },
     m4a1:   { f: [0, 0, -1], u: [0, 1, 0], g: [0, -0.17, 0.675],        m: [0, 0.31, -2.4715],      s: 0.174 },
-    mp5:    { f: [0, 0, 1],  u: [0, 1, 0], g: [0.0065, -0.013, -0.032], m: [0.0065, 0.013, 0.3258], s: 1.05 },
+    mp5:    { f: [0, 0, 1],  u: [0, 1, 0], g: [0.0065, -0.013, -0.032], m: [0.0065, 0.047, 0.3258], s: 1.05 },
     r870:   { f: [1, 0, 0],  u: [0, 1, 0], g: [-0.362, -0.083, 0],      m: [1.1703, 0.016, 0],      s: 0.443 },
     sniper: { f: [0, 0, -1], u: [0, 1, 0], g: [0.334, -0.24, 6.9],      m: [0.334, 2.46, -16.29],   s: 0.0369 },
-    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.045, -0.15, -0.21, 0.045, 0.08, 0.065] }
+    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.04, -0.17, -0.17, 0.04, 0.09, 0.065], clipAll: true }
   };
   // game weapon model id -> [asset, extra scale]
   const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
@@ -53,12 +53,13 @@ BV.Real = (function () {
     }
     return geo;
   }
-  function clipGeo(geo, b) {
+  function clipGeo(geo, b, all) {
     const P = geo.attributes.position, n = geo.index ? geo.index.count : P.count, src = geo.index ? geo.index.array : null, keep = [];
     for (let t = 0; t < n; t += 3) {
       const ia = src ? src[t] : t, ib = src ? src[t + 1] : t + 1, ic = src ? src[t + 2] : t + 2;
       const cx = (P.getX(ia) + P.getX(ib) + P.getX(ic)) / 3, cy = (P.getY(ia) + P.getY(ib) + P.getY(ic)) / 3, cz = (P.getZ(ia) + P.getZ(ib) + P.getZ(ic)) / 3;
-      if (cx > b[0] && cx < b[3] && cy > b[1] && cy < b[4] && cz > b[2] && cz < b[5]) keep.push(ia, ib, ic);
+      const inside = (i) => { const x = P.getX(i), y = P.getY(i), z = P.getZ(i); return x > b[0] && x < b[3] && y > b[1] && y < b[4] && z > b[2] && z < b[5]; };
+      if (all ? (inside(ia) && inside(ib) && inside(ic)) : (cx > b[0] && cx < b[3] && cy > b[1] && cy < b[4] && cz > b[2] && cz < b[5])) keep.push(ia, ib, ic);
     }
     geo.setIndex(keep);
   }
@@ -73,11 +74,19 @@ BV.Real = (function () {
     scene.traverse(o => {
       if (!o.isMesh) return;
       const geo = deNorm(o.geometry.clone()); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(M, o.matrixWorld));
-      if (c.clip) clipGeo(geo, c.clip);      // drop stray pieces outside the weapon's real volume
+      if (c.clip) clipGeo(geo, c.clip, c.clipAll);      // drop stray pieces outside the weapon's real volume
       geo.computeBoundingSphere();
       const me = new THREE.Mesh(geo, o.material); tpl.add(me);
     });
-    return { tpl, muzzle: new THREE.Vector3(...c.m).applyMatrix4(M) };
+    // muzzle point from the geometry that is actually drawn: centre of the front-most vertices
+    // (within 1.2 cm of the tip, close to the bore line); falls back to the calibrated point
+    const muzzle = new THREE.Vector3(...c.m).applyMatrix4(M);
+    let minZ = Infinity; const pts = [];
+    tpl.children.forEach(me => { const P = me.geometry.attributes.position, IX = me.geometry.index, n = IX ? IX.count : P.count; for (let t = 0; t < n; t++) { const i = IX ? IX.getX(t) : t, z = P.getZ(i); if (z < minZ) minZ = z; pts.push(i, me); } });
+    let sx = 0, sy = 0, k = 0;
+    for (let j = 0; j < pts.length; j += 2) { const P = pts[j + 1].geometry.attributes.position, i = pts[j]; if (P.getZ(i) < minZ + 0.012 && Math.abs(P.getY(i) - muzzle.y) < 0.06) { sx += P.getX(i); sy += P.getY(i); k++; } }
+    if (k > 3 && isFinite(minZ)) muzzle.set(sx / k, sy / k, minZ - 0.005);
+    return { tpl, muzzle };
   }
   function load() {
     if (!BV.REAL || !THREE.GLTFLoader) return Promise.resolve(false);

@@ -59,7 +59,7 @@
   }
   sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.03; sun.shadow.radius = 2.5; sun.shadow.mapSize.set(2048, 2048);
   const vmScene = E.vmScene = new THREE.Scene();
-  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(BV.classic ? 74 : 62, 1, 0.01, 10);
+  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(BV.classic ? 64 : 50, 1, 0.01, 10);   // narrower than the world FOV: weapons read larger and closer
   vmScene.add(vmCamera);
   const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, BV.classic ? 0.7 : 0.55); vmScene.add(vmHemi);
   const vmSun = new THREE.DirectionalLight(0xffe2bc, BV.classic ? 0.75 : 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
@@ -133,8 +133,15 @@
     high:   { pr: 1.0,  shadow: 2048, far: 210, props: 2, lights: 8,  post: true,  bloom: 0.55 },
     ultra:  { pr: 1.0,  shadow: 4096, far: 260, props: 2, lights: 12, post: true,  bloom: 0.6 }
   };
+  /* internal performance metrics: BV.stats() in the console */
+  BV.stats = function () {
+    const i = renderer.info;
+    return { fps: Math.round(1000 / (E.frameMs || 16.7)), frameMs: +(E.frameMs || 0).toFixed(2), drawCalls: i.render.calls, triangles: i.render.triangles,
+      geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, quality: BV.settings.quality };
+  };
   E.applySettings = function () {
     const s = BV.settings, Q = E.QUALITY[s.quality] || E.QUALITY.medium;
+    if (!E.autoChanging) s.qualityMax = s.quality;   // a manual choice is the ceiling for automatic recovery
     const dpr = window.devicePixelRatio || 1;
     const q = s.quality === 'ultra' ? Math.min(dpr, 2) : s.quality === 'high' ? Math.min(dpr, 1.5) : Q.pr;
     renderer.setPixelRatio(q);
@@ -332,31 +339,46 @@
     try { step(dt); } catch (err) { E.frameErrors++; if (E.frameErrors < 5) console.error(err); }
     E.fpsN++; E.fpsT += dt;
     if (E.fpsT >= 0.5) { E.fpsShown = Math.round(E.fpsN / E.fpsT); E.fpsN = 0; E.fpsT = 0; BV.HUD.fps(BV.settings.showFps, E.fpsShown + ' FPS'); }
-    // adaptive quality: while playing, sustained low FPS steps the preset down (never up on its own)
+    // frame-time metrics (exponential average) for adaptive quality and BV.stats()
+    E.frameMs = E.frameMs ? E.frameMs * 0.95 + dt * 1000 * 0.05 : dt * 1000;
+    // adaptive quality with hysteresis: drop one level after ~4 s below 40 FPS, recover one level
+    // after ~15 s above 58 FPS (never above the level the player chose), at most one change per 8 s
     if (E.state === 'play' && BV.settings.autoQuality !== false && document.visibilityState === 'visible') {
-      E.aqT = (E.aqT || 0) + dt; E.aqLow = (E.aqLow || 0) + (E.fpsShown && E.fpsShown < 45 ? dt : -dt * 0.5); E.aqLow = Math.max(0, E.aqLow);
-      const order = ['ultra', 'high', 'medium', 'low'], i = order.indexOf(BV.settings.quality);
-      if (E.aqLow > 3 && E.aqT > 4 && i >= 0 && i < order.length - 1) {
-        BV.settings.quality = order[i + 1]; BV.saveSettings && BV.saveSettings(); E.applySettings();
-        E.aqLow = 0; E.aqT = 0;
-        if (BV.HUD.notice) BV.HUD.notice('Calidad ajustada a ' + order[i + 1].toUpperCase() + ' para ganar fluidez');
+      const order = ['low', 'medium', 'high', 'ultra'], cur = order.indexOf(BV.settings.quality);
+      if (BV.settings.qualityMax === undefined || order.indexOf(BV.settings.qualityMax) < 0) BV.settings.qualityMax = BV.settings.quality;
+      const max = order.indexOf(BV.settings.qualityMax), fps = 1000 / E.frameMs;
+      E.aqCool = Math.max(0, (E.aqCool || 0) - dt);
+      E.aqLow = fps < 40 ? (E.aqLow || 0) + dt : Math.max(0, (E.aqLow || 0) - dt * 2);
+      E.aqHigh = fps > 58 ? (E.aqHigh || 0) + dt : 0;
+      let to = -1;
+      if (E.aqLow > 4 && cur > 0) to = cur - 1;
+      else if (E.aqHigh > 15 && cur < max) to = cur + 1;
+      if (to >= 0 && E.aqCool <= 0) {
+        BV.settings.quality = order[to]; E.autoChanging = true; BV.saveSettings && BV.saveSettings(); E.applySettings(); E.autoChanging = false;
+        E.aqLow = E.aqHigh = 0; E.aqCool = 8;
+        if (BV.HUD.notice) BV.HUD.notice('Calidad automática: ' + order[to].toUpperCase());
       }
     }
   }
   function step(dt) {
+    renderer.info.autoReset = false; renderer.info.reset();   // per-frame totals (world + view-model) for BV.stats()
     const playing = E.state === 'play' || E.state === 'buy';
     if (E.state === 'menu') {
       menuCamera(dt);
       BV.Effects.update(dt);
     } else if (playing || E.state === 'over') {
       // fixed sub-steps keep physics stable on slow frames
-      const n = dt > 1 / 45 ? 2 : 1, h = dt / n;
+      // fixed sub-steps only below 30 FPS, and only the simulation is sub-stepped: animation,
+      // model sync and radar spotting run once per rendered frame (no slow-frame spiral)
+      const n = dt > 1 / 30 ? 2 : 1, h = dt / n;
       const mdx = BV.Input.mouse.dx, mdy = BV.Input.mouse.dy;
       for (let i = 0; i < n; i++) {
         if (E.state !== 'over') BV.Player.update(game, h, E);
+        game.lightStep = i < n - 1;
         game.update(h);
         if (i === 0 && n > 1) BV.Input.endFrame(); // edges/mouse deltas are consumed once
       }
+      game.lightStep = false;
       BV.Effects.update(dt);
       playCamera(dt);
       const p = game.player;
@@ -372,7 +394,13 @@
     BV.Input.endFrame();
     updateDust(dt);
     BV.Props.update(performance.now() / 1000);
-    if (renderer.shadowMap.enabled) followShadow();
+    if (renderer.shadowMap.enabled) {
+      // shadow map: every frame on High/Ultra, every 2nd frame on Low/Medium
+      E.shadowFrame = (E.shadowFrame || 0) + 1;
+      const every = (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 1 : 2;
+      renderer.shadowMap.autoUpdate = false;
+      if (E.shadowFrame % every === 0) { followShadow(); renderer.shadowMap.needsUpdate = true; }
+    }
     const vm = playing && game.player && game.player.alive;
     if (post.enabled) {
       post.begin();

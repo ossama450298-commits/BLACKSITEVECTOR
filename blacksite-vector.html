@@ -4565,7 +4565,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.4.0';
+BV.VERSION = '3.5.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -7753,10 +7753,10 @@ BV.Real = (function () {
   const CAL = {
     ak47:   { f: [1, 0, 0],  u: [0, 1, 0], g: [-0.18, -0.015, 0],       m: [0.50, 0.086, 0],        s: 0.88 },
     m4a1:   { f: [0, 0, -1], u: [0, 1, 0], g: [0, -0.17, 0.675],        m: [0, 0.31, -2.4715],      s: 0.174 },
-    mp5:    { f: [0, 0, 1],  u: [0, 1, 0], g: [0.0065, -0.013, -0.032], m: [0.0065, 0.013, 0.3258], s: 1.05 },
+    mp5:    { f: [0, 0, 1],  u: [0, 1, 0], g: [0.0065, -0.013, -0.032], m: [0.0065, 0.047, 0.3258], s: 1.05 },
     r870:   { f: [1, 0, 0],  u: [0, 1, 0], g: [-0.362, -0.083, 0],      m: [1.1703, 0.016, 0],      s: 0.443 },
     sniper: { f: [0, 0, -1], u: [0, 1, 0], g: [0.334, -0.24, 6.9],      m: [0.334, 2.46, -16.29],   s: 0.0369 },
-    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.045, -0.15, -0.21, 0.045, 0.08, 0.065] }
+    g19:    { f: [0.70, 0, 0.71], u: [-0.71, 0, 0.70], g: [-0.037, -0.023, 0.151], m: [0.011, -0.023, 0.299], s: 0.92, clip: [-0.04, -0.17, -0.17, 0.04, 0.09, 0.065], clipAll: true }
   };
   // game weapon model id -> [asset, extra scale]
   const USE = { pistol: ['g19', 1], pistolHeavy: ['g19', 1.12], smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
@@ -7795,12 +7795,13 @@ BV.Real = (function () {
     }
     return geo;
   }
-  function clipGeo(geo, b) {
+  function clipGeo(geo, b, all) {
     const P = geo.attributes.position, n = geo.index ? geo.index.count : P.count, src = geo.index ? geo.index.array : null, keep = [];
     for (let t = 0; t < n; t += 3) {
       const ia = src ? src[t] : t, ib = src ? src[t + 1] : t + 1, ic = src ? src[t + 2] : t + 2;
       const cx = (P.getX(ia) + P.getX(ib) + P.getX(ic)) / 3, cy = (P.getY(ia) + P.getY(ib) + P.getY(ic)) / 3, cz = (P.getZ(ia) + P.getZ(ib) + P.getZ(ic)) / 3;
-      if (cx > b[0] && cx < b[3] && cy > b[1] && cy < b[4] && cz > b[2] && cz < b[5]) keep.push(ia, ib, ic);
+      const inside = (i) => { const x = P.getX(i), y = P.getY(i), z = P.getZ(i); return x > b[0] && x < b[3] && y > b[1] && y < b[4] && z > b[2] && z < b[5]; };
+      if (all ? (inside(ia) && inside(ib) && inside(ic)) : (cx > b[0] && cx < b[3] && cy > b[1] && cy < b[4] && cz > b[2] && cz < b[5])) keep.push(ia, ib, ic);
     }
     geo.setIndex(keep);
   }
@@ -7815,11 +7816,19 @@ BV.Real = (function () {
     scene.traverse(o => {
       if (!o.isMesh) return;
       const geo = deNorm(o.geometry.clone()); geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(M, o.matrixWorld));
-      if (c.clip) clipGeo(geo, c.clip);      // drop stray pieces outside the weapon's real volume
+      if (c.clip) clipGeo(geo, c.clip, c.clipAll);      // drop stray pieces outside the weapon's real volume
       geo.computeBoundingSphere();
       const me = new THREE.Mesh(geo, o.material); tpl.add(me);
     });
-    return { tpl, muzzle: new THREE.Vector3(...c.m).applyMatrix4(M) };
+    // muzzle point from the geometry that is actually drawn: centre of the front-most vertices
+    // (within 1.2 cm of the tip, close to the bore line); falls back to the calibrated point
+    const muzzle = new THREE.Vector3(...c.m).applyMatrix4(M);
+    let minZ = Infinity; const pts = [];
+    tpl.children.forEach(me => { const P = me.geometry.attributes.position, IX = me.geometry.index, n = IX ? IX.count : P.count; for (let t = 0; t < n; t++) { const i = IX ? IX.getX(t) : t, z = P.getZ(i); if (z < minZ) minZ = z; pts.push(i, me); } });
+    let sx = 0, sy = 0, k = 0;
+    for (let j = 0; j < pts.length; j += 2) { const P = pts[j + 1].geometry.attributes.position, i = pts[j]; if (P.getZ(i) < minZ + 0.012 && Math.abs(P.getY(i) - muzzle.y) < 0.06) { sx += P.getX(i); sy += P.getY(i); k++; } }
+    if (k > 3 && isFinite(minZ)) muzzle.set(sx / k, sy / k, minZ - 0.005);
+    return { tpl, muzzle };
   }
   function load() {
     if (!BV.REAL || !THREE.GLTFLoader) return Promise.resolve(false);
@@ -8707,8 +8716,9 @@ BV.Bot = class extends BV.Combatant {
     if (g.training) { this.trainingUpdate(dt); return; }
     this.thinkT -= dt;
     this.wantMove = true;
+    if (this.thinkT === undefined || isNaN(this.thinkT)) this.thinkT = Math.random() * 0.1;
     if (this.thinkT <= 0) {
-      this.thinkT = 0.1;
+      this.thinkT = 0.085 + Math.random() * 0.03;   // ~10 Hz, de-synchronised between bots
       this.perceive();
       this.decide();
       if (g.time > this.repathT && this.goal) this.computePath();
@@ -9120,11 +9130,13 @@ BV.Game = class {
     }
     w.mag--; c.nextFire = now + def.rate;
     const spread = this.spreadFor(c);
-    const eye = c.eye(this.T1).clone(), fwd = c.dir(this.T2).clone();
-    const right = new THREE.Vector3().crossVectors(fwd, BV.UP).normalize();
-    const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+    // reusable per-shot temporaries (no allocations while firing)
+    if (!this.S) this.S = { eye: new THREE.Vector3(), fwd: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(), dir: new THREE.Vector3(), shell: new THREE.Vector3() };
+    const eye = this.S.eye.copy(c.eye(this.T1)), fwd = this.S.fwd.copy(c.dir(this.T2));
+    const right = this.S.right.crossVectors(fwd, BV.UP).normalize();
+    const up = this.S.up.crossVectors(right, fwd).normalize();
     const pellets = def.pellets || 1;
-    const dir = new THREE.Vector3();
+    const dir = this.S.dir;
     for (let i = 0; i < pellets; i++) {
       const r = spread * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
       dir.copy(fwd).addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -9147,7 +9159,7 @@ BV.Game = class {
         if (c.model.ejectAnchor && def.cls !== 'shotgun') {
           c.model.ejectAnchor.getWorldPosition(this.T4);
           const rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
-          BV.Effects.ejectShell(this.T4, new THREE.Vector3(rx * 2 + (Math.random() - 0.5), 1.6 + Math.random(), rz * 2 + (Math.random() - 0.5)), def.cls);
+          BV.Effects.ejectShell(this.T4, this.S.shell.set(rx * 2 + (Math.random() - 0.5), 1.6 + Math.random(), rz * 2 + (Math.random() - 0.5)), def.cls);
         }
       }
     }
@@ -9535,6 +9547,7 @@ BV.Game = class {
     this.updateGrenades(dt);
     if (this.phase === 'live' || this.phase === 'planted') this.checkWin();
     // player spotting (for the radar), staggered
+    if (this.lightStep) return;                  // extra physics sub-step: no spotting / model sync
     if (this.player && this.player.alive && this.frame % 6 === 0) {
       const eye = this.player.eye(this.T1).clone();
       for (const e of this.ents) {
@@ -9645,7 +9658,7 @@ BV.Viewmodel = class {
     this.gun = BV.Models.gun(def.model);
     this.arms = BV.Models.viewArms(team);
     const g = this.gun.group;
-    if (def.cls === 'pistol') { this.arms.left.position.set(-0.03, -0.085, 0.05); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.018, -0.075, 0.075); this.arms.group.scale.setScalar(0.88); }
+    if (def.cls === 'pistol') { this.arms.left.position.set(-0.024, -0.062, 0.03); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.012, -0.048, 0.042); this.arms.right.rotation.set(0.15, 0.1, -1.3); this.arms.group.scale.setScalar(0.85); }
     if (def.cls === 'melee') { this.arms.left.visible = false; }
     if (def.cls === 'grenade') { this.arms.left.position.set(-0.12, -0.08, 0.05); this.arms.left.rotation.set(0.4, -0.2, 0.3); }
     if (def.cls === 'shotgun') { this.arms.left.position.set(-0.04, -0.03, -0.4); }
@@ -9666,6 +9679,23 @@ BV.Viewmodel = class {
     if (this.gun.real && def.cls === 'pistol') { this.base = [0.15, -0.105, -0.45]; }
     if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
     if (this.gun.real && def.cls !== 'pistol' && def.cls !== 'melee' && def.cls !== 'grenade') { this.base = this.base.slice(); this.base[1] += 0.035; this.base[2] += 0.04; }
+    // geometric framing for firearms: the grip sits at a per-class point in camera space and the
+    // barrel is aimed at a far point on the crosshair, so every weapon reads as held and pointed at
+    // the centre of the screen regardless of the model's size
+    if (def.cls !== 'melee' && def.cls !== 'grenade') {
+      const G = { pistol: [0.1, -0.112, -0.3], smg: [0.11, -0.13, -0.28], shotgun: [0.115, -0.135, -0.27], sniper: [0.12, -0.14, -0.29] }[def.cls] || [0.115, -0.135, -0.27];
+      const aim = new THREE.Vector3(0, -0.035, -9), grip = new THREE.Vector3(G[0], G[1], G[2]);
+      const d = aim.sub(grip).normalize();
+      this.base = G.slice();
+      this.baseRot = [Math.asin(BV.U.clamp(d.y, -1, 1)), Math.atan2(-d.x, -d.z), def.cls === 'pistol' ? 0 : -0.04];
+      if (this.gun.real && def.cls !== 'pistol') {
+        // support hand on the weapon's real handguard
+        const mz = this.gun.muzzle.position.z, my = this.gun.muzzle.position.y;
+        this.arms.left.position.set(-0.005, my * 0.35 - 0.04, mz * (def.cls === 'shotgun' ? 0.58 : 0.5));
+        this.arms.left.rotation.set(0.25, -0.35, 1.2);
+        this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
+      }
+    }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);
@@ -10611,7 +10641,7 @@ BV.PostFX = class {
   }
   sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.03; sun.shadow.radius = 2.5; sun.shadow.mapSize.set(2048, 2048);
   const vmScene = E.vmScene = new THREE.Scene();
-  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(BV.classic ? 74 : 62, 1, 0.01, 10);
+  const vmCamera = E.vmCamera = new THREE.PerspectiveCamera(BV.classic ? 64 : 50, 1, 0.01, 10);   // narrower than the world FOV: weapons read larger and closer
   vmScene.add(vmCamera);
   const vmHemi = new THREE.HemisphereLight(0xc0c8d0, 0x4a4234, BV.classic ? 0.7 : 0.55); vmScene.add(vmHemi);
   const vmSun = new THREE.DirectionalLight(0xffe2bc, BV.classic ? 0.75 : 1.25); vmSun.position.set(-0.6, 1, 0.3); vmScene.add(vmSun);
@@ -10685,8 +10715,15 @@ BV.PostFX = class {
     high:   { pr: 1.0,  shadow: 2048, far: 210, props: 2, lights: 8,  post: true,  bloom: 0.55 },
     ultra:  { pr: 1.0,  shadow: 4096, far: 260, props: 2, lights: 12, post: true,  bloom: 0.6 }
   };
+  /* internal performance metrics: BV.stats() in the console */
+  BV.stats = function () {
+    const i = renderer.info;
+    return { fps: Math.round(1000 / (E.frameMs || 16.7)), frameMs: +(E.frameMs || 0).toFixed(2), drawCalls: i.render.calls, triangles: i.render.triangles,
+      geometries: i.memory.geometries, textures: i.memory.textures, programs: i.programs ? i.programs.length : 0, quality: BV.settings.quality };
+  };
   E.applySettings = function () {
     const s = BV.settings, Q = E.QUALITY[s.quality] || E.QUALITY.medium;
+    if (!E.autoChanging) s.qualityMax = s.quality;   // a manual choice is the ceiling for automatic recovery
     const dpr = window.devicePixelRatio || 1;
     const q = s.quality === 'ultra' ? Math.min(dpr, 2) : s.quality === 'high' ? Math.min(dpr, 1.5) : Q.pr;
     renderer.setPixelRatio(q);
@@ -10884,31 +10921,46 @@ BV.PostFX = class {
     try { step(dt); } catch (err) { E.frameErrors++; if (E.frameErrors < 5) console.error(err); }
     E.fpsN++; E.fpsT += dt;
     if (E.fpsT >= 0.5) { E.fpsShown = Math.round(E.fpsN / E.fpsT); E.fpsN = 0; E.fpsT = 0; BV.HUD.fps(BV.settings.showFps, E.fpsShown + ' FPS'); }
-    // adaptive quality: while playing, sustained low FPS steps the preset down (never up on its own)
+    // frame-time metrics (exponential average) for adaptive quality and BV.stats()
+    E.frameMs = E.frameMs ? E.frameMs * 0.95 + dt * 1000 * 0.05 : dt * 1000;
+    // adaptive quality with hysteresis: drop one level after ~4 s below 40 FPS, recover one level
+    // after ~15 s above 58 FPS (never above the level the player chose), at most one change per 8 s
     if (E.state === 'play' && BV.settings.autoQuality !== false && document.visibilityState === 'visible') {
-      E.aqT = (E.aqT || 0) + dt; E.aqLow = (E.aqLow || 0) + (E.fpsShown && E.fpsShown < 45 ? dt : -dt * 0.5); E.aqLow = Math.max(0, E.aqLow);
-      const order = ['ultra', 'high', 'medium', 'low'], i = order.indexOf(BV.settings.quality);
-      if (E.aqLow > 3 && E.aqT > 4 && i >= 0 && i < order.length - 1) {
-        BV.settings.quality = order[i + 1]; BV.saveSettings && BV.saveSettings(); E.applySettings();
-        E.aqLow = 0; E.aqT = 0;
-        if (BV.HUD.notice) BV.HUD.notice('Calidad ajustada a ' + order[i + 1].toUpperCase() + ' para ganar fluidez');
+      const order = ['low', 'medium', 'high', 'ultra'], cur = order.indexOf(BV.settings.quality);
+      if (BV.settings.qualityMax === undefined || order.indexOf(BV.settings.qualityMax) < 0) BV.settings.qualityMax = BV.settings.quality;
+      const max = order.indexOf(BV.settings.qualityMax), fps = 1000 / E.frameMs;
+      E.aqCool = Math.max(0, (E.aqCool || 0) - dt);
+      E.aqLow = fps < 40 ? (E.aqLow || 0) + dt : Math.max(0, (E.aqLow || 0) - dt * 2);
+      E.aqHigh = fps > 58 ? (E.aqHigh || 0) + dt : 0;
+      let to = -1;
+      if (E.aqLow > 4 && cur > 0) to = cur - 1;
+      else if (E.aqHigh > 15 && cur < max) to = cur + 1;
+      if (to >= 0 && E.aqCool <= 0) {
+        BV.settings.quality = order[to]; E.autoChanging = true; BV.saveSettings && BV.saveSettings(); E.applySettings(); E.autoChanging = false;
+        E.aqLow = E.aqHigh = 0; E.aqCool = 8;
+        if (BV.HUD.notice) BV.HUD.notice('Calidad automática: ' + order[to].toUpperCase());
       }
     }
   }
   function step(dt) {
+    renderer.info.autoReset = false; renderer.info.reset();   // per-frame totals (world + view-model) for BV.stats()
     const playing = E.state === 'play' || E.state === 'buy';
     if (E.state === 'menu') {
       menuCamera(dt);
       BV.Effects.update(dt);
     } else if (playing || E.state === 'over') {
       // fixed sub-steps keep physics stable on slow frames
-      const n = dt > 1 / 45 ? 2 : 1, h = dt / n;
+      // fixed sub-steps only below 30 FPS, and only the simulation is sub-stepped: animation,
+      // model sync and radar spotting run once per rendered frame (no slow-frame spiral)
+      const n = dt > 1 / 30 ? 2 : 1, h = dt / n;
       const mdx = BV.Input.mouse.dx, mdy = BV.Input.mouse.dy;
       for (let i = 0; i < n; i++) {
         if (E.state !== 'over') BV.Player.update(game, h, E);
+        game.lightStep = i < n - 1;
         game.update(h);
         if (i === 0 && n > 1) BV.Input.endFrame(); // edges/mouse deltas are consumed once
       }
+      game.lightStep = false;
       BV.Effects.update(dt);
       playCamera(dt);
       const p = game.player;
@@ -10924,7 +10976,13 @@ BV.PostFX = class {
     BV.Input.endFrame();
     updateDust(dt);
     BV.Props.update(performance.now() / 1000);
-    if (renderer.shadowMap.enabled) followShadow();
+    if (renderer.shadowMap.enabled) {
+      // shadow map: every frame on High/Ultra, every 2nd frame on Low/Medium
+      E.shadowFrame = (E.shadowFrame || 0) + 1;
+      const every = (BV.settings.quality === 'high' || BV.settings.quality === 'ultra') ? 1 : 2;
+      renderer.shadowMap.autoUpdate = false;
+      if (E.shadowFrame % every === 0) { followShadow(); renderer.shadowMap.needsUpdate = true; }
+    }
     const vm = playing && game.player && game.player.alive;
     if (post.enabled) {
       post.begin();

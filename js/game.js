@@ -259,11 +259,13 @@ BV.Game = class {
     }
     w.mag--; c.nextFire = now + def.rate;
     const spread = this.spreadFor(c);
-    const eye = c.eye(this.T1).clone(), fwd = c.dir(this.T2).clone();
-    const right = new THREE.Vector3().crossVectors(fwd, BV.UP).normalize();
-    const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+    // reusable per-shot temporaries (no allocations while firing)
+    if (!this.S) this.S = { eye: new THREE.Vector3(), fwd: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(), dir: new THREE.Vector3(), shell: new THREE.Vector3() };
+    const eye = this.S.eye.copy(c.eye(this.T1)), fwd = this.S.fwd.copy(c.dir(this.T2));
+    const right = this.S.right.crossVectors(fwd, BV.UP).normalize();
+    const up = this.S.up.crossVectors(right, fwd).normalize();
     const pellets = def.pellets || 1;
-    const dir = new THREE.Vector3();
+    const dir = this.S.dir;
     for (let i = 0; i < pellets; i++) {
       const r = spread * Math.sqrt(Math.random()), a = Math.random() * Math.PI * 2;
       dir.copy(fwd).addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -286,7 +288,7 @@ BV.Game = class {
         if (c.model.ejectAnchor && def.cls !== 'shotgun') {
           c.model.ejectAnchor.getWorldPosition(this.T4);
           const rx = Math.cos(c.yaw), rz = -Math.sin(c.yaw);
-          BV.Effects.ejectShell(this.T4, new THREE.Vector3(rx * 2 + (Math.random() - 0.5), 1.6 + Math.random(), rz * 2 + (Math.random() - 0.5)), def.cls);
+          BV.Effects.ejectShell(this.T4, this.S.shell.set(rx * 2 + (Math.random() - 0.5), 1.6 + Math.random(), rz * 2 + (Math.random() - 0.5)), def.cls);
         }
       }
     }
@@ -674,6 +676,7 @@ BV.Game = class {
     this.updateGrenades(dt);
     if (this.phase === 'live' || this.phase === 'planted') this.checkWin();
     // player spotting (for the radar), staggered
+    if (this.lightStep) return;                  // extra physics sub-step: no spotting / model sync
     if (this.player && this.player.alive && this.frame % 6 === 0) {
       const eye = this.player.eye(this.T1).clone();
       for (const e of this.ents) {

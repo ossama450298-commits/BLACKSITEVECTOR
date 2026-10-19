@@ -265,8 +265,9 @@ BV.Bot = class extends BV.Combatant {
     if (g.training) { this.trainingUpdate(dt); return; }
     this.thinkT -= dt;
     this.wantMove = true;
+    if (this.thinkT === undefined || isNaN(this.thinkT)) this.thinkT = Math.random() * 0.1;
     if (this.thinkT <= 0) {
-      this.thinkT = 0.1;
+      this.thinkT = 0.085 + Math.random() * 0.03;   // ~10 Hz, de-synchronised between bots
       this.perceive();
       this.decide();
       if (g.time > this.repathT && this.goal) this.computePath();
