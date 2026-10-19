@@ -40,6 +40,7 @@
   const scene = E.scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x8d8274, 35, 190);
   const camera = E.camera = new THREE.PerspectiveCamera(BV.settings.fov, 1, 0.05, 600);
+  BV.camPos = camera.position;                // used by animation LOD
   camera.rotation.order = 'YXZ'; scene.add(camera);
   // lighting: sky/ground ambience + a low dusk sun with soft shadows
   // classic: these lights only shade models/props (Gouraud); the world uses its baked lightmap
@@ -385,6 +386,13 @@
       if (BV.Real.placeCity(scene) && BV.Map.data.skyline) BV.Map.data.skyline.visible = false;
       E.kitProps = BV.Real.dressMap(scene);
     } catch (err) { console.warn('scenery dressing failed', err); }
+    // shader warm-up: compile operator, weapon and arm programs now instead of on first sight
+    try {
+      const tmp = new THREE.Group(); scene.add(tmp);
+      for (const t of ['VANGUARD', 'RAVEN']) { const m = BV.CharModels.ready ? BV.CharModels.create(t) : null; if (m) { m.setWeapon(BV.WEAPONS.arx17); tmp.add(m.root); } }
+      for (const id of ['viper9', 'specter9', 'hammer12', 'arx17', 'halberd4', 'lynx7']) { const w = BV.Models.gun(BV.WEAPONS[id].model); if (w) tmp.add(w.group); }
+      tmp.position.set(0, -50, 0); renderer.compile(scene, camera); scene.remove(tmp);
+    } catch (err) { console.warn('shader warm-up skipped', err); }
     document.getElementById('loading').classList.add('hidden');
     BV.Menu.showMenu('p-main');
   });

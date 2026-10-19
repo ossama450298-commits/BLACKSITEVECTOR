@@ -862,33 +862,95 @@ BV.Models = (function () {
   }
 
   /* first-person arms: sleeves, cuffs and gloved hands with fingers */
+  /* flatten a static hierarchy into one mesh per material (fewer draw calls) */
+  const GET4 = ['getX', 'getY', 'getZ', 'getW'];
+  // read an attribute as real floats (r128 does not de-normalize quantized data on the CPU)
+  function floatAttr(at) {
+    const arr = at.isInterleavedBufferAttribute ? at.data.array : at.array;
+    const div = !at.normalized ? 1 : arr instanceof Int16Array ? 32767 : arr instanceof Uint16Array ? 65535 : arr instanceof Int8Array ? 127 : arr instanceof Uint8Array ? 255 : 1;
+    if (div === 1 && !at.isInterleavedBufferAttribute) return at;
+    const n = at.count, sz = at.itemSize, f = new Float32Array(n * sz);
+    for (let i = 0; i < n; i++) for (let c = 0; c < sz; c++) { const v = at[GET4[c]](i) / div; f[i * sz + c] = div === 1 ? v : Math.max(-1, v); }
+    return new THREE.BufferAttribute(f, sz);
+  }
+  function flatten(root) {
+    root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(root.matrixWorld).invert(), byMat = new Map();
+    root.traverse(o => {
+      if (!o.isMesh || o.isSkinnedMesh || Array.isArray(o.material)) return;
+      let g = o.geometry.clone();
+      for (const k of Object.keys(g.attributes)) g.setAttribute(k, floatAttr(g.attributes[k]));
+      if (g.index) g = g.toNonIndexed();
+      g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+      if (!byMat.has(o.material)) byMat.set(o.material, []); byMat.get(o.material).push(g);
+    });
+    const out = new THREE.Group();
+    for (const [mat, list] of byMat) {
+      const keys = ['position', 'normal', 'uv'].filter(k => list.every(g => g.attributes[k]));
+      const merged = new THREE.BufferGeometry();
+      for (const k of keys) {
+        const size = list[0].attributes[k].itemSize, n = list.reduce((a, g) => a + g.attributes[k].count, 0), arr = new Float32Array(n * size); let off = 0;
+        for (const g of list) { const at = g.attributes[k]; for (let i = 0; i < at.count; i++) for (let c = 0; c < size; c++) arr[off++] = at[GET4[c]](i); }
+        merged.setAttribute(k, new THREE.BufferAttribute(arr, size));
+      }
+      merged.computeBoundingSphere();
+      out.add(new THREE.Mesh(merged, mat));
+    }
+    return out;
+  }
+  /* first-person arms: tapered camo sleeve, rolled cuff, tactical glove with padded palm,
+     knuckle guard and three-segment fingers that close around the grip */
   function viewArms(teamId) {
-    const T = BV.TEAMS[teamId];
+    const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD';
     const g = new THREE.Group();
-    const sleeve = S({ map: fabric(T.uniform, teamId === 'VANGUARD' ? 'digital' : 'blot'), roughness: 0.9 });
-    const glove = S({ color: 0x2a2620, roughness: 0.72 });
-    const cuff = S({ color: 0x1f1e1b, roughness: 0.8 });
+    const sleeve = S({ map: operatorFabric(V ? 0x59636a : 0x6f6551, V ? 'digital' : 'blot'), roughness: 0.92 });
+    const glove = S({ map: gearTex(0x262421), roughness: 0.78 });
+    const leather = S({ color: 0x1b1a18, roughness: 0.6 });
+    const rubber = S({ color: 0x121212, roughness: 0.5 });
+    const capsule = (r, len) => {           // finger segment: cylinder with a rounded tip, base at origin, pointing -Z
+      const grp = new THREE.Group();
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r, len, 8), glove); c.rotation.x = Math.PI / 2; c.position.z = -len / 2; grp.add(c);
+      const t = new THREE.Mesh(new THREE.SphereGeometry(r * 0.95, 8, 6), glove); t.position.z = -len; grp.add(t);
+      return grp;
+    };
+    const finger = (x, curl, lens, r) => {   // chain of three segments, each curling about X
+      const root = new THREE.Group(); root.position.set(x, 0, -0.072);
+      let parent = root;
+      lens.forEach((L, k) => { const seg = capsule(r, L); seg.rotation.x = -curl[k]; parent.add(seg); const nxt = new THREE.Group(); nxt.position.z = -L; seg.add(nxt); parent = nxt; });
+      return root;
+    };
     const mkHand = (grip) => {
       const h = new THREE.Group();
-      const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.05, 0.36, 12), sleeve); sl.rotation.x = Math.PI / 2; sl.position.z = 0.2; h.add(sl);
-      const cf = new THREE.Mesh(new THREE.CylinderGeometry(0.041, 0.041, 0.04, 12), cuff); cf.rotation.x = Math.PI / 2; cf.position.z = 0.03; h.add(cf);
-      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.07, 0.085), glove); palm.position.set(0, -0.005, -0.03); h.add(palm);
-      for (let i = 0; i < 4; i++) {
-        const f = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.009, 0.05, 6), glove);
-        f.position.set(-0.035 + (grip ? 0.0 : 0.0), -0.02 - i * 0.0, -0.06 - i * 0.0);
-        f.position.set(0.028, 0.022 - i * 0.017, -0.055); f.rotation.set(0, 0, grip ? Math.PI / 2 : 1.2);
-        h.add(f);
-      }
-      const th = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.01, 0.05, 6), glove); th.position.set(-0.03, 0.02, -0.06); th.rotation.set(0.8, 0, 0.4); h.add(th);
-      return h;
+      // forearm: tapered sleeve (wrist -> elbow) with folds, rolled cuff
+      const sl = new THREE.Mesh(lathe([[0.037, 0.0], [0.042, 0.06], [0.047, 0.18], [0.05, 0.3], [0.05, 0.36]], 14, 1, 0.9), sleeve);
+      sl.rotation.x = Math.PI / 2; sl.position.z = 0.025; h.add(sl);
+      const roll = new THREE.Mesh(new THREE.TorusGeometry(0.043, 0.011, 8, 18), sleeve); roll.position.z = 0.05; h.add(roll);
+      // glove cuff with velcro strap
+      const gc = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.038, 0.05, 14), glove); gc.rotation.x = Math.PI / 2; gc.position.z = 0.0; h.add(gc);
+      const strap = new THREE.Mesh(rbox(0.05, 0.016, 0.024, 0.006), leather); strap.position.set(0, 0.034, 0.0); h.add(strap);
+      // padded palm + back of hand + knuckle guard
+      const palm = new THREE.Mesh(rbox(0.078, 0.034, 0.085, 0.014), glove); palm.position.set(0, 0, -0.035); h.add(palm);
+      const pad = new THREE.Mesh(rbox(0.06, 0.012, 0.05, 0.005), leather); pad.position.set(0, -0.018, -0.03); h.add(pad);
+      const knuckle = new THREE.Mesh(rbox(0.07, 0.014, 0.022, 0.006), rubber); knuckle.position.set(0, 0.02, -0.066); h.add(knuckle);
+      // fingers: closed around the grip (right) or half-closed under the handguard (support)
+      const curl = grip ? [1.25, 1.35, 0.9] : [0.75, 0.85, 0.55];
+      [-0.027, -0.009, 0.009, 0.027].forEach((x, k) => h.add(finger(x, curl, k === 3 ? [0.022, 0.016, 0.014] : [0.026, 0.02, 0.016], k === 3 ? 0.0078 : 0.0088)));
+      // thumb: from the side of the palm, wrapping across
+      const th = new THREE.Group(); th.position.set(-0.038, -0.006, -0.024); th.rotation.set(0.35, grip ? 0.55 : 0.35, grip ? 0.9 : 0.5);
+      const t1 = capsule(0.0098, 0.03); th.add(t1); const t2g = new THREE.Group(); t2g.position.z = -0.03; t1.add(t2g); const t2 = capsule(0.0092, 0.024); t2.rotation.x = -0.5; t2g.add(t2);
+      h.add(th);
+      const flat = flatten(h);
+      flat.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+      return flat;
     };
     const right = mkHand(true); g.add(right);
-    right.position.set(0.02, -0.07, 0.08); right.rotation.set(0.28, 0.12, 0);
-    const left = mkHand(true); g.add(left);
-    if (teamId === 'RAVEN') { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.03, 12), S({ color: T.accent, roughness: 0.6 })); b.rotation.x = Math.PI / 2; b.position.z = 0.16; left.add(b); }
-    left.position.set(-0.07, -0.03, -0.2); left.rotation.set(0.25, -0.55, 0.2);
+    right.position.set(0.02, -0.07, 0.08); right.rotation.set(0.28, 0.12, -1.25);
+    const left = mkHand(false); g.add(left);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.035, 14, 1, true), S({ color: T.accent, roughness: 0.6, side: THREE.DoubleSide }));
+    band.rotation.x = Math.PI / 2; band.position.z = 0.2; left.add(band);
+    left.position.set(-0.07, -0.03, -0.2); left.rotation.set(0.25, -0.55, 1.2);
     return { group: g, right, left };
   }
 
-  return { gun: (m) => (BV.Real && BV.Real.gun(m)) || importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex };
+  return { gun: (m) => (BV.Real && BV.Real.gun(m)) || importedGun(m) || detailGun(m, gun(m)), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex, flatten };
 })();

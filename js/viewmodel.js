@@ -56,7 +56,7 @@ BV.Viewmodel = class {
     this.gun = BV.Models.gun(def.model);
     this.arms = BV.Models.viewArms(team);
     const g = this.gun.group;
-    if (def.cls === 'pistol') { this.arms.left.position.set(-0.035, -0.08, 0.04); this.arms.left.rotation.set(0.5, -0.3, 0.6); }
+    if (def.cls === 'pistol') { this.arms.left.position.set(-0.03, -0.085, 0.05); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.018, -0.075, 0.075); this.arms.group.scale.setScalar(0.88); }
     if (def.cls === 'melee') { this.arms.left.visible = false; }
     if (def.cls === 'grenade') { this.arms.left.position.set(-0.12, -0.08, 0.05); this.arms.left.rotation.set(0.4, -0.2, 0.3); }
     if (def.cls === 'shotgun') { this.arms.left.position.set(-0.04, -0.03, -0.4); }
@@ -64,7 +64,8 @@ BV.Viewmodel = class {
     this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
     g.add(this.arms.group);
     // realistic arms: the operator's own sleeves and gloves, posed onto the weapon with IK
-    this.rig = this.armsRig(team);
+    // the full-body rig looked poor this close to the camera; dedicated procedural arms are used instead
+    this.rig = null; if (this.rigs) for (const k in this.rigs) this.rigs[k].group.visible = false;
     if (this.rig) { this.arms.group.traverse(o => { if (o.isMesh) o.visible = false; }); this.rig.left = def.cls !== 'melee'; }
     this.gun.muzzle.add(this.flash); this.gun.muzzle.add(this.cone);
     this.fp = this.flashProfile(def);
@@ -227,8 +228,24 @@ BV.Viewmodel = class {
     if (clip) { mixer.clipAction(clip).play(); mixer.update(0.2); }
     const chain = ['RightShoulder', 'RightArm', 'RightForeArm', 'RightHand', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand'];
     const pose = {}; model.traverse(o => { if (o.isBone) pose[o.uuid] = o.quaternion.clone(); });
-    // hide everything that is not an arm: collapse head and legs
-    for (const k of ['Head', 'Neck', 'LeftUpLeg', 'RightUpLeg']) if (bones[k]) bones[k].scale.setScalar(0.0001);
+    // keep only the arms: triangles whose vertices are driven mainly by arm / forearm / hand bones
+    model.traverse(o => {
+      if (!o.isSkinnedMesh) { if (o.isMesh) o.visible = false; return; }
+      const g = o.geometry.clone(), sk = o.skeleton, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight;
+      if (!g.index) { const n = g.attributes.position.count, ix = new Uint32Array(n); for (let i = 0; i < n; i++) ix[i] = i; g.setIndex(new THREE.BufferAttribute(ix, 1)); }
+      const armBone = sk.bones.map(b => /(Arm|ForeArm|Hand)/.test(b.name) && !/Shoulder/.test(b.name));
+      const G4 = ['getX', 'getY', 'getZ', 'getW'];   // works for interleaved attributes too
+      const isArm = (v) => { let wa = 0, wt = 0; for (let k = 0; k < 4; k++) { const w = SW[G4[k]](v), j = SI[G4[k]](v); wt += w; if (armBone[j]) wa += w; } return wt > 0 && wa / wt > 0.6; };
+      const idx = g.index.array, groups = g.groups.length ? g.groups : [{ start: 0, count: idx.length, materialIndex: 0 }], out = [], ng = [];
+      for (const gr of groups) {
+        const st = out.length;
+        for (let t = gr.start; t < gr.start + gr.count; t += 3) if (isArm(idx[t]) && isArm(idx[t + 1]) && isArm(idx[t + 2])) out.push(idx[t], idx[t + 1], idx[t + 2]);
+        if (out.length > st) ng.push({ start: st, count: out.length - st, materialIndex: gr.materialIndex });
+      }
+      if (!out.length) { o.visible = false; return; }
+      g.setIndex(out); g.clearGroups(); if (g.groups !== undefined && groups.length > 1) ng.forEach(x => g.addGroup(x.start, x.count, x.materialIndex));
+      o.geometry = g;
+    });
     // place the body so the eye sits at the camera: shoulders just below and behind the view
     const group = new THREE.Group(); group.add(model);
     model.rotation.y = Math.PI; model.position.set(0.0, -1.58, 0.16);
@@ -252,7 +269,7 @@ BV.Viewmodel = class {
     const pistol = this.def.cls === 'pistol';
     const grip = this.gun.group.localToWorld(new THREE.Vector3(0.03, pistol ? 0.005 : 0.0, pistol ? 0.06 : 0.08));
     ik(B.RightArm, B.RightForeArm, B.RightHand, grip, 1);
-    this.alignHand(B.RightHand, 0);
+    if (this.handAlign) this.alignHand(B.RightHand, 0);
     if (R.left) {
       // support point: real handguard position for long guns, plus the animated reload offset
       const lp = this.arms.left.position, dl = lp.clone().sub(this.leftHome);
@@ -260,7 +277,7 @@ BV.Viewmodel = class {
       const base = pistol ? lp.clone().sub(dl) : new THREE.Vector3(0, my * 0.35 - 0.02, mz * (this.def.cls === 'shotgun' ? 0.58 : 0.5));
       const sup = this.gun.group.localToWorld(base.add(dl).add(new THREE.Vector3(pistol ? -0.01 : -0.045, pistol ? -0.03 : -0.045, pistol ? 0.05 : 0.02)));
       ik(B.LeftArm, B.LeftForeArm, B.LeftHand, sup, 1);
-      this.alignHand(B.LeftHand, 1);
+      if (this.handAlign) this.alignHand(B.LeftHand, 1);
     }
   }
   // full hand orientation: fingers + palm directions expressed in the weapon's axes

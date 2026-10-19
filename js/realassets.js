@@ -27,7 +27,7 @@ BV.Real = (function () {
   function buildClip(c) {
     const times = []; for (let f = 0; f < c.frames; f++) times.push(f / c.fps);
     const tracks = c.bones.map((b, i) => { const a = unpack(c.q[i]), v = new Float32Array(a.length); for (let k = 0; k < a.length; k++) v[k] = a[k] / 32767; return new THREE.QuaternionKeyframeTrack(b + '.quaternion', times, v); });
-    const h = unpack(c.hip), hv = new Float32Array(h.length); for (let k = 0; k < h.length; k++) hv[k] = h[k] / 1000;
+    const h = unpack(c.hip), hv = new Float32Array(h.length), hk = c.hipK || 1000; for (let k = 0; k < h.length; k++) hv[k] = h[k] / hk;
     tracks.push(new THREE.VectorKeyframeTrack(c.hipBone + '.position', times, hv));
     return new THREE.AnimationClip(c.name, (c.frames - 1) / c.fps, tracks);
   }
@@ -73,8 +73,8 @@ BV.Real = (function () {
     if (!BV.REAL || !THREE.GLTFLoader) return Promise.resolve(false);
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
-    if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); city = g.scene; }));
-    if (BV.REAL.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { kit[c.name] = c; c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); }); }));
+    if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    if (BV.REAL.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; kit[c.name] = f; }); }));
     return Promise.all(jobs).then(() => {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;

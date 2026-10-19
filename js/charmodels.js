@@ -54,7 +54,8 @@ BV.CharModels = (function () {
     const tint = V ? null : new THREE.Color(0x8c7b66);
     model.traverse(o => {
       if (!o.isMesh) return;
-      o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
+      const hiQ = BV.settings.quality === 'high' || BV.settings.quality === 'ultra';
+      o.frustumCulled = false; o.castShadow = hiQ; o.receiveShadow = true;
       const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint); n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
       o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
     });
@@ -84,7 +85,7 @@ BV.CharModels = (function () {
     const death = BV.Real.clips.Death01 ? mixer.clipAction(BV.Real.clips.Death01) : null; if (death) { death.setLoop(THREE.LoopOnce, 1); death.clampWhenFinished = true; }
     const wL = {}, wU = {}; for (const k in L) wL[k] = 0; for (const k in U) wU[k] = 0;
     const supportLocal = new THREE.Vector3(), _tw = new THREE.Vector3(), _belt = new THREE.Vector3(), _sh = new THREE.Vector3(), _v = new THREE.Vector3();
-    let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle';
+    let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle', lodAcc = 0, lodN = 0;
     const api = {
       root, body: bodyG, torso: bodyG, head: bodyG, gunHolder, shadow, flashAnchor: null, ejectAnchor: null, state: null, shade: 1, skinned: true,
       setWeapon(def) {
@@ -100,6 +101,11 @@ BV.CharModels = (function () {
       },
       animate(dt, speed, crouch, pitch, phase, firing) {
         if (dying) return;
+        // animation LOD: distant operators update every 2nd / 3rd frame with the accumulated time
+        lodAcc += dt; lodN++;
+        const far = BV.camPos ? root.position.distanceTo(BV.camPos) : 0, step = far > 40 ? 3 : far > 20 ? 2 : 1;
+        if (lodN % step) return;
+        dt = lodAcc; lodAcc = 0;
         const st = api.state || {}, k = Math.min(1, dt * 9);
         const crouching = crouch > 0.5, moving = speed > 0.35;
         const tL = { idle: 0, walk: 0, jog: 0, sprint: 0, cidle: 0, cwalk: 0 };
@@ -119,6 +125,7 @@ BV.CharModels = (function () {
         if (U.reload && tU.reload && wU.reload < 0.05) U.reload.time = 0;
         for (const n in U) { if (!U[n]) continue; wU[n] += (tU[n] - wU[n]) * Math.min(1, dt * 14); U[n].setEffectiveWeight(wU[n]); }
         mixer.update(dt);
+        bodyG.position.y = 0.045;           // mesh sits ~4 cm low in the source rig
         api.place(pitch, st);
       },
       place(pitch, st) {
@@ -157,7 +164,7 @@ BV.CharModels = (function () {
         const e = Math.min(1, t); shadow.scale.set(1 + e * 0.6, 1 + e * 1.2, 1);
       },
       reset() {
-        dying = false; lastDie = 0; bodyG.position.y = 0;
+        dying = false; lastDie = 0; bodyG.position.y = 0.045;
         if (death) death.stop();
         for (const n in L) if (L[n]) { L[n].stop(); L[n].play(); wL[n] = n === 'idle' ? 1 : 0; L[n].setEffectiveWeight(wL[n]); }
         for (const n in U) if (U[n]) { U[n].stop(); U[n].play(); wU[n] = n === 'aim' ? 1 : 0; U[n].setEffectiveWeight(wU[n]); }
