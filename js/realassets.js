@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}; let soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}; let makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -95,6 +95,7 @@ BV.Real = (function () {
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
     if (BV.REAL.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
     if (BV.REAL.warehouse) jobs.push(parse(BV.REAL.warehouse).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } }); warehouse = g.scene; }));
     if (BV.REAL.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; kit[c.name] = f; }); }));
@@ -102,6 +103,27 @@ BV.Real = (function () {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
+  }
+  /* Makarov (CC0): real separate parts. Body/barrel/trigger fixed, slide (+hammer, safety) moves on
+     each shot, magazine seated in the grip (the source shows it beside the pistol, exploded) */
+  function buildMakarov(scene) {
+    scene.updateMatrixWorld(true);
+    const GRIP = new THREE.Vector3(0.004, 0.004, 0.018);          // web of the hand, behind the trigger guard
+    const MAG_SEAT = new THREE.Vector3(0, -0.012, -0.09);          // exploded position -> inside the grip
+    const body = new THREE.Group(), slide = new THREE.Group(), mag = new THREE.Group();
+    scene.traverse(o => {
+      if (!o.isMesh) return;
+      let part = o, name = ''; while (part && !name) { if (/^(Magazine|Slide|Hammer|Safety|Trigger|Barrel|Body)$/.test(part.name)) name = part.name; part = part.parent; }
+      const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.translate(-GRIP.x, -GRIP.y, -GRIP.z);
+      if (name === 'Magazine') g.translate(MAG_SEAT.x, MAG_SEAT.y, MAG_SEAT.z);
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, o.material);
+      (name === 'Magazine' ? mag : (name === 'Slide' || name === 'Hammer' || name === 'Safety') ? slide : body).add(m);
+    });
+    // muzzle: centre of the slide/barrel front face
+    const bb = new THREE.Box3().setFromObject(slide);
+    const muzzle = new THREE.Vector3(0.0005, (bb.min.y + bb.max.y) / 2 + 0.002, bb.min.z - 0.004);
+    return { body, slide, mag, muzzle };
   }
   /* detachable magazine: triangles inside a per-weapon box (grip at origin, barrel along -Z, metres)
      become their own mesh so the reload can pull it out and seat a fresh one */
@@ -127,6 +149,13 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    if (ready && makarov && (model === 'pistol' || model === 'pistolHeavy')) {
+      const sc = model === 'pistolHeavy' ? 1.12 : 1, group = new THREE.Group(), inner = new THREE.Group(); inner.scale.setScalar(sc); group.add(inner);
+      inner.add(makarov.body.clone()); const slide = makarov.slide.clone(), mag = makarov.mag.clone(); inner.add(slide); inner.add(mag);
+      const muzzle = new THREE.Object3D(); muzzle.position.copy(makarov.muzzle).multiplyScalar(sc); group.add(muzzle);
+      const eject = new THREE.Object3D(); eject.position.set(0.02 * sc, 0.045 * sc, -0.03 * sc); group.add(eject);
+      return { group, muzzle, mag, magHome: mag.position.clone(), slide, slideHome: slide.position.clone(), slideTravel: 0.022, eject, imported: true, real: true };
+    }
     if (!ready || !USE[model]) return null;
     const [k, sc] = USE[model], G = guns[k]; if (!G) return null;
     const group = new THREE.Group();

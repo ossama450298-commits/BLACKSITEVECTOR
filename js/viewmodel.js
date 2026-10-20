@@ -110,6 +110,7 @@ BV.Viewmodel = class {
     this.sp.pv.z += 0.95 * k; this.sp.pv.y += 0.2 * k;
     this.sp.rv.x += 5.4 * k; this.sp.rv.y += (Math.random() - 0.5) * 2.2 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.8 * k;
     // snappy kick (back + muzzle climb, recovers in ~70 ms) and heat that builds up during bursts
+    this.t.slide = 1;
     this.t.kick = 1; this.kickK = k; this.t.heat = Math.min(1, (this.t.heat || 0) + 0.18 * k);
     this.t.flash = this.t.flashMax = this.fp.t;
     this.flash.material.rotation = Math.random() * Math.PI * 2;
@@ -161,6 +162,14 @@ BV.Viewmodel = class {
     let rx = this.baseRot[0] + sp.r.x * 0.05 + breatheR, ry = this.baseRot[1] + this.sway.x * 2.2 + sp.r.y * 0.05, rz = this.baseRot[2] + bRz + this.tilt + sp.r.z * 0.05;
     if (st.sprint && !t.reload) { px -= 0.03; py -= 0.05; rx -= 0.3; ry += 0.6; rz += 0.2; }
     if (st.crouch) { py -= 0.008; rz -= 0.04; }
+    // ---- slide blowback (pistols with a separate slide): snaps back and returns in ~90 ms ----
+    if (this.gun.slide) {
+      const sl = this.gun.slide, e = t.slide > 0 ? Math.sqrt(t.slide) : 0;   // full travel at the shot, eases home
+      sl.position.z = this.gun.slideHome.z + (t.slide > 0 ? e : 0) * this.gun.slideTravel;
+      // locked back on an empty magazine during the reload until it is released
+      if (t.reload > 0) { const pr = 1 - Math.max(0, t.reload) / t.reloadMax; if (pr < 0.84) sl.position.z = this.gun.slideHome.z + this.gun.slideTravel * 0.9; }
+      t.slide = Math.max(0, (t.slide || 0) - dt / 0.09);
+    }
     // ---- firing: sharp kick and burst shake ----
     if (t.kick > 0) { const e = t.kick * t.kick, kk = this.kickK || 1; pz += e * 0.028 * kk; py += e * 0.006 * kk; rx += e * 0.075 * kk; t.kick = Math.max(0, t.kick - dt / 0.07); }
     if (t.heat > 0) {
