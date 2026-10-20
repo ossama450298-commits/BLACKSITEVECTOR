@@ -103,13 +103,41 @@ BV.Real = (function () {
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
   }
+  /* detachable magazine: triangles inside a per-weapon box (grip at origin, barrel along -Z, metres)
+     become their own mesh so the reload can pull it out and seat a fresh one */
+  const MAGBOX = { smg: [-0.2, -0.105, 0.0], smgCompact: [-0.185, -0.09, 0.0], rifle: [-0.285, -0.105, 0.015],
+    rifleCarbine: [-0.135, -0.03, -0.005], dmr: [-0.15, -0.03, -0.005], sniper: [-0.235, -0.145, 0.0] };
+  const split = {};
+  function splitMag(model, tpl, sc) {
+    if (split[model]) return split[model];
+    const B = MAGBOX[model], body = new THREE.Group(), mag = new THREE.Group();
+    tpl.updateMatrixWorld(true);
+    tpl.traverse(o => {
+      if (!o.isMesh) return;
+      const g = o.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().makeScale(sc, sc, sc).multiply(o.matrixWorld));
+      const P = g.attributes.position, IX = g.index, n = IX ? IX.count : P.count, inB = [], outB = [];
+      for (let t = 0; t < n; t += 3) {
+        const a = IX ? IX.getX(t) : t, b = IX ? IX.getX(t + 1) : t + 1, c = IX ? IX.getX(t + 2) : t + 2;
+        const cy = (P.getY(a) + P.getY(b) + P.getY(c)) / 3, cz = (P.getZ(a) + P.getZ(b) + P.getZ(c)) / 3;
+        (cz > B[0] && cz < B[1] && cy < B[2] ? inB : outB).push(a, b, c);
+      }
+      const gb = g.clone(); gb.setIndex(outB); gb.computeBoundingSphere(); body.add(new THREE.Mesh(gb, o.material));
+      if (inB.length) { const gm = g.clone(); gm.setIndex(inB); gm.computeBoundingSphere(); mag.add(new THREE.Mesh(gm, o.material)); }
+    });
+    return (split[model] = { body, mag: mag.children.length ? mag : null });
+  }
   function gun(model) {
     if (!ready || !USE[model]) return null;
     const [k, sc] = USE[model], G = guns[k]; if (!G) return null;
-    const group = new THREE.Group(), body = G.tpl.clone(); body.scale.setScalar(sc); group.add(body);
+    const group = new THREE.Group();
+    let mag = null, magHome = null;
+    if (MAGBOX[model]) {
+      const S = splitMag(model, G.tpl, sc); group.add(S.body.clone());
+      if (S.mag) { mag = S.mag.clone(); group.add(mag); magHome = mag.position.clone(); }
+    } else { const body = G.tpl.clone(); body.scale.setScalar(sc); group.add(body); }
     const muzzle = new THREE.Object3D(); muzzle.position.copy(G.muzzle).multiplyScalar(sc); group.add(muzzle);
     const eject = new THREE.Object3D(); eject.position.set(0.03, muzzle.position.y * 0.8 + 0.01, muzzle.position.z * (model.startsWith('pistol') ? 0.35 : 0.18)); group.add(eject);
-    return { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true };
+    return { group, muzzle, mag, magHome, eject, imported: true, real: true };
   }
   function skyTexture() {
     if (!BV.REAL || !BV.REAL.sky) return null;

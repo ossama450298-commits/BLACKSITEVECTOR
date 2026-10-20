@@ -107,8 +107,10 @@ BV.Viewmodel = class {
   shot(def) {
     const k = (def.cls === 'sniper' ? 2.6 : def.cls === 'shotgun' ? 2.2 : def.cls === 'dmr' ? 1.5 : def.cls === 'pistol' ? 1.2 : 1) * (BV.classic ? 1.35 : 1);
     // spring impulses: back, up and a little random yaw/roll
-    this.sp.pv.z += 0.9 * k; this.sp.pv.y += 0.12 * k;
-    this.sp.rv.x += 4.2 * k; this.sp.rv.y += (Math.random() - 0.5) * 1.6 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.0 * k;
+    this.sp.pv.z += 0.95 * k; this.sp.pv.y += 0.2 * k;
+    this.sp.rv.x += 5.4 * k; this.sp.rv.y += (Math.random() - 0.5) * 2.2 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.8 * k;
+    // snappy kick (back + muzzle climb, recovers in ~70 ms) and heat that builds up during bursts
+    this.t.kick = 1; this.kickK = k; this.t.heat = Math.min(1, (this.t.heat || 0) + 0.18 * k);
     this.t.flash = this.t.flashMax = this.fp.t;
     this.flash.material.rotation = Math.random() * Math.PI * 2;
     this.flash.material.color.setHex(this.fp.c);
@@ -159,6 +161,12 @@ BV.Viewmodel = class {
     let rx = this.baseRot[0] + sp.r.x * 0.05 + breatheR, ry = this.baseRot[1] + this.sway.x * 2.2 + sp.r.y * 0.05, rz = this.baseRot[2] + bRz + this.tilt + sp.r.z * 0.05;
     if (st.sprint && !t.reload) { px -= 0.03; py -= 0.05; rx -= 0.3; ry += 0.6; rz += 0.2; }
     if (st.crouch) { py -= 0.008; rz -= 0.04; }
+    // ---- firing: sharp kick and burst shake ----
+    if (t.kick > 0) { const e = t.kick * t.kick, kk = this.kickK || 1; pz += e * 0.028 * kk; py += e * 0.006 * kk; rx += e * 0.075 * kk; t.kick = Math.max(0, t.kick - dt / 0.07); }
+    if (t.heat > 0) {
+      const h = t.heat; px += (Math.random() - 0.5) * 0.004 * h; py += (Math.random() - 0.5) * 0.004 * h; rz += (Math.random() - 0.5) * 0.03 * h; rx += h * 0.02;
+      t.heat = Math.max(0, t.heat - dt * 2.2);
+    }
     // ---- draw: rise with overshoot ----
     if (t.draw > 0) {
       t.draw -= dt; const d = Math.max(0, t.draw) / t.drawMax, e = d * d;
@@ -173,7 +181,8 @@ BV.Viewmodel = class {
       const p = 1 - Math.max(0, t.reload) / t.reloadMax;
       const ease = (a, b) => { const x = BV.U.clamp((p - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
       const tiltIn = ease(0.0, 0.14) * (1 - ease(0.82, 1.0));
-      rz += tiltIn * 0.5; rx += tiltIn * 0.18; py -= tiltIn * 0.04; px -= tiltIn * 0.02;
+      // raise and cant the weapon so the magazine well is in view
+      rz += tiltIn * 0.3; ry += tiltIn * 0.38; rx += tiltIn * 0.06; py += tiltIn * 0.012; px -= tiltIn * 0.02; pz -= tiltIn * 0.07;
       if (def.cls === 'shotgun') {
         // load shells one by one: hand cycles under the receiver
         const cyc = (p * 5) % 1, inLoad = p > 0.1 && p < 0.85;

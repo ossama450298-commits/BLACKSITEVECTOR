@@ -4565,7 +4565,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.6.1';
+BV.VERSION = '3.6.2';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -7846,13 +7846,41 @@ BV.Real = (function () {
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
   }
+  /* detachable magazine: triangles inside a per-weapon box (grip at origin, barrel along -Z, metres)
+     become their own mesh so the reload can pull it out and seat a fresh one */
+  const MAGBOX = { smg: [-0.2, -0.105, 0.0], smgCompact: [-0.185, -0.09, 0.0], rifle: [-0.285, -0.105, 0.015],
+    rifleCarbine: [-0.135, -0.03, -0.005], dmr: [-0.15, -0.03, -0.005], sniper: [-0.235, -0.145, 0.0] };
+  const split = {};
+  function splitMag(model, tpl, sc) {
+    if (split[model]) return split[model];
+    const B = MAGBOX[model], body = new THREE.Group(), mag = new THREE.Group();
+    tpl.updateMatrixWorld(true);
+    tpl.traverse(o => {
+      if (!o.isMesh) return;
+      const g = o.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().makeScale(sc, sc, sc).multiply(o.matrixWorld));
+      const P = g.attributes.position, IX = g.index, n = IX ? IX.count : P.count, inB = [], outB = [];
+      for (let t = 0; t < n; t += 3) {
+        const a = IX ? IX.getX(t) : t, b = IX ? IX.getX(t + 1) : t + 1, c = IX ? IX.getX(t + 2) : t + 2;
+        const cy = (P.getY(a) + P.getY(b) + P.getY(c)) / 3, cz = (P.getZ(a) + P.getZ(b) + P.getZ(c)) / 3;
+        (cz > B[0] && cz < B[1] && cy < B[2] ? inB : outB).push(a, b, c);
+      }
+      const gb = g.clone(); gb.setIndex(outB); gb.computeBoundingSphere(); body.add(new THREE.Mesh(gb, o.material));
+      if (inB.length) { const gm = g.clone(); gm.setIndex(inB); gm.computeBoundingSphere(); mag.add(new THREE.Mesh(gm, o.material)); }
+    });
+    return (split[model] = { body, mag: mag.children.length ? mag : null });
+  }
   function gun(model) {
     if (!ready || !USE[model]) return null;
     const [k, sc] = USE[model], G = guns[k]; if (!G) return null;
-    const group = new THREE.Group(), body = G.tpl.clone(); body.scale.setScalar(sc); group.add(body);
+    const group = new THREE.Group();
+    let mag = null, magHome = null;
+    if (MAGBOX[model]) {
+      const S = splitMag(model, G.tpl, sc); group.add(S.body.clone());
+      if (S.mag) { mag = S.mag.clone(); group.add(mag); magHome = mag.position.clone(); }
+    } else { const body = G.tpl.clone(); body.scale.setScalar(sc); group.add(body); }
     const muzzle = new THREE.Object3D(); muzzle.position.copy(G.muzzle).multiplyScalar(sc); group.add(muzzle);
     const eject = new THREE.Object3D(); eject.position.set(0.03, muzzle.position.y * 0.8 + 0.01, muzzle.position.z * (model.startsWith('pistol') ? 0.35 : 0.18)); group.add(eject);
-    return { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true };
+    return { group, muzzle, mag, magHome, eject, imported: true, real: true };
   }
   function skyTexture() {
     if (!BV.REAL || !BV.REAL.sky) return null;
@@ -9762,8 +9790,10 @@ BV.Viewmodel = class {
   shot(def) {
     const k = (def.cls === 'sniper' ? 2.6 : def.cls === 'shotgun' ? 2.2 : def.cls === 'dmr' ? 1.5 : def.cls === 'pistol' ? 1.2 : 1) * (BV.classic ? 1.35 : 1);
     // spring impulses: back, up and a little random yaw/roll
-    this.sp.pv.z += 0.9 * k; this.sp.pv.y += 0.12 * k;
-    this.sp.rv.x += 4.2 * k; this.sp.rv.y += (Math.random() - 0.5) * 1.6 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.0 * k;
+    this.sp.pv.z += 0.95 * k; this.sp.pv.y += 0.2 * k;
+    this.sp.rv.x += 5.4 * k; this.sp.rv.y += (Math.random() - 0.5) * 2.2 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.8 * k;
+    // snappy kick (back + muzzle climb, recovers in ~70 ms) and heat that builds up during bursts
+    this.t.kick = 1; this.kickK = k; this.t.heat = Math.min(1, (this.t.heat || 0) + 0.18 * k);
     this.t.flash = this.t.flashMax = this.fp.t;
     this.flash.material.rotation = Math.random() * Math.PI * 2;
     this.flash.material.color.setHex(this.fp.c);
@@ -9814,6 +9844,12 @@ BV.Viewmodel = class {
     let rx = this.baseRot[0] + sp.r.x * 0.05 + breatheR, ry = this.baseRot[1] + this.sway.x * 2.2 + sp.r.y * 0.05, rz = this.baseRot[2] + bRz + this.tilt + sp.r.z * 0.05;
     if (st.sprint && !t.reload) { px -= 0.03; py -= 0.05; rx -= 0.3; ry += 0.6; rz += 0.2; }
     if (st.crouch) { py -= 0.008; rz -= 0.04; }
+    // ---- firing: sharp kick and burst shake ----
+    if (t.kick > 0) { const e = t.kick * t.kick, kk = this.kickK || 1; pz += e * 0.028 * kk; py += e * 0.006 * kk; rx += e * 0.075 * kk; t.kick = Math.max(0, t.kick - dt / 0.07); }
+    if (t.heat > 0) {
+      const h = t.heat; px += (Math.random() - 0.5) * 0.004 * h; py += (Math.random() - 0.5) * 0.004 * h; rz += (Math.random() - 0.5) * 0.03 * h; rx += h * 0.02;
+      t.heat = Math.max(0, t.heat - dt * 2.2);
+    }
     // ---- draw: rise with overshoot ----
     if (t.draw > 0) {
       t.draw -= dt; const d = Math.max(0, t.draw) / t.drawMax, e = d * d;
@@ -9828,7 +9864,8 @@ BV.Viewmodel = class {
       const p = 1 - Math.max(0, t.reload) / t.reloadMax;
       const ease = (a, b) => { const x = BV.U.clamp((p - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
       const tiltIn = ease(0.0, 0.14) * (1 - ease(0.82, 1.0));
-      rz += tiltIn * 0.5; rx += tiltIn * 0.18; py -= tiltIn * 0.04; px -= tiltIn * 0.02;
+      // raise and cant the weapon so the magazine well is in view
+      rz += tiltIn * 0.3; ry += tiltIn * 0.38; rx += tiltIn * 0.06; py += tiltIn * 0.012; px -= tiltIn * 0.02; pz -= tiltIn * 0.07;
       if (def.cls === 'shotgun') {
         // load shells one by one: hand cycles under the receiver
         const cyc = (p * 5) % 1, inLoad = p > 0.1 && p < 0.85;
