@@ -75,6 +75,7 @@ BV.Viewmodel = class {
     // imported meshes carry the bore higher above the grip: drop them so the sights line up
     if (this.gun.imported) { this.base = this.base.slice(); this.base[1] -= Math.max(0, this.gun.muzzle.position.y - 0.04) * 0.9; }
     if (this.gun.real && def.cls === 'pistol') { this.base = [0.15, -0.105, -0.45]; }
+    if (this.gun.real && def.cls === 'grenade') { this.base = [0.15, -0.125, -0.33]; this.baseRot = [0.15, 0.25, -0.1]; }
     if (this.gun.real && def.cls === 'shotgun') { this.base = this.base.slice(); this.base[1] += 0.05; }
     if (this.gun.real && def.cls !== 'pistol' && def.cls !== 'melee' && def.cls !== 'grenade') { this.base = this.base.slice(); this.base[1] += 0.035; this.base[2] += 0.04; }
     // geometric framing for firearms: the grip sits at a per-class point in camera space and the
@@ -219,6 +220,12 @@ BV.Viewmodel = class {
     if (t.pump > 0) {
       t.pump -= dt; const p = 1 - t.pump / 0.55;
       if (p > 0.25) { const k = Math.sin(BV.U.clamp((p - 0.25) / 0.7, 0, 1) * Math.PI); if (mag) mag.position.z = this.gun.magHome.z + k * 0.08; left.position.z += k * 0.08; rx -= k * 0.05; }
+    }
+    // ---- grenade pin: pulled at the start of the throw, back on the next grenade ----
+    if (this.gun.pin) {
+      const pin = this.gun.pin;
+      pin.position.copy(this.gun.pinHome); pin.visible = true;
+      if (t.swing > 0) { const p = 1 - Math.max(0, t.swing) / 0.32, k = BV.U.clamp(p / 0.35, 0, 1); pin.position.x += k * 0.05; pin.position.y += k * 0.035; pin.visible = p < 0.45; }
     }
     // ---- melee swing / grenade throw ----
     if (t.swing > 0) {

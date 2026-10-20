@@ -386,7 +386,8 @@ BV.Game = class {
     const inv = c.inv[4]; if (!inv || inv.count <= 0) return false;
     inv.count--; c.nextFire = this.time + 0.9;
     const eye = c.eye(this.T1), fwd = c.dir(this.T2);
-    const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), BV.Models.mat(0x4c5236));
+    const mesh = (BV.Real && BV.Real.thrownGrenade && BV.Real.thrownGrenade()) || new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), BV.Models.mat(0x4c5236));
+    mesh.rotation.set(Math.random() * 6, Math.random() * 6, 0);
     const pos = eye.clone().addScaledVector(fwd, 0.5);
     mesh.position.copy(pos); this.scene.add(mesh);
     const vel = fwd.clone().multiplyScalar(14.5).add(new THREE.Vector3(c.vel.x * 0.5, 2.2, c.vel.z * 0.5));
@@ -400,6 +401,7 @@ BV.Game = class {
     for (let i = this.grenades.length - 1; i >= 0; i--) {
       const g = this.grenades[i];
       g.fuse -= dt; g.vel.y -= 15 * dt;
+      { const sp = Math.min(14, g.vel.length() * 1.4); g.mesh.rotation.x += sp * dt; g.mesh.rotation.z += sp * 0.45 * dt; }   // tumbling in flight
       const step = g.vel.clone().multiplyScalar(dt), len = step.length();
       if (len > 1e-5) {
         const hit = BV.Physics.raycast(g.pos, step.clone().divideScalar(len), len + 0.07);

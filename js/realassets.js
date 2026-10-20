@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}; let makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}; let frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -95,6 +95,7 @@ BV.Real = (function () {
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
     if (BV.REAL.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
     if (BV.REAL.warehouse) jobs.push(parse(BV.REAL.warehouse).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } }); warehouse = g.scene; }));
@@ -104,6 +105,21 @@ BV.Real = (function () {
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
   }
+  /* frag grenade (CC0): body with the spoon, and the pull ring as its own part; origin at the body centre */
+  function buildFrag(scene) {
+    scene.updateMatrixWorld(true);
+    const C = new THREE.Vector3(0, 0.046, -0.004), body = new THREE.Group(), pin = new THREE.Group();
+    scene.traverse(o => {
+      if (!o.isMesh) return;
+      let part = o, name = ''; while (part && !name) { if (/^(Grenade|Pin)$/.test(part.name)) name = part.name; part = part.parent; }
+      const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.translate(-C.x, -C.y, -C.z); g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, o.material); m.castShadow = true;
+      (name === 'Pin' ? pin : body).add(m);
+    });
+    return { body, pin };
+  }
+  /* thrown grenade: the body only (the pin has been pulled) */
+  function thrownGrenade() { if (!frag) return null; const g = new THREE.Group(); g.add(frag.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
   /* Makarov (CC0): real separate parts. Body/barrel/trigger fixed, slide (+hammer, safety) moves on
      each shot, magazine seated in the grip (the source shows it beside the pistol, exploded) */
   function buildMakarov(scene) {
@@ -149,6 +165,11 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    if (ready && frag && model === 'grenade') {
+      const group = new THREE.Group(), pin = frag.pin.clone(); group.add(frag.body.clone()); group.add(pin);
+      const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.05, -0.03); group.add(muzzle);
+      return { group, muzzle, mag: null, magHome: null, pin, pinHome: pin.position.clone(), eject: muzzle, imported: true, real: true };
+    }
     if (ready && makarov && (model === 'pistol' || model === 'pistolHeavy')) {
       const sc = model === 'pistolHeavy' ? 1.12 : 1, group = new THREE.Group(), inner = new THREE.Group(); inner.scale.setScalar(sc); group.add(inner);
       inner.add(makarov.body.clone()); const slide = makarov.slide.clone(), mag = makarov.mag.clone(); inner.add(slide); inner.add(mag);
@@ -255,5 +276,5 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { load, gun, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { load, gun, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
