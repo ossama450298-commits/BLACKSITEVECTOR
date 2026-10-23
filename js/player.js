@@ -69,6 +69,8 @@ BV.Player = (function () {
       game.switchSlot(p, order[i]);
     }
     if (inp.pressed('KeyR')) game.startReload(p);
+    if (inp.pressed('KeyG')) game.dropActive(p);                                     // drop the weapon in hand
+    if (inp.pressed('KeyE') && !p.planting && !p.defusing) game.tryPickupSwap(p);   // swap with a weapon at your feet
     if (inp.mouse.rightPressed && w && w.def.zoom && !p.reloading && p.switchT <= 0) {
       const max = w.def.cls === 'sniper' ? 2 : 1;
       p.zoom = (p.zoom + 1) % (max + 1); BV.Audio.zoom();

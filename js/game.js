@@ -16,7 +16,7 @@ BV.Game = class {
     this.charge = { state: 'none', pos: new THREE.Vector3(), site: null, carrier: null };
     this.planter = null; this.plantProgress = 0; this.defuser = null; this.defuseProgress = 0;
     this.chargeT = 0; this.beepT = 0; this.chargeFetcher = null;
-    this.intel = {}; this.plan = null; this.playerUse = false;
+    this.intel = {}; this.plan = null; this.playerUse = false; this.drops = []; this.dropHintT = 0;
     this.stats = { shots: 0, hits: 0, heads: 0, kills: 0 };
     this.T1 = new THREE.Vector3(); this.T2 = new THREE.Vector3(); this.T3 = new THREE.Vector3(); this.T4 = new THREE.Vector3();
     this.buildChargeMesh();
@@ -49,6 +49,7 @@ BV.Game = class {
     this.ents = []; this.player = null;
     for (const gr of this.grenades) this.scene.remove(gr.mesh);
     this.grenades = [];
+    this.clearDrops();
   }
 
   newMatch(opts) {
@@ -103,6 +104,7 @@ BV.Game = class {
     BV.Effects.clear();
     for (const gr of this.grenades) this.scene.remove(gr.mesh);
     this.grenades = [];
+    this.clearDrops();                                   // weapons on the floor go away with the round
     const atk = this.attackTeam;
     const spawns = { attack: BV.U.shuffle(this.map.data.spawns.attack.slice()), defend: BV.U.shuffle(this.map.data.spawns.defend.slice()) };
     let ai = 0, di = 0;
@@ -469,6 +471,7 @@ BV.Game = class {
     BV.HUD.killfeed(attacker, t, def, head);
     BV.Audio.death(t.isPlayer ? null : t.pos);
     if (t.hasCharge) this.dropCharge(t);
+    this.dropWeaponOf(t, true);
     if (t.tag) t.tag.visible = false;
     if (t.isPlayer) {
       this.engine.onPlayerDeath(attacker, def, head);
@@ -480,6 +483,77 @@ BV.Game = class {
         const nodes = this.map.data.nodes.filter(n => n.x > -20 && n.x < 30 && Math.abs(n.z) < 12);
         const n = BV.U.pick(nodes); t.pos.set(n.x, n.y, n.z); t.hp = 100; t.alive = true; t.model.reset(); t.armor = 0; t.goal = null; t.path = [];
       }, 2500);
+    }
+  }
+
+  /* ------------------------- dropped weapons (CS-style) ------------------------- */
+  // on death a soldier leaves his primary (or a non-default pistol) on the floor with the ammo it had;
+  // walking over it with that slot empty picks it up, E swaps it for yours, G drops the weapon in hand
+  spawnDrop(inst, pos, dropper) {
+    const def = inst.def, gm = BV.Models.gun(def.model); if (!gm) return null;
+    const mesh = new THREE.Group(); mesh.add(gm.group);
+    gm.group.rotation.set(0, 0, Math.PI / 2);                 // lying on its side
+    mesh.position.set(pos.x, (pos.y || 0) + 0.035, pos.z); mesh.rotation.y = Math.random() * Math.PI * 2;
+    mesh.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    this.scene.add(mesh);
+    const d = { inst, mesh, pos: mesh.position, dropper, cool: dropper ? 1.0 : 0 };
+    this.drops.push(d);
+    while (this.drops.length > 14) this.removeDrop(this.drops[0]);   // keep the floor (and the frame) light
+    return d;
+  }
+  removeDrop(d) { this.scene.remove(d.mesh); const i = this.drops.indexOf(d); if (i >= 0) this.drops.splice(i, 1); }
+  clearDrops() { for (const d of this.drops.slice()) this.removeDrop(d); this.drops = []; }
+  dropWeaponOf(e, onDeath) {
+    const slot = e.inv[1] ? 1 : (e.inv[2] && e.inv[2].def.id !== 'viper9' ? 2 : 0);
+    if (!slot) return;
+    const inst = e.inv[slot];
+    if (inst.mag <= 0 && inst.reserve <= 0) { e.inv[slot] = null; return; }   // empty guns are not worth dropping
+    e.inv[slot] = null;
+    const fwd = onDeath ? null : e.dir(new THREE.Vector3());
+    const at = fwd ? new THREE.Vector3(e.pos.x + fwd.x * 0.9, e.pos.y, e.pos.z + fwd.z * 0.9) : e.pos;
+    this.spawnDrop(inst, at, onDeath ? null : e);
+  }
+  // G: drop the weapon in hand (primary or pistol), then switch to the best remaining one
+  dropActive(p) {
+    const slot = p.slot; if (slot !== 1 && slot !== 2) return;
+    const inst = p.inv[slot]; if (!inst || p.reloading) return;
+    p.inv[slot] = null;
+    const fwd = p.dir(new THREE.Vector3());
+    this.spawnDrop(inst, new THREE.Vector3(p.pos.x + fwd.x * 0.9, p.pos.y, p.pos.z + fwd.z * 0.9), p);
+    this.switchSlot(p, p.inv[1] ? 1 : p.inv[2] ? 2 : 3, true);
+    if (p.isPlayer) BV.Audio.zoom && BV.Audio.zoom();
+  }
+  takeDrop(e, d, swap) {
+    const slot = d.inst.def.slot;
+    if (swap && e.inv[slot]) { const mine = e.inv[slot]; e.inv[slot] = null; this.spawnDrop(mine, e.pos, e); }
+    e.inv[slot] = d.inst; this.removeDrop(d);
+    if (e.isPlayer) {
+      BV.HUD.notice('Picked up ' + d.inst.def.name, 'good', 1.6);
+      if (swap || slot === 1 && e.slot !== 1) this.switchSlot(e, slot, true);
+      else if (slot === e.slot) this.switchSlot(e, slot, true);
+    } else if (slot === 1) this.switchSlot(e, 1, true);
+  }
+  // E pressed: swap with the closest weapon at your feet (only when one is there)
+  tryPickupSwap(p) {
+    let best = null, bd = 1.5;
+    for (const d of this.drops) { const dd = Math.hypot(d.pos.x - p.pos.x, d.pos.z - p.pos.z); if (dd < bd && d.cool <= 0) { bd = dd; best = d; } }
+    if (!best) return false;
+    this.takeDrop(p, best, true); return true;
+  }
+  updateDrops(dt) {
+    if (!this.drops.length) return;
+    this.dropHintT -= dt;
+    for (const d of this.drops.slice()) {
+      if (d.cool > 0) d.cool -= dt;
+      for (const e of this.ents) {
+        if (!e.alive) continue;
+        const dd = Math.hypot(d.pos.x - e.pos.x, d.pos.z - e.pos.z);
+        if (dd > 1.1 || Math.abs(d.pos.y - e.pos.y) > 1.2) continue;
+        if (d.cool > 0 && d.dropper === e) continue;
+        const slot = d.inst.def.slot;
+        if (!e.inv[slot]) { this.takeDrop(e, d, false); break; }                       // empty slot: walk over it
+        if (e.isPlayer && this.dropHintT <= 0) { BV.HUD.notice('Press E to swap for ' + d.inst.def.name, '', 1.4); this.dropHintT = 1.6; }
+      }
     }
   }
 
@@ -537,6 +611,7 @@ BV.Game = class {
         if (this.defuseProgress >= 1) { BV.Audio.defused(); this.defuser.score += 2; this.defuser.defusing = false; this.endRound(this.defendTeam(), 'defused'); }
       }
     }
+    this.updateDrops(dt);
     if (ch.state === 'dropped') {
       if (this.frame % 30 === 0) this.pickFetcher();
       for (const e of this.ents) {

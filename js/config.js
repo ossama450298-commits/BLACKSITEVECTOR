@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.6.5';
+BV.VERSION = '3.7.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
