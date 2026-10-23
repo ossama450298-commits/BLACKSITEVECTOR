@@ -903,7 +903,7 @@ BV.Models = (function () {
   function viewArms(teamId) {
     const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD';
     const g = new THREE.Group();
-    const sleeve = S({ map: operatorFabric(V ? 0x59636a : 0x6f6551, V ? 'digital' : 'blot'), roughness: 0.92 });
+    const sleeve = S({ map: operatorFabric(V ? 0x2c4378 : 0x6f6551, V ? 'digital' : 'blot'), roughness: 0.92 });   // Vanguard: police blue
     const glove = S({ map: gearTex(0x262421), roughness: 0.78 });
     const leather = S({ color: 0x1b1a18, roughness: 0.6 });
     const rubber = S({ color: 0x121212, roughness: 0.5 });

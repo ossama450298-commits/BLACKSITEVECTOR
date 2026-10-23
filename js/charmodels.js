@@ -56,7 +56,9 @@ BV.CharModels = (function () {
       if (!o.isMesh) return;
       const hiQ = BV.settings.quality === 'high' || BV.settings.quality === 'ultra';
       o.frustumCulled = false; o.castShadow = hiQ; o.receiveShadow = true;
-      const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint); n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
+      const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint);
+        if (V && /Topmat|Bottommat|Hatmat/i.test(n.name || '')) policeBlue(n);   // Vanguard: police-blue uniform
+        n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
       o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
     });
     const mixer = new THREE.AnimationMixer(model);
@@ -179,5 +181,15 @@ BV.CharModels = (function () {
     api.reset();
     return api;
   }
-  return { load, create, ik, get ready() { return ready; } };
+  /* police blue: keep the fabric's light and detail (luminance) but recolour it navy */
+  function policeBlue(m) {
+    m.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n  { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = vec3(l) * vec3(0.34, 0.5, 1.05); }');
+    };
+    m.customProgramCacheKey = () => 'police-blue';
+    if (m.color) m.color.setRGB(1, 1, 1);
+    m.needsUpdate = true;
+  }
+  return { load, create, ik, policeBlue, get ready() { return ready; } };
 })();
