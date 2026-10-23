@@ -4566,7 +4566,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.7.0';
+BV.VERSION = '3.7.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -9906,7 +9906,7 @@ BV.Viewmodel = class {
     // barrel is aimed at a far point on the crosshair, so every weapon reads as held and pointed at
     // the centre of the screen regardless of the model's size
     if (def.cls !== 'melee' && def.cls !== 'grenade') {
-      const G = { pistol: [0.1, -0.112, -0.3], smg: [0.11, -0.13, -0.28], shotgun: [0.115, -0.135, -0.27], sniper: [0.12, -0.14, -0.29] }[def.cls] || [0.115, -0.135, -0.27];
+      const G = { pistol: [0.1, -0.112, -0.3], smg: [0.115, -0.14, -0.3], shotgun: [0.12, -0.15, -0.31], sniper: [0.125, -0.15, -0.32] }[def.cls] || [0.12, -0.148, -0.315];
       const aim = new THREE.Vector3(0, -0.035, -9), grip = new THREE.Vector3(G[0], G[1], G[2]);
       const d = aim.sub(grip).normalize();
       this.base = G.slice();
@@ -9914,8 +9914,12 @@ BV.Viewmodel = class {
       if (this.gun.real && def.cls !== 'pistol') {
         // support hand on the weapon's real handguard
         const mz = this.gun.muzzle.position.z, my = this.gun.muzzle.position.y;
-        this.arms.left.position.set(-0.005, my * 0.35 - 0.04, mz * (def.cls === 'shotgun' ? 0.58 : 0.5));
-        this.arms.left.rotation.set(0.25, -0.35, 1.2);
+        // support hand under the handguard (in front of the magazine), forearm running back-left
+        this.arms.left.position.set(-0.012, my * 0.3 - 0.05, mz * (def.cls === 'shotgun' ? 0.62 : def.cls === 'smg' ? 0.66 : 0.6));
+        this.arms.left.rotation.set(0.32, -0.42, 1.25);
+        // firing hand wrapped round the pistol grip, wrist just behind it so it stays in frame
+        this.arms.right.position.set(0.006, -0.05, 0.03);
+        this.arms.right.rotation.set(0.22, 0.14, -1.32);
         this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
       }
     }
