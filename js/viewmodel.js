@@ -103,6 +103,8 @@ BV.Viewmodel = class {
         this.leftHome = this.arms.left.position.clone(); this.leftRot = this.arms.left.rotation.clone();
       }
     }
+    // the animated knife pack is placed in view space by itself
+    if (this.pack && def.cls === 'melee') { this.base = [0, 0, 0]; this.baseRot = [0, 0, 0]; }
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);

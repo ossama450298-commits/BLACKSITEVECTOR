@@ -162,8 +162,9 @@ BV.Real = (function () {
     hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
-    lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [99, 147], idle: [147, 180], draw: [183, 200] } }
-    // knife pack (fp_knife) left out: it is authored around a different eye point/axis than the guns
+    lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [99, 147], idle: [147, 180], draw: [183, 200] } },
+    // knife: same convention as the AK pack (centimetres, +Z forward, right hand at about x -21, shoulders ~60 cm behind)
+    bladex:   { data: 'fp_knife', knife: true, fixedScale: 0.0085, place: [0.03, -0.13, -0.44], clips: { idle: [0, 39], attack1: [42, 60], attack2: [63, 81], attack3: [84, 120], draw: [123, 135] } }
   };
   function prepPack(g, c) {
     retroMaps(g.scene);
@@ -182,19 +183,21 @@ BV.Real = (function () {
     const grip = new THREE.Vector3(cx, box.min.y + c.gy * h, box.min.z + c.gz * L);
     const front = pts.filter(p => p.z > box.max.z - L * 0.02), tip = new THREE.Vector3(cx, box.max.y - h * 0.25, box.max.z);
     if (front.length) { tip.set(0, 0, 0); front.forEach(p => tip.add(p)); tip.multiplyScalar(1 / front.length); tip.z = box.max.z; }
-    return { scene: g.scene, clips, s: c.len / L, grip, tip, knife: !!c.knife };
+    return { scene: g.scene, clips, s: c.fixedScale || c.len / L, grip, tip, knife: !!c.knife, place: c.place || null };
   }
   function fpPack(id) {
     if (id === 'arx17') return akPack();
     const c = PACKS[id]; if (!c) return null; const D = packs[c.data]; if (!D || D === 'loading') return null;
     const group = new THREE.Group(), inner = THREE.SkeletonUtils.clone(D.scene);
     inner.scale.setScalar(D.s); inner.rotation.y = Math.PI;               // barrel along -Z, real size
-    inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);   // grip at the weapon origin
+    if (D.place) inner.position.set(D.place[0], D.place[1], D.place[2]);  // placed straight in view space (knife)
+    else inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);   // grip at the weapon origin
     group.add(inner);
     const mixer = new THREE.AnimationMixer(inner), actions = {};
     for (const k in D.clips) actions[k] = mixer.clipAction(D.clips[k]);
     actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
     let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife')) base = o; });
+    if (D.knife && base) base.scale.multiplyScalar(0.75);   // the source blade is long: bring it to a combat-knife size
     const muzzle = new THREE.Object3D();
     if (base) { const tip = inner.localToWorld(D.tip.clone()); muzzle.position.copy(base.worldToLocal(tip)); const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x); base.add(muzzle); }
     else { muzzle.position.set(0, 0.05, -c.len * 0.7); group.add(muzzle); }
