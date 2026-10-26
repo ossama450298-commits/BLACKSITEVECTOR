@@ -56,7 +56,7 @@ BV.Viewmodel = class {
     this.gun = BV.Models.gun(def.model);
     // ARX-17: hand-animated first-person arms + AK (draw, idle, fire, reload, empty reload)
     this.pack = null;
-    if (def.id === 'arx17' && !BV.classic && BV.Real && BV.Real.akPack) { const P = BV.Real.akPack(); if (P) { this.pack = P; this.gun = P.gun; } }
+    if (!BV.classic && BV.Real && BV.Real.fpPack) { const P = BV.Real.fpPack(def.id); if (P) { this.pack = P; this.gun = P.gun; } }
     this.arms = BV.Models.viewArms(team);
     if (this.pack) this.arms.group.visible = false;
     const g = this.gun.group;
@@ -111,7 +111,7 @@ BV.Viewmodel = class {
     this.sp.pv.y += 0.4; this.sp.rv.x += 2.5; // settle impulse after the raise
   }
   reload(time, empty) { this.t.reload = time; this.t.reloadMax = time; this.t.inspect = 0; if (this.pack) this.pack.play(empty ? 'reloadEmpty' : 'reload', time); }
-  swing() { this.t.swing = 0.32; }
+  swing() { this.t.swing = 0.32; if (this.pack && this.def && this.def.cls === 'melee') this.pack.play('attack'); }
   inspect() { if (this.t.reload <= 0 && this.t.draw <= 0 && this.def && this.def.cls !== 'grenade') this.t.inspect = 2.6; }
   land(speed) { const k = Math.min(1, speed / 12); this.sp.pv.y -= 0.9 * k; this.sp.rv.x -= 3 * k; }
   shot(def) {
@@ -241,7 +241,7 @@ BV.Viewmodel = class {
     // ---- melee swing / grenade throw ----
     if (t.swing > 0) {
       t.swing -= dt; const p = 1 - Math.max(0, t.swing) / 0.32, s = Math.sin(p * Math.PI);
-      if (def.cls === 'melee') { ry += s * 1.1; rx -= s * 0.5; px -= s * 0.1; pz -= s * 0.12; }
+      if (def.cls === 'melee') { if (!this.pack) { ry += s * 1.1; rx -= s * 0.5; px -= s * 0.1; pz -= s * 0.12; } }   // the animated knife pack cuts by itself
       else { py += s * 0.08; rx += s * 0.9; pz -= s * 0.1; }
     }
     // ---- inspect ----

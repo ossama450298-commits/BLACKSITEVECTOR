@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}; let ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}; let ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -95,6 +95,7 @@ BV.Real = (function () {
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
@@ -105,6 +106,77 @@ BV.Real = (function () {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
+  }
+  /* ---- first-person packs (DJMaesen, CC BY): arms + weapon + one hand-animated timeline each ----
+     frames at 30 fps, cut by watching base / slide / bolt / magazine motion (the pistol follows the
+     author's own key list). len = real weapon length (m): the pack is scaled from its own geometry. */
+  const PACKS = {
+    viper9:   { data: 'fp_pistol',  len: 0.21, gy: 0.62, gz: 0.22, clips: { fire: [0, 11], reload: [12, 82], reloadEmpty: [95, 175], draw: [187, 233], idle: [234, 264] } },
+    falcon45: { data: 'fp_heavy',   len: 0.23, gy: 0.62, gz: 0.22, clips: { fire: [0, 9], reloadEmpty: [9, 84], reload: [87, 147], idle: [195, 219], draw: [222, 248] } },
+    specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
+    vectormp: { data: 'fp_smg',     len: 0.58, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
+    hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
+    halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
+    kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
+    lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [99, 147], idle: [147, 180], draw: [183, 200] } }
+    // knife pack (fp_knife) left out: it is authored around a different eye point/axis than the guns
+  };
+  function prepPack(g, c) {
+    const src = g.animations[0], U = THREE.AnimationUtils, clips = {};
+    for (const k in c.clips) clips[k] = U.subclip(src, k, c.clips[k][0], c.clips[k][1], 30);
+    g.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
+    // rest pose (start of idle): measure the weapon body to get scale, grip and muzzle
+    const mix = new THREE.AnimationMixer(g.scene); mix.clipAction(clips.idle).play(); mix.update(0); g.scene.updateMatrixWorld(true);
+    let base = null; g.scene.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife')) base = o; });
+    const box = new THREE.Box3(), v = new THREE.Vector3(), pts = [];
+    (base || g.scene).traverse(o => { if (!o.isMesh || o.isSkinnedMesh) return; const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); box.expandByPoint(v); pts.push(v.clone()); } });
+    mix.stopAllAction(); mix.uncacheRoot(g.scene);
+    const sz = box.getSize(new THREE.Vector3());
+    // the knife blade is not laid along the barrel axis: scale it by its longest side
+    const L = Math.max(1e-6, c.knife ? Math.max(sz.x, sz.y, sz.z) : sz.z), h = sz.y, cx = (box.min.x + box.max.x) / 2;
+    const grip = new THREE.Vector3(cx, box.min.y + c.gy * h, box.min.z + c.gz * L);
+    const front = pts.filter(p => p.z > box.max.z - L * 0.02), tip = new THREE.Vector3(cx, box.max.y - h * 0.25, box.max.z);
+    if (front.length) { tip.set(0, 0, 0); front.forEach(p => tip.add(p)); tip.multiplyScalar(1 / front.length); tip.z = box.max.z; }
+    return { scene: g.scene, clips, s: c.len / L, grip, tip, knife: !!c.knife };
+  }
+  function fpPack(id) {
+    if (id === 'arx17') return akPack();
+    const c = PACKS[id]; if (!c) return null; const D = packs[c.data]; if (!D || D === 'loading') return null;
+    const group = new THREE.Group(), inner = THREE.SkeletonUtils.clone(D.scene);
+    inner.scale.setScalar(D.s); inner.rotation.y = Math.PI;               // barrel along -Z, real size
+    inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);   // grip at the weapon origin
+    group.add(inner);
+    const mixer = new THREE.AnimationMixer(inner), actions = {};
+    for (const k in D.clips) actions[k] = mixer.clipAction(D.clips[k]);
+    actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
+    let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife')) base = o; });
+    const muzzle = new THREE.Object3D();
+    if (base) { const tip = inner.localToWorld(D.tip.clone()); muzzle.position.copy(base.worldToLocal(tip)); const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x); base.add(muzzle); }
+    else { muzzle.position.set(0, 0.05, -c.len * 0.7); group.add(muzzle); }
+    const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
+    let cur = actions.idle, atk = 0;
+    const pack = {
+      gun: { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true, pack: true },
+      play(name, dur) {
+        if (name === 'attack') { const n = ['attack1', 'attack2', 'attack3'].filter(k => actions[k]); if (!n.length) return; name = n[atk++ % n.length]; }
+        if (name === 'reloadEmpty' && !actions.reloadEmpty) name = 'reload';
+        const a = actions[name]; if (!a) return;
+        a.reset(); a.enabled = true;
+        a.setLoop(name === 'idle' ? THREE.LoopRepeat : THREE.LoopOnce, name === 'idle' ? Infinity : 1);
+        a.clampWhenFinished = name !== 'idle';
+        a.timeScale = dur ? D.clips[name].duration / dur : 1;
+        a.setEffectiveWeight(1); a.play();
+        if (cur && cur !== a) cur.crossFadeTo(a, name === 'fire' ? 0.03 : 0.1, false);
+        cur = a;
+      },
+      update(dt) {
+        mixer.update(dt);
+        if (cur !== actions.idle && !cur.isRunning()) { const a = actions.idle; a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.timeScale = 1; a.play(); cur.crossFadeTo(a, 0.15, false); cur = a; }
+      },
+      get busy() { return cur !== actions.idle && cur.isRunning(); },
+      _mixer: mixer, _actions: actions, get _cur() { return cur; }
+    };
+    return pack;
   }
   /* first-person AK74 with arms and hand-made animations (DJMaesen, CC BY). The source has a single
      8.1 s timeline; it is cut into actions by watching the bolt and magazine (30 fps frames) */
@@ -327,5 +399,5 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { load, gun, akPack, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, load, gun, akPack, fpPack, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
