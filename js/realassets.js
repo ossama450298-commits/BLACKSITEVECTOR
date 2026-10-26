@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}; let frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}; let ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
@@ -95,6 +95,7 @@ BV.Real = (function () {
     const jobs = Object.keys(BV.REAL.guns).map(k => parse(BV.REAL.guns[k]).then(g => { styleMaterials(g.scene); guns[k] = calibrate(g.scene, CAL[k]); }));
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
+    if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
     if (BV.REAL.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
@@ -104,6 +105,56 @@ BV.Real = (function () {
       JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
+  }
+  /* first-person AK74 with arms and hand-made animations (DJMaesen, CC BY). The source has a single
+     8.1 s timeline; it is cut into actions by watching the bolt and magazine (30 fps frames) */
+  function prepAk74(g) {
+    const src = g.animations[0], U = THREE.AnimationUtils, fps = 30;
+    const clips = { fire: U.subclip(src, 'fire', 0, 6, fps), reloadEmpty: U.subclip(src, 'reloadEmpty', 6, 96, fps),
+      reload: U.subclip(src, 'reload', 99, 153, fps), idle: U.subclip(src, 'idle', 198, 222, fps), draw: U.subclip(src, 'draw', 225, 243, fps) };
+    g.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
+    return { scene: g.scene, clips };
+  }
+  function akPack() {
+    if (!ak74) return null;
+    const group = new THREE.Group(), inner = THREE.SkeletonUtils.clone(ak74.scene);
+    inner.scale.setScalar(0.01); inner.rotation.y = Math.PI;          // centimetres, barrel along +Z  ->  metres, barrel along -Z
+    inner.position.set(0, -0.055, 0.03);                                // pistol grip of the pack at the weapon origin
+    group.add(inner);
+    const mixer = new THREE.AnimationMixer(inner), actions = {};
+    for (const k in ak74.clips) actions[k] = mixer.clipAction(ak74.clips[k]);
+    // idle pose, then hang the muzzle on the receiver node at the barrel tip
+    actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
+    let base = null; inner.traverse(o => { if (!base && o.name === 'base') base = o; });
+    const muzzle = new THREE.Object3D();
+    if (base) {
+      const tip = inner.localToWorld(new THREE.Vector3(-0.01, 14.54, 74.77));
+      muzzle.position.copy(base.worldToLocal(tip.clone()));
+      const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x);
+      base.add(muzzle);
+    } else { muzzle.position.set(0, 0.07, -0.72); group.add(muzzle); }
+    const eject = new THREE.Object3D(); eject.position.set(0.03, 0.07, -0.12); group.add(eject);
+    let cur = actions.idle;
+    const pack = {
+      gun: { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true, pack: true },
+      play(name, dur) {
+        const a = actions[name]; if (!a) return;
+        a.reset(); a.enabled = true;
+        a.setLoop(name === 'idle' ? THREE.LoopRepeat : THREE.LoopOnce, name === 'idle' ? Infinity : 1);
+        a.clampWhenFinished = name !== 'idle';
+        a.timeScale = dur ? ak74.clips[name].duration / dur : 1;
+        a.setEffectiveWeight(1); a.play();
+        if (cur && cur !== a) cur.crossFadeTo(a, name === 'fire' ? 0.03 : 0.1, false);
+        cur = a;
+      },
+      update(dt) {
+        mixer.update(dt);
+        if (cur !== actions.idle && !cur.isRunning()) { const a = actions.idle; a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.timeScale = 1; a.play(); cur.crossFadeTo(a, 0.15, false); cur = a; }
+      },
+      get busy() { return cur !== actions.idle && cur.isRunning(); },
+      _mixer: mixer, _actions: actions, get _cur() { return cur; }
+    };
+    return pack;
   }
   /* frag grenade (CC0): body with the spoon, and the pull ring as its own part; origin at the body centre */
   function buildFrag(scene) {
@@ -276,5 +327,5 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { load, gun, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { load, gun, akPack, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

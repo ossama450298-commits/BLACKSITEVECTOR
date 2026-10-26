@@ -220,7 +220,7 @@ BV.Game = class {
     if (!w || !w.def.mag || c.reloading || w.mag >= w.def.mag || w.reserve <= 0 || c.switchT > 0) return false;
     c.reloading = true; c.reloadT = w.def.reload; c.zoom = 0;
     BV.Audio.reload(w.def, c.isPlayer ? null : c.pos);
-    if (c.isPlayer) this.engine.viewmodel.reload(w.def.reload);
+    if (c.isPlayer) this.engine.viewmodel.reload(w.def.reload, w.mag === 0);
     return true;
   }
   updateWeapon(c, dt) {

@@ -54,7 +54,11 @@ BV.Viewmodel = class {
     if (this.gun) this.holder.remove(this.gun.group);
     this.def = def; this.team = team;
     this.gun = BV.Models.gun(def.model);
+    // ARX-17: hand-animated first-person arms + AK (draw, idle, fire, reload, empty reload)
+    this.pack = null;
+    if (def.id === 'arx17' && !BV.classic && BV.Real && BV.Real.akPack) { const P = BV.Real.akPack(); if (P) { this.pack = P; this.gun = P.gun; } }
     this.arms = BV.Models.viewArms(team);
+    if (this.pack) this.arms.group.visible = false;
     const g = this.gun.group;
     if (def.cls === 'pistol') { this.arms.left.position.set(-0.024, -0.062, 0.03); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.012, -0.048, 0.042); this.arms.right.rotation.set(0.15, 0.1, -1.3); this.arms.group.scale.setScalar(0.85); }
     if (def.cls === 'melee') { this.arms.left.visible = false; }
@@ -102,10 +106,11 @@ BV.Viewmodel = class {
     // classic: 90° (4:3) period field of view, weapon larger and further right in frame
     if (BV.classic) { const b = this.base; this.base = [b[0] * 0.85 + 0.03, b[1] * 0.85 - 0.004, b[2] * 0.85]; }
     this.holder.add(g);
+    if (this.pack) this.pack.play('draw');
     this.t.draw = this.t.drawMax = def.cls === 'melee' ? 0.3 : (BV.classic ? 0.35 : 0.5); this.t.reload = 0; this.t.swing = 0; this.t.inspect = 0; this.t.pump = 0;
     this.sp.pv.y += 0.4; this.sp.rv.x += 2.5; // settle impulse after the raise
   }
-  reload(time) { this.t.reload = time; this.t.reloadMax = time; this.t.inspect = 0; }
+  reload(time, empty) { this.t.reload = time; this.t.reloadMax = time; this.t.inspect = 0; if (this.pack) this.pack.play(empty ? 'reloadEmpty' : 'reload', time); }
   swing() { this.t.swing = 0.32; }
   inspect() { if (this.t.reload <= 0 && this.t.draw <= 0 && this.def && this.def.cls !== 'grenade') this.t.inspect = 2.6; }
   land(speed) { const k = Math.min(1, speed / 12); this.sp.pv.y -= 0.9 * k; this.sp.rv.x -= 3 * k; }
@@ -116,6 +121,7 @@ BV.Viewmodel = class {
     this.sp.rv.x += 5.4 * k; this.sp.rv.y += (Math.random() - 0.5) * 2.2 * k; this.sp.rv.z += (Math.random() - 0.5) * 2.8 * k;
     // snappy kick (back + muzzle climb, recovers in ~70 ms) and heat that builds up during bursts
     this.t.slide = 1;
+    if (this.pack) this.pack.play('fire');
     this.t.kick = 1; this.kickK = k; this.t.heat = Math.min(1, (this.t.heat || 0) + 0.18 * k);
     this.t.flash = this.t.flashMax = this.fp.t;
     this.flash.material.rotation = Math.random() * Math.PI * 2;
@@ -167,6 +173,7 @@ BV.Viewmodel = class {
     let rx = this.baseRot[0] + sp.r.x * 0.05 + breatheR, ry = this.baseRot[1] + this.sway.x * 2.2 + sp.r.y * 0.05, rz = this.baseRot[2] + bRz + this.tilt + sp.r.z * 0.05;
     if (st.sprint && !t.reload) { px -= 0.03; py -= 0.05; rx -= 0.3; ry += 0.6; rz += 0.2; }
     if (st.crouch) { py -= 0.008; rz -= 0.04; }
+    if (this.pack) this.pack.update(dt);
     // ---- slide blowback (pistols with a separate slide): snaps back and returns in ~90 ms ----
     if (this.gun.slide) {
       const sl = this.gun.slide, e = t.slide > 0 ? Math.sqrt(t.slide) : 0;   // full travel at the shot, eases home
@@ -194,7 +201,7 @@ BV.Viewmodel = class {
       t.reload -= dt;
       const p = 1 - Math.max(0, t.reload) / t.reloadMax;
       const ease = (a, b) => { const x = BV.U.clamp((p - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
-      const tiltIn = ease(0.0, 0.14) * (1 - ease(0.82, 1.0));
+      const tiltIn = this.pack ? 0 : ease(0.0, 0.14) * (1 - ease(0.82, 1.0));   // the animated pack does its own reload
       // raise and cant the weapon so the magazine well is in view
       rz += tiltIn * 0.3; ry += tiltIn * 0.38; rx += tiltIn * 0.06; py += tiltIn * 0.012; px -= tiltIn * 0.02; pz -= tiltIn * 0.07;
       if (def.cls === 'shotgun') {
