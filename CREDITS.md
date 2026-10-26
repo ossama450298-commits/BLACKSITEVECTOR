@@ -37,3 +37,6 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY): su malla y su esqueleto no coinciden en la pose de reposo y se deforma al animarlo. FREE Military Soldier RIGGED (BAMEN, CC BY): no incluye texturas.
 
 Three.js r128, GLTFLoader y SkeletonUtils: licencia MIT, © three.js authors.
+
+## Bibliotecas
+- meshoptimizer (decodificador), Arseny Kapoulkine — MIT. Descomprime los modelos incrustados.

@@ -24,7 +24,28 @@ BV.Real = (function () {
   const guns = {}, kit = {}, outpost = {}, packs = {}; let ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
-  function parse(b64) { return new Promise((res, rej) => new THREE.GLTFLoader().parse(decode(b64), '', res, rej)); }
+  // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
+  // quantized attribute is turned back into plain floats so the CPU-side code (clipping, merging, pack
+  // measurements, baking) sees exactly the same data as before
+  function toFloat(geo) {
+    const G = ['getX', 'getY', 'getZ', 'getW'];
+    for (const key of Object.keys(geo.attributes)) {
+      if (key === 'skinIndex') continue;
+      const at = geo.attributes[key], arr = at.isInterleavedBufferAttribute ? at.data.array : at.array;
+      if (arr instanceof Float32Array && !at.isInterleavedBufferAttribute) continue;
+      const div = !at.normalized ? 1 : arr instanceof Int16Array ? 32767 : arr instanceof Uint16Array ? 65535 : arr instanceof Int8Array ? 127 : arr instanceof Uint8Array ? 255 : 1;
+      const n = at.count, sz = at.itemSize, f = new Float32Array(n * sz);
+      for (let i = 0; i < n; i++) for (let c = 0; c < sz; c++) { const v = at[G[c]](i) / div; f[i * sz + c] = div === 1 ? v : Math.max(-1, v); }
+      geo.setAttribute(key, new THREE.BufferAttribute(f, sz));
+    }
+  }
+  function parse(b64) {
+    return new Promise((res, rej) => {
+      const L = new THREE.GLTFLoader();
+      if (window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
+      L.parse(decode(b64), '', g => { g.scene.traverse(o => { if (o.isMesh && o.geometry) toFloat(o.geometry); }); res(g); }, rej);
+    });
+  }
   function unpack(b64) { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Int16Array(u.buffer); }
   function buildClip(c) {
     const times = []; for (let f = 0; f < c.frames; f++) times.push(f / c.fps);
