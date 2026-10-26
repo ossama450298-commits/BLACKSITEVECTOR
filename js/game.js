@@ -129,7 +129,8 @@ BV.Game = class {
     this.chargeMesh.visible = false; this.intel = {};
     const attackers = this.ents.filter(e => e.team === atk);
     if (!this.training && attackers.length) {
-      const carrier = BV.U.pick(attackers); carrier.hasCharge = true;
+      // the player carries the charge when playing on the attacking side (like the C4 in CS)
+      const carrier = (this.player && this.player.alive && this.player.team === this.attackTeam) ? this.player : BV.U.pick(attackers); carrier.hasCharge = true;
       this.charge.state = 'carried'; this.charge.carrier = carrier; this.charge.site = null;
     } else this.charge.state = 'none';
     // attack plan for bots

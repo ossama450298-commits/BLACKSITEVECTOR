@@ -88,6 +88,16 @@ BV.Player = (function () {
 
     // ---------- objective ----------
     game.playerUse = inp.down('KeyE');
+    // clear feedback when E does nothing (no charge, outside the site, moving, freeze time)
+    if (inp.pressed('KeyE') && p.team === game.attackTeam && game.phase !== 'planted' && !game.drops.some(d => Math.hypot(d.pos.x - p.pos.x, d.pos.z - p.pos.z) < 1.5)) {
+      const site = game.map.siteAt(p.pos.x, p.pos.z);
+      let msg = null;
+      if (!p.hasCharge) { const c = game.charge.carrier; msg = c ? (c.name + ' carries the charge — escort them to site A or B') : 'The charge is on the ground — pick it up'; }
+      else if (game.phase === 'freeze') msg = 'Wait for the round to start to arm the charge';
+      else if (!site) msg = 'Get inside site A or B to arm the charge';
+      else if (Math.hypot(p.vel.x, p.vel.z) >= 0.6) msg = 'Stand still while arming the charge';
+      if (msg) BV.HUD.notice(msg, 'warn', 2.2);
+    }
     if (game.playerUse) {
       if (p.hasCharge) game.beginPlant(p);
       else if (game.phase === 'planted' && p.team !== game.attackTeam) game.beginDefuse(p);
