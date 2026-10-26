@@ -4566,7 +4566,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.9.1';
+BV.VERSION = '3.9.2';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -11412,6 +11412,8 @@ BV.PostFX = class {
   requestAnimationFrame(frame);
   Promise.all([BV.CharModels.load(), BV.Textures.whenReady()]).then(([ok]) => {
     E.operatorsLoaded = ok;
+    // a match started before the animated packs finished loading: swap the weapon in hand for its animated version
+    try { const V = E.viewmodel; if (V && V.def && !V.pack && BV.Real.fpPack && BV.Real.fpPack(V.def.id)) V.equip(V.def, V.team); } catch (err) { console.warn('re-equip skipped', err); }
     try {
       if (BV.Real.placeCity(scene) && BV.Map.data.skyline) BV.Map.data.skyline.visible = false;
       E.outpostPieces = BV.Real.placeOutpost(scene);

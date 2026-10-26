@@ -420,6 +420,8 @@
   requestAnimationFrame(frame);
   Promise.all([BV.CharModels.load(), BV.Textures.whenReady()]).then(([ok]) => {
     E.operatorsLoaded = ok;
+    // a match started before the animated packs finished loading: swap the weapon in hand for its animated version
+    try { const V = E.viewmodel; if (V && V.def && !V.pack && BV.Real.fpPack && BV.Real.fpPack(V.def.id)) V.equip(V.def, V.team); } catch (err) { console.warn('re-equip skipped', err); }
     try {
       if (BV.Real.placeCity(scene) && BV.Map.data.skyline) BV.Map.data.skyline.visible = false;
       E.outpostPieces = BV.Real.placeOutpost(scene);
