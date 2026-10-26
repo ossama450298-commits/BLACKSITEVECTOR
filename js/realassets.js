@@ -42,6 +42,29 @@ BV.Real = (function () {
       o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material);
     });
   }
+  /* classic (2000s) look for the first-person packs: low-res, posterized textures (period hardware,
+     8-bit-ish palette) on the Lambert materials styleMaterials() already set up */
+  function retroMaps(root) {
+    if (!BV.classic) return;
+    const done = new Map();
+    root.traverse(o => {
+      if (!o.isMesh) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+        if (!m.map || !m.map.image) return;
+        if (!done.has(m.map)) {
+          const img = m.map.image, S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+          const x = c.getContext('2d'); x.imageSmoothingEnabled = true; x.drawImage(img, 0, 0, S, S);
+          const d = x.getImageData(0, 0, S, S), a = d.data, q = 8;               // 32 levels per channel
+          for (let i = 0; i < a.length; i += 4) { a[i] = Math.round(a[i] / q) * q; a[i + 1] = Math.round(a[i + 1] / q) * q; a[i + 2] = Math.round(a[i + 2] / q) * q; }
+          x.putImageData(d, 0, 0);
+          const t = new THREE.CanvasTexture(c); t.encoding = m.map.encoding; t.flipY = m.map.flipY; t.wrapS = m.map.wrapS; t.wrapT = m.map.wrapT;
+          t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 1;
+          done.set(m.map, t);
+        }
+        m.map = done.get(m.map); m.needsUpdate = true;
+      });
+    });
+  }
   // r128 does not de-normalize quantized attributes on the CPU: convert before transforming
   function deNorm(geo) {
     for (const key of Object.keys(geo.attributes)) {
@@ -122,6 +145,7 @@ BV.Real = (function () {
     // knife pack (fp_knife) left out: it is authored around a different eye point/axis than the guns
   };
   function prepPack(g, c) {
+    retroMaps(g.scene);
     const src = g.animations[0], U = THREE.AnimationUtils, clips = {};
     for (const k in c.clips) clips[k] = U.subclip(src, k, c.clips[k][0], c.clips[k][1], 30);
     g.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
@@ -181,6 +205,7 @@ BV.Real = (function () {
   /* first-person AK74 with arms and hand-made animations (DJMaesen, CC BY). The source has a single
      8.1 s timeline; it is cut into actions by watching the bolt and magazine (30 fps frames) */
   function prepAk74(g) {
+    retroMaps(g.scene);
     const src = g.animations[0], U = THREE.AnimationUtils, fps = 30;
     const clips = { fire: U.subclip(src, 'fire', 0, 6, fps), reloadEmpty: U.subclip(src, 'reloadEmpty', 6, 96, fps),
       reload: U.subclip(src, 'reload', 99, 153, fps), idle: U.subclip(src, 'idle', 198, 222, fps), draw: U.subclip(src, 'draw', 225, 243, fps) };

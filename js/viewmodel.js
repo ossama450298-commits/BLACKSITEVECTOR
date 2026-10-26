@@ -56,7 +56,7 @@ BV.Viewmodel = class {
     this.gun = BV.Models.gun(def.model);
     // ARX-17: hand-animated first-person arms + AK (draw, idle, fire, reload, empty reload)
     this.pack = null;
-    if (!BV.classic && BV.Real && BV.Real.fpPack) { const P = BV.Real.fpPack(def.id); if (P) { this.pack = P; this.gun = P.gun; } }
+    if (BV.Real && BV.Real.fpPack) { const P = BV.Real.fpPack(def.id); if (P) { this.pack = P; this.gun = P.gun; } }   // both styles (classic gets retro textures)
     this.arms = BV.Models.viewArms(team);
     if (this.pack) this.arms.group.visible = false;
     const g = this.gun.group;
