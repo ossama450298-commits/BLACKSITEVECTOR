@@ -174,7 +174,15 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 #hud-ammo { background: linear-gradient(270deg, rgba(12,14,11,0.75), rgba(12,14,11,0.3)); padding: 2px 14px; display: inline-block; margin-top: 3px; border-right: 2px solid var(--amber); backdrop-filter: blur(4px); clip-path: polygon(6% 0, 100% 0, 100% 100%, 0 100%); }
 #ammo-mag { font-size: 40px; font-weight: 700; } #ammo-res { font-size: 18px; color: var(--ink-dim); margin-left: 6px; }
 #hud-ammo.low #ammo-mag { color: var(--rust); }
-#charge-icon { position: absolute; left: 18px; bottom: 150px; background: var(--rust); color: #fff; font-weight: 700; font-size: 13px; padding: 3px 10px; letter-spacing: 0.08em; }
+/* charge carried: CS-style icon above the money, flashing green inside a plant site */
+#charge-icon { position: absolute; left: 18px; bottom: 150px; display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px;
+  background: rgba(20, 18, 14, 0.55); border-left: 3px solid #d9a441; color: #f2e6c4; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-shadow: 0 1px 2px #000; }
+#charge-icon svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+#charge-icon.insite { border-left-color: #6fe36f; color: #b8f7a8; animation: chargeBlink 0.9s steps(2, start) infinite; }
+#charge-icon.insite .led { fill: #4fe04f; }
+@keyframes chargeBlink { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+body.classic #charge-icon { background: transparent; border-left: none; font-family: var(--hud-font); color: rgba(255,200,80,0.95); }
+body.classic #charge-icon.insite { color: rgba(110,255,110,0.95); }
 #hud-hint { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 15px; color: var(--ink); text-shadow: 0 1px 3px #000; }
 #death-msg { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); background: rgba(12,14,11,0.75); padding: 10px 18px; border-left: 3px solid var(--rust); font-size: 16px; text-align: center; }
 #death-msg small { display: block; color: var(--ink-dim); margin-top: 4px; font-size: 13px; }
@@ -287,7 +295,18 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
     <div id="hud-wname">Viper-9</div>
     <div id="hud-ammo"><span id="ammo-mag">15</span><span id="ammo-res">/ 60</span></div>
   </div>
-  <div id="charge-icon" class="hidden">CHARGE</div>
+  <div id="charge-icon" class="hidden">
+    <svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true">
+      <rect x="3" y="9" width="50" height="26" rx="3" fill="#b9a36f" stroke="#1d1f19" stroke-width="2"/>
+      <rect x="3" y="15" width="50" height="5" fill="#59513a"/><rect x="3" y="25" width="50" height="5" fill="#59513a"/>
+      <rect x="15" y="4" width="26" height="13" rx="2" fill="#141512" stroke="#1d1f19" stroke-width="2"/>
+      <text x="28" y="14" text-anchor="middle" font-family="monospace" font-size="8" font-weight="700" fill="#d33">0:40</text>
+      <path d="M53 14 C60 14 60 22 56 24 M53 22 C61 24 61 31 55 32" stroke="#c22" stroke-width="2" fill="none"/>
+      <path d="M53 18 C58 18 58 27 54 28" stroke="#2a62c9" stroke-width="2" fill="none"/>
+      <circle class="led" cx="47" cy="9" r="3" fill="#e33" stroke="#1d1f19" stroke-width="1"/>
+    </svg>
+    <span id="charge-label">CHARGE</span>
+  </div>
   <div id="hud-hint"></div>
   <div id="death-msg" class="hidden"></div>
   <div id="training-stats" class="hidden"></div>
@@ -4764,7 +4783,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.10.2';
+BV.VERSION = '3.10.3';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -10872,6 +10891,12 @@ BV.HUD = (function () {
     else obj = 'Hold sites A and B until the timer runs out';
     set('obj', el['hud-obj'], obj);
     el['charge-icon'].classList.toggle('hidden', !p.hasCharge || !p.alive);
+    if (p.hasCharge && p.alive) {
+      const site = g.phase === 'live' ? g.map.siteAt(p.pos.x, p.pos.z) : null;
+      el['charge-icon'].classList.toggle('insite', !!site);
+      const lbl = document.getElementById('charge-label'); const t = site ? 'IN SITE ' + site.name : 'CHARGE';
+      if (lbl && lbl.textContent !== t) lbl.textContent = t;
+    }
     // progress bar (planting / defusing)
     const prog = g.planter === p ? g.plantProgress : g.defuser === p ? g.defuseProgress : -1;
     el['hud-progress'].classList.toggle('hidden', prog < 0);

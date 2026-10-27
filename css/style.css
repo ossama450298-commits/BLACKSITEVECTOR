@@ -162,7 +162,15 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 #hud-ammo { background: linear-gradient(270deg, rgba(12,14,11,0.75), rgba(12,14,11,0.3)); padding: 2px 14px; display: inline-block; margin-top: 3px; border-right: 2px solid var(--amber); backdrop-filter: blur(4px); clip-path: polygon(6% 0, 100% 0, 100% 100%, 0 100%); }
 #ammo-mag { font-size: 40px; font-weight: 700; } #ammo-res { font-size: 18px; color: var(--ink-dim); margin-left: 6px; }
 #hud-ammo.low #ammo-mag { color: var(--rust); }
-#charge-icon { position: absolute; left: 18px; bottom: 150px; background: var(--rust); color: #fff; font-weight: 700; font-size: 13px; padding: 3px 10px; letter-spacing: 0.08em; }
+/* charge carried: CS-style icon above the money, flashing green inside a plant site */
+#charge-icon { position: absolute; left: 18px; bottom: 150px; display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px;
+  background: rgba(20, 18, 14, 0.55); border-left: 3px solid #d9a441; color: #f2e6c4; font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-shadow: 0 1px 2px #000; }
+#charge-icon svg { display: block; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
+#charge-icon.insite { border-left-color: #6fe36f; color: #b8f7a8; animation: chargeBlink 0.9s steps(2, start) infinite; }
+#charge-icon.insite .led { fill: #4fe04f; }
+@keyframes chargeBlink { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
+body.classic #charge-icon { background: transparent; border-left: none; font-family: var(--hud-font); color: rgba(255,200,80,0.95); }
+body.classic #charge-icon.insite { color: rgba(110,255,110,0.95); }
 #hud-hint { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); font-size: 15px; color: var(--ink); text-shadow: 0 1px 3px #000; }
 #death-msg { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); background: rgba(12,14,11,0.75); padding: 10px 18px; border-left: 3px solid var(--rust); font-size: 16px; text-align: center; }
 #death-msg small { display: block; color: var(--ink-dim); margin-top: 4px; font-size: 13px; }

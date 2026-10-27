@@ -46,7 +46,18 @@
     <div id="hud-wname">Viper-9</div>
     <div id="hud-ammo"><span id="ammo-mag">15</span><span id="ammo-res">/ 60</span></div>
   </div>
-  <div id="charge-icon" class="hidden">CHARGE</div>
+  <div id="charge-icon" class="hidden">
+    <svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true">
+      <rect x="3" y="9" width="50" height="26" rx="3" fill="#b9a36f" stroke="#1d1f19" stroke-width="2"/>
+      <rect x="3" y="15" width="50" height="5" fill="#59513a"/><rect x="3" y="25" width="50" height="5" fill="#59513a"/>
+      <rect x="15" y="4" width="26" height="13" rx="2" fill="#141512" stroke="#1d1f19" stroke-width="2"/>
+      <text x="28" y="14" text-anchor="middle" font-family="monospace" font-size="8" font-weight="700" fill="#d33">0:40</text>
+      <path d="M53 14 C60 14 60 22 56 24 M53 22 C61 24 61 31 55 32" stroke="#c22" stroke-width="2" fill="none"/>
+      <path d="M53 18 C58 18 58 27 54 28" stroke="#2a62c9" stroke-width="2" fill="none"/>
+      <circle class="led" cx="47" cy="9" r="3" fill="#e33" stroke="#1d1f19" stroke-width="1"/>
+    </svg>
+    <span id="charge-label">CHARGE</span>
+  </div>
   <div id="hud-hint"></div>
   <div id="death-msg" class="hidden"></div>
   <div id="training-stats" class="hidden"></div>

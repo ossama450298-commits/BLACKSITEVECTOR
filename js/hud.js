@@ -125,6 +125,12 @@ BV.HUD = (function () {
     else obj = 'Hold sites A and B until the timer runs out';
     set('obj', el['hud-obj'], obj);
     el['charge-icon'].classList.toggle('hidden', !p.hasCharge || !p.alive);
+    if (p.hasCharge && p.alive) {
+      const site = g.phase === 'live' ? g.map.siteAt(p.pos.x, p.pos.z) : null;
+      el['charge-icon'].classList.toggle('insite', !!site);
+      const lbl = document.getElementById('charge-label'); const t = site ? 'IN SITE ' + site.name : 'CHARGE';
+      if (lbl && lbl.textContent !== t) lbl.textContent = t;
+    }
     // progress bar (planting / defusing)
     const prog = g.planter === p ? g.plantProgress : g.defuser === p ? g.defuseProgress : -1;
     el['hud-progress'].classList.toggle('hidden', prog < 0);
