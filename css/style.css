@@ -32,9 +32,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 #menu { background:
   linear-gradient(90deg, rgba(10, 11, 9, 0.92) 0%, rgba(10, 11, 9, 0.72) 38%, rgba(10, 11, 9, 0.12) 75%),
   repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 4px); }
-.menu-frame { position: absolute; left: 7vw; top: 6vh; width: min(460px, 86vw); max-height: 90vh; overflow-y: auto; scrollbar-width: thin; padding-bottom: 4vh; }
+.menu-frame { position: absolute; left: 7vw; top: 6vh; width: min(460px, 86vw); max-height: 90vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; padding-bottom: 4vh; }
 .brand { margin-bottom: 26px; }
-.brand-title { font-family: var(--title-font); font-size: clamp(42px, 6.2vw, 78px); line-height: 0.92; color: var(--ink); letter-spacing: 0.01em;
+.brand-title { font-family: var(--title-font); font-size: clamp(28px, 10vw, 78px); line-height: 1; padding-top: 0.08em; overflow-wrap: normal; color: var(--ink); letter-spacing: 0.01em;
   text-shadow: 0 3px 0 #000, 0 0 30px rgba(227, 167, 47, 0.16); }
 .brand-title span { color: var(--amber); }
 .brand-title.small { font-size: 34px; }

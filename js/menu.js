@@ -35,6 +35,15 @@ BV.Menu = (function () {
   function init(e) {
     engine = e;
     $('ver').textContent = BV.VERSION;
+    // keep the title inside the menu frame at any window size: shrink until no word overflows
+    const fitTitle = () => {
+      const t = document.querySelector('#menu .brand-title'); if (!t) return;
+      t.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(t).fontSize);
+      while (t.scrollWidth > t.clientWidth + 1 && size > 20) { size -= 2; t.style.fontSize = size + 'px'; }
+    };
+    fitTitle(); window.addEventListener('resize', fitTitle);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
     document.querySelectorAll('[data-key]').forEach(seg => {
       syncSeg(seg, opts[seg.dataset.key]);
       seg.addEventListener('click', (ev) => {

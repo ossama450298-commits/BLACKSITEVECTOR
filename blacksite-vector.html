@@ -44,9 +44,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--amber); out
 #menu { background:
   linear-gradient(90deg, rgba(10, 11, 9, 0.92) 0%, rgba(10, 11, 9, 0.72) 38%, rgba(10, 11, 9, 0.12) 75%),
   repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 4px); }
-.menu-frame { position: absolute; left: 7vw; top: 6vh; width: min(460px, 86vw); max-height: 90vh; overflow-y: auto; scrollbar-width: thin; padding-bottom: 4vh; }
+.menu-frame { position: absolute; left: 7vw; top: 6vh; width: min(460px, 86vw); max-height: 90vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; padding-bottom: 4vh; }
 .brand { margin-bottom: 26px; }
-.brand-title { font-family: var(--title-font); font-size: clamp(42px, 6.2vw, 78px); line-height: 0.92; color: var(--ink); letter-spacing: 0.01em;
+.brand-title { font-family: var(--title-font); font-size: clamp(28px, 10vw, 78px); line-height: 1; padding-top: 0.08em; overflow-wrap: normal; color: var(--ink); letter-spacing: 0.01em;
   text-shadow: 0 3px 0 #000, 0 0 30px rgba(227, 167, 47, 0.16); }
 .brand-title span { color: var(--amber); }
 .brand-title.small { font-size: 34px; }
@@ -4783,7 +4783,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.11.0';
+BV.VERSION = '3.11.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -11117,6 +11117,15 @@ BV.Menu = (function () {
   function init(e) {
     engine = e;
     $('ver').textContent = BV.VERSION;
+    // keep the title inside the menu frame at any window size: shrink until no word overflows
+    const fitTitle = () => {
+      const t = document.querySelector('#menu .brand-title'); if (!t) return;
+      t.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(t).fontSize);
+      while (t.scrollWidth > t.clientWidth + 1 && size > 20) { size -= 2; t.style.fontSize = size + 'px'; }
+    };
+    fitTitle(); window.addEventListener('resize', fitTitle);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
     document.querySelectorAll('[data-key]').forEach(seg => {
       syncSeg(seg, opts[seg.dataset.key]);
       seg.addEventListener('click', (ev) => {
