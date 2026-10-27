@@ -56,7 +56,8 @@ BV.Game = class {
     this.setChargeDisplay = (txt, armed) => {
       if (txt === lcdText) return; lcdText = txt;
       lcdX.fillStyle = armed ? '#2a0806' : '#0b1a0b'; lcdX.fillRect(0, 0, 160, 64);
-      lcdX.fillStyle = armed ? '#ff4a32' : '#7dff6a'; lcdX.font = 'bold 34px monospace'; lcdX.textAlign = 'center'; lcdX.textBaseline = 'middle'; lcdX.fillText(txt, 80, 34);
+      lcdX.fillStyle = armed ? '#ff3a26' : '#6dff5a'; lcdX.font = 'bold 40px "Courier New", monospace'; lcdX.textAlign = 'center'; lcdX.textBaseline = 'middle';
+      lcdX.shadowColor = lcdX.fillStyle; lcdX.shadowBlur = 8; lcdX.fillText(txt, 80, 34); lcdX.shadowBlur = 0;
       lcdX.fillStyle = 'rgba(255,255,255,0.06)'; lcdX.fillRect(0, 0, 160, 18); lcd.needsUpdate = true;
     };
     this.setChargeDisplay('--:--', false);
@@ -87,7 +88,40 @@ BV.Game = class {
     this.chargeLight = new THREE.Sprite(new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.chargeLight.position.set(-0.07, 0.11, 0.036); this.chargeLight.scale.set(0.16, 0.16, 1); g.add(this.chargeLight);
     g.scale.setScalar(1.3);    // a touch larger than life so it reads from a distance
+    // the modelled time bomb (CC BY) replaces the procedural one when loaded: live timer on its
+    // 7-segment display and its two board LEDs pulsing with the beeps
+    this._chargeLcd = lcd;
     g.visible = false; this.scene.add(g); this.chargeMesh = g;
+    this.upgradeChargeModel();
+  }
+  // swap in the modelled time bomb once the realistic assets are loaded (safe to call repeatedly)
+  upgradeChargeModel() {
+    if (this._chargeUpgraded) return;
+    const TB = BV.Real && BV.Real.ready && BV.Real.chargeModel && BV.Real.chargeModel();
+    if (!TB) return;
+    this._chargeUpgraded = true;
+    const g = this.chargeMesh, lcd = this._chargeLcd;
+    {
+      g.children.slice().forEach(ch => { if (ch !== this.chargeLight) g.remove(ch); });
+      g.scale.setScalar(1.15); g.add(TB.group);
+      if (TB.display) {
+        // the model's own display stays as a dark bezel; our live LCD is laid exactly over its top face,
+        // aligned with its long side, so the digits always read correctly
+        TB.display.material = new THREE.MeshStandardMaterial({ color: 0x0c0c0c, roughness: 0.35 });
+        g.updateMatrixWorld(true);
+        const db = new THREE.Box3().setFromObject(TB.display), dmin = db.min.clone(), dmax = db.max.clone();
+        g.worldToLocal(dmin); g.worldToLocal(dmax);
+        const lb2 = new THREE.Box3().setFromPoints([dmin, dmax]), sz = lb2.getSize(new THREE.Vector3()), ctr = lb2.getCenter(new THREE.Vector3());
+        const along = sz.x >= sz.z, Lw = (along ? sz.x : sz.z) * 0.9, Lh = (along ? sz.z : sz.x) * 0.82;
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(Lw, Lh), new THREE.MeshStandardMaterial({ map: lcd, emissive: 0xffffff, emissiveMap: lcd, emissiveIntensity: 1.0, roughness: 0.2 }));
+        face.rotation.x = -Math.PI / 2; face.rotation.z = (along ? 0 : Math.PI / 2) + Math.PI;   // read the same way as the keypad
+        face.position.set(ctr.x, lb2.max.y + 0.0015, ctr.z); g.add(face);
+        this.setChargeDisplay('--:--', false);
+      }
+      if (TB.leds.length) { const lm = new THREE.MeshStandardMaterial({ color: 0x501010, emissive: 0xff2a14, emissiveIntensity: 0.35, roughness: 0.3 }); TB.leds.forEach(l => { l.material = lm; }); this.chargeLed = TB.leds[0]; }
+      const lb = new THREE.Box3().setFromObject(TB.leds[0] || TB.group), lc = lb.getCenter(new THREE.Vector3()); g.worldToLocal(lc);
+      this.chargeLight.position.copy(lc).add(new THREE.Vector3(0, 0.02, 0)); this.chargeLight.scale.set(0.12, 0.12, 1);
+    }
   }
 
   clearEntities() {
@@ -610,6 +644,7 @@ BV.Game = class {
     c.hasCharge = false;
     this.charge.state = 'dropped'; this.charge.carrier = null;
     this.charge.pos.set(c.pos.x, c.pos.y, c.pos.z);
+    this.upgradeChargeModel();
     this.chargeMesh.position.copy(this.charge.pos); this.chargeMesh.visible = true; this.chargeMesh.rotation.y = Math.random() * 6;
     if (this.setChargeDisplay) this.setChargeDisplay('--:--', false); if (this.chargeLed) this.chargeLed.material.emissiveIntensity = 0.35;
     this.chargeLight.visible = false;
@@ -696,6 +731,7 @@ BV.Game = class {
     p.hasCharge = false; p.planting = false; this.planter = null; this.plantProgress = 0;
     ch.state = 'planted'; ch.carrier = null; ch.pos.set(p.pos.x, p.pos.y, p.pos.z); ch.site = this.map.siteAt(p.pos.x, p.pos.z) || this.map.nearestSite(p.pos.x, p.pos.z).site;
     this.chargeMesh.position.copy(ch.pos); this.chargeMesh.rotation.y = p.yaw; this.chargeMesh.visible = true;
+    this.upgradeChargeModel();
     this.phase = 'planted'; this.chargeT = R.chargeTime; this.beepT = 0; this._lightOff = 0;
     if (this.setChargeDisplay) this.setChargeDisplay('ARMED', true);
     p.money = Math.min(R.maxMoney, p.money + 300); p.score += 2;

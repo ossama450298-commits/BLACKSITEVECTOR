@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}; let ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -141,6 +141,7 @@ BV.Real = (function () {
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
+    if (BV.REAL.timebomb) jobs.push(parse(BV.REAL.timebomb).then(g => { styleMaterials(g.scene); timebomb = g.scene; }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
     if (BV.REAL.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
@@ -297,6 +298,23 @@ BV.Real = (function () {
       (name === 'Pin' ? pin : body).add(m);
     });
     return { body, pin };
+  }
+  /* the charge (Time bomb, CC BY): dynamite under a circuit board with keypad, batteries and a 7-segment
+     timer. Returns the model sized to ~30 cm, resting on y = 0, plus its display mesh and LEDs */
+  function chargeModel() {
+    if (!timebomb) return null;
+    const root = timebomb.clone(true), g = new THREE.Group(); g.add(root);
+    root.updateMatrixWorld(true);
+    let ref = null, display = null; const leds = [];
+    root.traverse(o => { if (!o.isMesh) return; if (/pcb1/i.test(o.name)) ref = o; if (/display/i.test(o.name)) display = o; if (/^led/i.test(o.name)) leds.push(o);
+      if (/pCylinder2[4-7]/.test(o.name)) o.visible = false;   // stray cable pieces modelled far outside the bomb
+      o.castShadow = true; });
+    const box = new THREE.Box3(); root.traverse(o => { if (o.isMesh && o.visible) box.expandByObject(o); });
+    const size = box.getSize(new THREE.Vector3()), s = 0.3 / Math.max(size.x, size.z);
+    root.scale.multiplyScalar(s); root.updateMatrixWorld(true);
+    const b2 = new THREE.Box3(); root.traverse(o => { if (o.isMesh && o.visible) b2.expandByObject(o); });
+    const c = b2.getCenter(new THREE.Vector3()); root.position.set(-c.x, -b2.min.y, -c.z);
+    return { group: g, display, leds };
   }
   /* thrown grenade: the body only (the pin has been pulled) */
   function thrownGrenade() { if (!frag) return null; const g = new THREE.Group(); g.add(frag.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
@@ -466,5 +484,5 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { _packs: packs, load, gun, akPack, fpPack, thrownGrenade, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, load, gun, akPack, fpPack, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
