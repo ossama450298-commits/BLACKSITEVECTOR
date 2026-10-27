@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.10.3';
+BV.VERSION = '3.11.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -69,6 +69,10 @@ BV.WEAPONS = {
               rate: 0.10, mag: 30, reserve: 90, reload: 2.5, spread: 0.0035, moveSpread: 0.05, airSpread: 0.2,
               shotSpread: 0.0065, kick: 0.0115, drop: 0.97, price: 2700, speed: 0.9, model: 'rifle',
               snd: { f: 1700, l: 0.22, t: 120, v: 1.0 }, reward: 300 },
+  bastion60: { id: 'bastion60', name: 'Bastion-60', slot: 1, cls: 'rifle', lmg: true, auto: true, damage: 32, head: 3.6, armorPen: 0.8,
+              rate: 0.075, mag: 100, reserve: 200, reload: 4.6, spread: 0.0055, moveSpread: 0.07, airSpread: 0.25,
+              shotSpread: 0.0075, kick: 0.0125, drop: 0.97, price: 5200, speed: 0.8, model: 'lmg',
+              snd: { f: 1450, l: 0.25, t: 110, v: 1.05 }, reward: 300 },
   halberd4: { id: 'halberd4', name: 'Halberd-4', slot: 1, cls: 'rifle', auto: true, damage: 31, head: 4.0, armorPen: 0.72,
               rate: 0.09, mag: 30, reserve: 90, reload: 2.3, spread: 0.0028, moveSpread: 0.042, airSpread: 0.18,
               shotSpread: 0.005, kick: 0.0095, drop: 0.97, price: 3000, speed: 0.92, model: 'rifleCarbine',
@@ -92,7 +96,7 @@ BV.SHOP = [
   { name: 'Pistols',   items: ['viper9', 'falcon45'] },
   { name: 'SMGs',      items: ['specter9', 'vectormp'] },
   { name: 'Shotgun',   items: ['hammer12'] },
-  { name: 'Rifles',    items: ['arx17', 'halberd4', 'kestrel5'] },
+  { name: 'Rifles',    items: ['arx17', 'halberd4', 'kestrel5', 'bastion60'] },
   { name: 'Precision', items: ['lynx7'] },
   { name: 'Gear',      items: ['armor', 'shard'] }
 ];
@@ -100,6 +104,8 @@ BV.ARMOR_PRICE = 650;
 
 /* ---------- Bot difficulty profiles -------------------------------- */
 BV.DIFFICULTY = {
+  // VERY_EASY: slow to react, wild aim, never aims for the head, barely moves and hits softer
+  VERY_EASY: { reaction: 1.6, aimError: 0.17, turn: 1.6, head: 0.0, view: 30, fov: 1.2, burst: [1, 2], strafe: 0.05, hearing: 0.3, dmg: 0.6 },
   EASY:   { reaction: 0.80, aimError: 0.075, turn: 3.2, head: 0.08, view: 42, fov: 1.6, burst: [2, 4], strafe: 0.3,  hearing: 0.6 },
   NORMAL: { reaction: 0.45, aimError: 0.040, turn: 6.0, head: 0.22, view: 60, fov: 2.0, burst: [3, 6], strafe: 0.6,  hearing: 1.0 },
   HARD:   { reaction: 0.24, aimError: 0.018, turn: 11,  head: 0.42, view: 85, fov: 2.3, burst: [4, 9], strafe: 0.85, hearing: 1.3 }

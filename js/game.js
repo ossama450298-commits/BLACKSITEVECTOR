@@ -164,6 +164,7 @@ BV.Game = class {
       const r = Math.random();
       const sniperTaken = this.ents.some(e => e !== b && e.team === b.team && e.inv[1] && e.inv[1].def.id === 'lynx7');
       if (m >= 5400 && r < 0.2 && !sniperTaken) buy('lynx7');
+      else if (m >= 5200 && r < 0.32) buy('bastion60');
       else if (m >= 3650) buy(r < 0.25 ? 'kestrel5' : (b.team === 'RAVEN' ? (r < 0.75 ? 'arx17' : 'halberd4') : (r < 0.75 ? 'halberd4' : 'arx17')));
       else if (m >= 3350) buy('arx17');
       else if (m >= 2550 && r < 0.35) buy('hammer12');
@@ -321,7 +322,7 @@ BV.Game = class {
     const end = this.T4.set(eye.x + dir.x * maxT, eye.y + dir.y * maxT, eye.z + dir.z * maxT).clone();
     if (hitE) {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
-      const dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult;
+      const dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
       if (c.isPlayer) { this.stats.hits++; if (hitPart === 'head') this.stats.heads++; }
       if (!hitE.isPlayer) BV.Effects.bloodHit(end, dir, hitPart === 'head');
       if (primary) BV.Audio.impact(end, 'flesh');

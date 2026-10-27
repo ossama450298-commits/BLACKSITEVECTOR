@@ -163,6 +163,7 @@ BV.Real = (function () {
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [99, 147], idle: [147, 180], draw: [183, 200] } },
+    bastion60: { data: 'fp_lmg',    len: 1.05, gy: 0.5,  gz: 0.3,  world: 'lmg', clips: { fire: [0, 9], reload: [27, 168], idle: [216, 249], draw: [252, 276], reloadEmpty: [294, 432] } },
     // knife: same convention as the AK pack (centimetres, +Z forward, right hand at about x -21, shoulders ~60 cm behind)
     bladex:   { data: 'fp_knife', knife: true, fixedScale: 0.0085, place: [0.03, -0.13, -0.44], clips: { idle: [0, 39], attack1: [42, 60], attack2: [63, 81], attack3: [84, 120], draw: [123, 135] } }
   };
@@ -183,7 +184,14 @@ BV.Real = (function () {
     const grip = new THREE.Vector3(cx, box.min.y + c.gy * h, box.min.z + c.gz * L);
     const front = pts.filter(p => p.z > box.max.z - L * 0.02), tip = new THREE.Vector3(cx, box.max.y - h * 0.25, box.max.z);
     if (front.length) { tip.set(0, 0, 0); front.forEach(p => tip.add(p)); tip.multiplyScalar(1 / front.length); tip.z = box.max.z; }
-    return { scene: g.scene, clips, s: c.fixedScale || c.len / L, grip, tip, knife: !!c.knife, place: c.place || null };
+    // weapon-only template (no arms) for packs that also provide the third-person model
+    let worldTpl = null;
+    if (c.world && base) {
+      mix.clipAction(clips.idle).play(); mix.update(0); g.scene.updateMatrixWorld(true); worldTpl = new THREE.Group();
+      base.traverse(o => { if (!o.isMesh || o.isSkinnedMesh) return; const geo = o.geometry.clone(); geo.applyMatrix4(o.matrixWorld); geo.computeBoundingSphere(); const m = new THREE.Mesh(geo, o.material); m.castShadow = true; worldTpl.add(m); });
+      mix.stopAllAction(); mix.uncacheRoot(g.scene);
+    }
+    return { scene: g.scene, clips, s: c.fixedScale || c.len / L, grip, tip, knife: !!c.knife, place: c.place || null, worldTpl };
   }
   function fpPack(id) {
     if (id === 'arx17') return akPack();
@@ -337,6 +345,15 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    // weapons whose third-person model comes from their first-person pack (e.g. the LMG)
+    for (const id in PACKS) { const c = PACKS[id]; if (c.world === model && packs[c.data] && packs[c.data].worldTpl) {
+      const D = packs[c.data], group = new THREE.Group(), inner = D.worldTpl.clone();
+      inner.scale.setScalar(D.s); inner.rotation.y = Math.PI; inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s); group.add(inner);
+      group.updateMatrixWorld(true);
+      const muzzle = new THREE.Object3D(); muzzle.position.copy(inner.localToWorld(D.tip.clone())); group.add(muzzle);
+      const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.12); group.add(eject);
+      return { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true };
+    } }
     if (ready && frag && model === 'grenade') {
       const group = new THREE.Group(), pin = frag.pin.clone(); group.add(frag.body.clone()); group.add(pin);
       const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.05, -0.03); group.add(muzzle);

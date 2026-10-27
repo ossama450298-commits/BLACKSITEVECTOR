@@ -238,7 +238,7 @@ BV.HUD = (function () {
       node.innerHTML = h + '</table>';
     };
     col('VANGUARD', el['sb-a']); col('RAVEN', el['sb-b']);
-    el['sb-sub'].textContent = g.training ? 'Training' : `Round ${g.round} · ${g.diffName.toLowerCase()} bots · first to ${g.roundsToWin}`;
+    el['sb-sub'].textContent = g.training ? 'Training' : `Round ${g.round} · ${g.diffName.toLowerCase().replace('_', ' ')} bots · first to ${g.roundsToWin}`;
   }
 
   /* ---------- buy menu ---------- */
