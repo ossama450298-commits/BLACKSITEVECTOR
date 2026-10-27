@@ -39,7 +39,7 @@ BV.Map = (function () {
   function lamp(x, y, z, r, i, warm) { lamps.push({ x, y, z, r, i, c: warm === false ? [0.55, 0.75, 1.0] : [1.0, 0.72, 0.38] }); }
 
   /* ---------------- geometry definition ---------------- */
-  function define() {
+  function defineSector17() {
     // floors
     floor(-62, -44, -40, 44, 'dirt');
     floor(-40, -44, 22, -28, 'asphalt');
@@ -260,6 +260,100 @@ BV.Map = (function () {
   }
 
   /* ---------------- gameplay data ---------------- */
+  /* ================= HARBOR-9: night container port ================= */
+  function defineHarbor() {
+    const cont = (x, z, alongZ, lvl, y0) => { const y = (y0 || 0) + (lvl || 0) * 2.6, hx = alongZ ? 1.22 : 3.05, hz = alongZ ? 3.05 : 1.22; B(x - hx, z - hz, x + hx, z + hz, y, y + 2.6, 'container'); };
+    const post = (x, z, warm) => { B(x - 0.13, z - 0.13, x + 0.13, z + 0.13, 0, 8, 'metal', { solid: true }); B(x - 0.5, z - 0.25, x + 0.5, z + 0.25, 7.8, 8.05, 'trim', { solid: false }); lamp(x, 7.6, z, 17, 1.5, warm !== false); };
+    const crane = (cx) => {   // gantry crane straddling the quay: four legs (solid cover), beams overhead
+      for (const lx of [cx - 5, cx + 5]) for (const lz of [-42, -32]) B(lx - 0.6, lz - 0.6, lx + 0.6, lz + 0.6, 0, 16, 'hazard');
+      B(cx - 5.6, -42.6, cx + 5.6, -31.4, 15.2, 16.6, 'metal', { solid: false });
+      B(cx - 1.5, -60, cx + 1.5, -24, 16.6, 18.2, 'metal', { solid: false });   // boom out over the water
+      B(cx - 2.4, -38, cx + 2.4, -34, 12.6, 15.2, 'container', { solid: false }); // operator cab
+    };
+    // floors
+    floor(-62, -44, 62, -26, 'concrete');
+    floor(-62, -26, 62, 20, 'asphalt');
+    floor(-62, 20, 30, 44, 'asphaltCracked');
+    floor(30, 22, 54, 44, 'concrete');
+    floor(54, 20, 62, 44, 'asphaltCracked'); floor(30, 20, 54, 22, 'asphaltCracked');
+    // perimeter: quay edge railing over the water (north), port fence walls elsewhere
+    B(-64, -44.6, 64, -44, 0, 1.05, 'trim');
+    B(-64, -45.4, 64, -44.6, -1.8, 0, 'concrete', { solid: false });
+    B(-64, 44, 64, 46, 0, 8, 'concreteDark');
+    B(-64, -46, -62, 46, 0, 8, 'concreteDark');
+    B(62, -46, 64, 46, 0, 8, 'concreteDark');
+    for (let x = -58; x <= 58; x += 8) B(x - 0.22, -43.6, x + 0.22, -43.15, 0, 0.6, 'metal', { solid: false });   // bollards
+    // quay: two gantry cranes (the east one stands over site A)
+    crane(-12); crane(44);
+    // quay cover
+    cont(-34, -37, false); cont(-34, -37, false, 1); crate(-26, -32, 1.4, 1.4); crate(-24.6, -32, 1.4, 1.4); crate(-25.3, -32, 1.3, 1.3, 'crate', 1.4);
+    cont(8, -39, false); cont(14, -32, true); crate(22, -38, 1.5, 1.5, 'crateMil');
+    // site A (north-east quay)
+    cont(41, -29, false); crate(48, -37, 1.6, 1.6, 'crateMil'); crate(48, -35.4, 1.6, 1.6, 'crateMil'); cont(36, -38, true);
+    // container yard: three rows with gaps for the lanes, single and double stacks
+    for (const [x, two] of [[-31, 0], [-21, 0], [-11, 1], [3, 0], [13, 1], [23, 0]]) { cont(x, -19.5, false); if (two) cont(x, -19.5, false, 1); }
+    for (const [x, two] of [[-27, 1], [-13, 0], [-1, 1], [11, 0], [24, 1]]) { cont(x, -5.5, false); if (two) cont(x, -5.5, false, 1); }
+    for (const [x, two] of [[-31, 0], [-19, 1], [-5, 0], [7, 1], [19, 0]]) { cont(x, 9.5, false); if (two) cont(x, 9.5, false, 1); }
+    cont(-6, 1.8, true); cont(16, 2.2, true); crate(30, -6, 1.6, 1.6); crate(31.6, -6, 1.6, 1.6); crate(30.8, -6, 1.4, 1.4, 'crate', 1.6);
+    // south: road to the warehouse, offices and a guard booth
+    B(-20, 28, -6, 40, 0, 6, 'plaster'); B(-20, 27.6, -6, 28, 5.6, 6.4, 'trim', { solid: false });
+    B(-44, -14, -40, -10, 0, 3, 'metal'); B(-44.3, -14.3, -39.7, -9.7, 3, 3.3, 'roof', { solid: false });
+    cont(-36, 26, false); cont(4, 34, true); crate(12, 26, 1.5, 1.5); crate(13.5, 26, 1.5, 1.5);
+    // warehouse = site B: walls with three doors, roof, racks and crates inside
+    B(30, 22, 38, 22.5, 0, 7, 'brick2'); B(44, 22, 54, 22.5, 0, 7, 'brick2'); B(38, 22, 44, 22.5, 4.2, 7, 'brick2');
+    B(30, 22, 30.5, 27, 0, 7, 'brick2'); B(30, 32, 30.5, 44, 0, 7, 'brick2'); B(30, 27, 30.5, 32, 4.2, 7, 'brick2');
+    B(53.5, 22, 54, 33, 0, 7, 'brick2'); B(53.5, 37, 54, 44, 0, 7, 'brick2'); B(53.5, 33, 54, 37, 4.2, 7, 'brick2');
+    B(30, 22, 54, 44, 7, 7.4, 'roof', { faces: ['ny', 'py'] }); indoor.push([30, 22, 54, 44, 7]);
+    B(39, 31.5, 47, 32.5, 0, 2.6, 'metal'); B(39, 37.5, 47, 38.5, 0, 2.6, 'metal');
+    crate(35, 26, 1.6, 1.6, 'crateMil'); crate(35, 27.6, 1.6, 1.6, 'crateMil'); crate(35, 26.8, 1.5, 1.5, 'crateMil', 1.6);
+    cont(48, 41, false); crate(50, 27, 1.6, 1.6); crate(38, 41.5, 1.5, 1.5);
+    // Vanguard pier and Raven docks cover
+    crate(52, -14, 1.6, 1.6, 'crateMil'); cont(58, 14, true); crate(-50, 12, 1.6, 1.6); cont(-52, -24, false);
+    // sodium street lamps (and a few cold floodlights on the cranes)
+    for (const [x, z] of [[-48, -30], [-24, -28], [0, -28], [24, -28], [-40, 0], [-18, -12], [6, -12], [30, 0], [-30, 18], [-4, 18], [22, 18], [-50, 34], [14, 38], [58, 0], [58, 28]]) post(x, z);
+    lamp(-12, 14, -37, 22, 1.2, false); lamp(44, 14, -37, 22, 1.2, false);
+    lamp(36, 6.5, 28, 12, 1.0); lamp(48, 6.5, 28, 12, 1.0); lamp(36, 6.5, 38, 12, 1.0); lamp(48, 6.5, 38, 12, 1.0);
+    // navigation grid: points every 3 m clear of solid boxes, plus the doors
+    const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.7 && x < b.max[0] + 0.7 && z > b.min[2] - 0.7 && z < b.max[2] + 0.7 && b.min[1] < 1.8 && b.max[1] > 0.2);
+    const wp = [];
+    for (let x = -60; x <= 60; x += 3) for (let z = -42; z <= 42; z += 3) if (free(x, z)) wp.push([x, z]);
+    for (const p of [[41, 22.2], [41, 20.5], [41, 24], [30.2, 29.5], [28.5, 29.5], [32, 29.5], [53.8, 35], [55.5, 35], [52, 35]]) wp.push(p);
+    Object.assign(data, HARBOR);
+    data.waypoints = wp;
+  }
+  const HARBOR = {
+    name: 'HARBOR-9',
+    linkDist: 7.5,
+    water: true,
+    env: { sky: 'sky_harbor', fog: 0x121b2a, hemiSky: 0x6a80aa, hemiGround: 0x1c1e24, hemi: 0.78, sun: 0xa8bcff, sunI: 0.7, exposure: 1.15 },
+    spawns: {
+      attack: [[-56, -3], [-56, 3], [-53, 0], [-58, 0], [-53, -5], [-53, 5], [-58, -6]],
+      defend: [[56, -3], [56, 3], [59, 0], [53, 0], [59, -6], [59, 6], [53, 6]]
+    },
+    spawnCenter: { attack: [-55, 0], defend: [56, 0] },
+    sites: [
+      { name: 'A', min: [34, -42], max: [54, -26], center: [44, -34], plant: [[44, -35, 0], [40, -33, 0], [47, -40, 0]],
+        defend: [[51, -28, 0, Math.PI / 2], [52, -40, 0, Math.PI * 0.6], [45, -27, 0, Math.PI * 0.4], [38, -41, 0, Math.PI * 0.55], [50, -33, 0, Math.PI / 2]] },
+      { name: 'B', min: [31, 23], max: [53, 43], center: [42, 35], plant: [[42, 35, 0], [36, 40, 0], [49, 30, 0]],
+        defend: [[50, 25, 0, Math.PI * 0.75], [45, 41, 0, Math.PI * 0.6], [51, 39, 0, Math.PI * 0.5], [37, 24, 0, Math.PI * 0.85], [48, 34, 0, Math.PI * 0.7]] }
+    ],
+    routes: {
+      A: [{ name: 'quay', stage: [16, -36] }, { name: 'yard', stage: [28, -13] }],
+      B: [{ name: 'road', stage: [18, 30] }, { name: 'yard', stage: [27, 15] }]
+    },
+    midPatrol: [[0, -12], [16, -12], [6, 2], [-10, 2], [28, 4]],
+    links: [],
+    zoneFn: (x, z) => {
+      if (x < -44) return 'Raven Docks';
+      const s = siteAt(x, z); if (s) return 'Site ' + s.name;
+      if (z < -26) return 'Quay';
+      if (x > 54) return 'Vanguard Pier';
+      if (z > 20) return x < 30 ? 'South Road' : 'Warehouse';
+      if (x > 28) return 'Pier Gate';
+      return 'Container Yard';
+    }
+  };
+
   const data = {
     name: 'SECTOR-17',
     bounds: { minX: -62, maxX: 62, minZ: -44, maxZ: 44 },
@@ -692,7 +786,7 @@ BV.Map = (function () {
 
   /* ---------------- sky ---------------- */
   function buildSky(scene) {
-    const tex = (BV.Real && BV.Real.skyTexture()) || BV.Textures.make('sky', { size: 512, h: 256 });
+    const tex = (BV.Real && BV.Real.skyTexture(data.env && data.env.sky)) || BV.Textures.make('sky', { size: 512, h: 256 });
     tex.wrapT = THREE.ClampToEdgeWrapping;
     const geo = new THREE.SphereGeometry(400, 24, 12);
     const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false, toneMapped: false });
@@ -712,7 +806,7 @@ BV.Map = (function () {
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       if (Math.abs(a.y - b.y) > 0.1) continue;
-      const d = Math.hypot(a.x - b.x, a.z - b.z); if (d > 24) continue;
+      const d = Math.hypot(a.x - b.x, a.z - b.z); if (d > (data.linkDist || 24)) continue;
       // three parallel rays (body width) at knee and chest height
       const px = -(b.z - a.z) / d * 0.42, pz = (b.x - a.x) / d * 0.42;
       let clear = true;
@@ -780,6 +874,7 @@ BV.Map = (function () {
   }
   /* zone label for HUD/radio */
   function zoneName(x, z) {
+    if (data.zoneFn) return data.zoneFn(x, z);
     if (x < -40) return 'Raven Plaza';
     const s = siteAt(x, z); if (s) return 'Site ' + s.name;
     if (z < -28 && x < 22) return 'North Street';
@@ -795,7 +890,7 @@ BV.Map = (function () {
 
   let built = false;
   function build(scene) {
-    if (!built) { define(); built = true; }
+    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : defineSector17)(); built = true; }
     BV.Physics.setBoxes(boxes);
     const T = (BV.timings = BV.timings || {}); let t0 = performance.now();
     buildGeometry(scene); T.geometry = performance.now() - t0; t0 = performance.now();

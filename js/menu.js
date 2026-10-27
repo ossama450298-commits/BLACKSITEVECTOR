@@ -35,6 +35,20 @@ BV.Menu = (function () {
   function init(e) {
     engine = e;
     $('ver').textContent = BV.VERSION;
+    // map selector: the chosen map is built at start-up, so switching saves the choice and reloads
+    const mapSeg = document.getElementById('map-seg');
+    if (mapSeg) {
+      mapSeg.querySelectorAll('button').forEach(b => {
+        b.classList.toggle('on', b.dataset.map === BV.MAP_ID);
+        b.addEventListener('click', () => {
+          if (b.dataset.map === BV.MAP_ID) return;
+          BV.settings.map = b.dataset.map; BV.saveSettings();
+          const lt = document.getElementById('load-text'), ld = document.getElementById('loading');
+          if (ld) ld.classList.remove('hidden'); if (lt) lt.textContent = 'Loading ' + b.textContent + '…';
+          setTimeout(() => location.reload(), 60);
+        });
+      });
+    }
     // keep the title inside the menu frame at any window size: shrink until no word overflows
     const fitTitle = () => {
       const t = document.querySelector('#menu .brand-title'); if (!t) return;

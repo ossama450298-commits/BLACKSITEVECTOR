@@ -378,17 +378,18 @@ BV.Real = (function () {
     const eject = new THREE.Object3D(); eject.position.set(0.03, muzzle.position.y * 0.8 + 0.01, muzzle.position.z * (model.startsWith('pistol') ? 0.35 : 0.18)); group.add(eject);
     return { group, muzzle, mag, magHome, eject, imported: true, real: true };
   }
-  function skyTexture() {
-    if (!BV.REAL || !BV.REAL.sky) return null;
+  function skyTexture(key) {
+    const src = BV.REAL && (BV.REAL[key || 'sky'] || BV.REAL.sky); if (!src) return null;
     const img = new Image(), t = new THREE.Texture(img);
-    img.onload = () => { t.needsUpdate = true; }; img.src = BV.REAL.sky;
+    img.onload = () => { t.needsUpdate = true; }; img.src = src;
     t.encoding = THREE.sRGBEncoding; return t;
   }
   /* realistic city around the compound (four rotated copies, beyond the play area) */
   function placeCity(scene) {
     if (!city) return false;
     const box = new THREE.Box3().setFromObject(city), c = box.getCenter(new THREE.Vector3()), y = -box.min.y - 0.5;
-    const spots = [[0, 0, -315], [Math.PI, 0, 315], [Math.PI / 2, 365, 0], [-Math.PI / 2, -365, 0]];
+    let spots = [[0, 0, -315], [Math.PI, 0, 315], [Math.PI / 2, 365, 0], [-Math.PI / 2, -365, 0]];
+    if (BV.Map.data.water) spots = spots.slice(1);   // the harbour faces open water to the north
     for (const [rot, x, z] of spots) {
       const g = new THREE.Group(), inner = city.clone(); inner.position.set(-c.x, y, -c.z); g.add(inner);
       g.rotation.y = rot; g.position.set(x, 0, z); scene.add(g);

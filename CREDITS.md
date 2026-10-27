@@ -21,6 +21,7 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 ## Cielo y superficies
 | Recurso | Autor | Licencia | Uso |
 |---|---|---|---|
+| Blue Lagoon Night · Goegap | Poly Haven | CC0 1.0 | Cielos de HARBOR-9 y DUSTLINE (convertidos de EXR a JPG con mapeo tonal) |
 | Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
 | [City](https://sketchfab.com/3d-models/city-1f50f0d6ec5a493d8e91d7db1106b324) | SpatialNeglect | CC BY 4.0 | Ciudad del horizonte: cuatro copias giradas alrededor del recinto (texturas a 512 px) |
 | [Makarov](https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack) (Free CC0 Guns & Explosives Pack) | 3DModelsCC0 · GLB de BoQsc | CC0 1.0 | Viper-9 y Falcon .45: pistola con corredera móvil y cargador separado |

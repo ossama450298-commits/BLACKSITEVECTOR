@@ -44,7 +44,7 @@
   camera.rotation.order = 'YXZ'; scene.add(camera);
   // lighting: sky/ground ambience + a low dusk sun with soft shadows
   // classic: these lights only shade models/props (Gouraud); the world uses its baked lightmap
-  scene.add(new THREE.HemisphereLight(0xb4c2d2, 0x6a5840, BV.classic ? 0.75 : 0.95));
+  const hemi = E.hemi = new THREE.HemisphereLight(0xb4c2d2, 0x6a5840, BV.classic ? 0.75 : 0.95); scene.add(hemi);
   const sun = E.sun = new THREE.DirectionalLight(0xffd7a8, BV.classic ? 0.85 : 2.6);
   sun.position.set(-70, 28, -35); sun.target.position.set(0, 0, 0); scene.add(sun); scene.add(sun.target);
   sun.castShadow = true;
@@ -92,6 +92,23 @@
   /* ---------- world ---------- */
   const t0 = performance.now();
   BV.Map.build(scene);
+  // per-map environment (sky is picked by the map itself): light, fog colour, exposure, water
+  (function applyMapEnv() {
+    const env = BV.Map.data.env; if (!env) return;
+    if (env.hemiSky !== undefined) { hemi.color.setHex(env.hemiSky); hemi.groundColor.setHex(env.hemiGround); hemi.intensity = env.hemi * (BV.classic ? 0.85 : 1); }
+    if (env.sun !== undefined) { sun.color.setHex(env.sun); sun.intensity = env.sunI * (BV.classic ? 0.6 : 1); }
+    if (env.fog !== undefined) scene.fog.color.setHex(env.fog);
+    if (env.exposure) renderer.toneMappingExposure = env.exposure;
+    if (BV.Map.data.water) {   // dark harbour water beyond the quay, with soft moving highlights
+      const wm = new THREE.MeshStandardMaterial({ color: 0x0a1722, roughness: 0.18, metalness: 0.55 });
+      wm.onBeforeCompile = (sh) => { sh.uniforms.uT = { value: 0 }; wm.userData.sh = sh;
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uT; varying vec3 vWp;').replace('#include <normal_fragment_maps>',
+          '#include <normal_fragment_maps>\n  { vec2 p = vWp.xz * 0.35; float a = sin(p.x * 1.7 + uT * 0.9) + sin(p.y * 2.3 - uT * 0.7) + sin((p.x + p.y) * 3.1 + uT * 1.3);\n    float b = cos(p.x * 2.1 - uT * 0.8) + cos(p.y * 1.5 + uT * 1.1); normal = normalize(normal + vec3(a, 0.0, b) * 0.06); }'); };
+      const water = new THREE.Mesh(new THREE.PlaneGeometry(900, 300), wm); water.rotation.x = -Math.PI / 2; water.position.set(0, -1.2, -45 - 150); scene.add(water);
+      E.water = water;
+    }
+  })();
   BV.timings.mapTotal = performance.now() - t0; const tEnv = performance.now();
   // image-based lighting: capture the level once into a prefiltered env map (modern style only)
   if (!BV.classic) try {
@@ -340,6 +357,7 @@
     E.fpsN++; E.fpsT += dt;
     if (E.fpsT >= 0.5) { E.fpsShown = Math.round(E.fpsN / E.fpsT); E.fpsN = 0; E.fpsT = 0; BV.HUD.fps(BV.settings.showFps, E.fpsShown + ' FPS'); }
     // frame-time metrics (exponential average) for adaptive quality and BV.stats()
+    if (E.water && E.water.material.userData.sh) E.water.material.userData.sh.uniforms.uT.value += dt;
     E.frameMs = E.frameMs ? E.frameMs * 0.95 + dt * 1000 * 0.05 : dt * 1000;
     // adaptive quality with hysteresis: drop one level after ~4 s below 40 FPS, recover one level
     // after ~15 s above 58 FPS (never above the level the player chose), at most one change per 8 s

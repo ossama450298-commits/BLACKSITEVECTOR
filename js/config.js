@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.11.1';
+BV.VERSION = '3.12.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -159,6 +159,9 @@ BV.mat = function (o) {
   const q = {}; for (const k of LAMBERT_KEYS) if (o[k] !== undefined) q[k] = o[k];
   return new THREE.MeshLambertMaterial(q);
 };
+/* maps: the chosen one is built at start-up (switching reloads the page so only one map is ever in memory) */
+BV.MAPS = [{ id: 'sector17', name: 'SECTOR-17', desc: 'Freight compound at dusk' }, { id: 'harbor9', name: 'HARBOR-9', desc: 'Container port at night' }];
+BV.MAP_ID = (BV.settings && BV.MAPS.some(m => m.id === BV.settings.map)) ? BV.settings.map : 'sector17';
 BV.saveSettings = function () {
   try { localStorage.setItem('blacksite-vector-settings', JSON.stringify(BV.settings)); } catch (e) { /* ignore */ }
 };
