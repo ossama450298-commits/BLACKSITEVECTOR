@@ -31,16 +31,62 @@ BV.Game = class {
   isAttacker(c) { return c.team === this.attackTeam; }
 
   /* ----------------------------- setup ----------------------------- */
+  /* demolition charge: four wrapped explosive blocks, duct tape, control unit with keypad, a live
+     LCD (countdown), blinking LED, coloured wires into detonators and a stub antenna (~30 x 22 cm) */
   buildChargeMesh() {
-    const g = new THREE.Group();
-    const M = BV.Models.mat;
-    const b = (w, h, d, x, y, z, m) => { const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); me.position.set(x, y, z); g.add(me); return me; };
-    b(0.42, 0.16, 0.28, 0, 0.08, 0, M(0x3b4230));
-    b(0.16, 0.02, 0.12, -0.06, 0.17, 0, M(0x101410, { emissive: 0x0a2a10 }));
-    b(0.08, 0.14, 0.08, 0.14, 0.12, 0.06, M(0x6b6b5e));
-    b(0.4, 0.02, 0.03, 0, 0.12, -0.13, M(0xb53f2a)); b(0.4, 0.02, 0.03, 0, 0.12, 0.13, M(0xb53f2a));
+    const g = new THREE.Group(), S = (o) => new THREE.MeshStandardMaterial(o);
+    const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; };
+    // explosive block wrapper: olive film with stencilled lot markings and wear
+    const wrap = canvasTex(256, 128, (x, w, h) => {
+      x.fillStyle = '#5d6447'; x.fillRect(0, 0, w, h);
+      for (let i = 0; i < 1400; i++) { x.fillStyle = `rgba(${Math.random() < 0.5 ? '30,34,22' : '150,150,120'},${Math.random() * 0.12})`; x.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+      x.fillStyle = '#e8e2c4'; x.font = 'bold 15px monospace'; x.fillText('CHARGE, DEMOLITION', 14, 36); x.font = '12px monospace'; x.fillText('BLOCK M-17  1.25 LB', 14, 58); x.fillText('LOT VX-0473-17', 14, 78);
+      x.strokeStyle = 'rgba(20,22,14,0.55)'; x.lineWidth = 3; x.strokeRect(6, 6, w - 12, h - 12);
+    });
+    const tape = canvasTex(128, 32, (x, w, h) => { x.fillStyle = '#3d3e3b'; x.fillRect(0, 0, w, h); for (let i = 0; i < w; i += 3) { x.fillStyle = `rgba(255,255,255,${0.03 + Math.random() * 0.05})`; x.fillRect(i, 0, 1, h); } x.fillStyle = 'rgba(0,0,0,0.25)'; x.fillRect(0, 0, w, 2); x.fillRect(0, h - 2, w, 2); });
+    const keypad = canvasTex(128, 160, (x, w, h) => {
+      x.fillStyle = '#1b1c1d'; x.fillRect(0, 0, w, h);
+      const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
+      keys.forEach((k, i) => { const cx = 14 + (i % 3) * 38, cy = 10 + Math.floor(i / 3) * 37; x.fillStyle = '#4a4c4f'; x.fillRect(cx, cy, 30, 30); x.fillStyle = '#6a6d70'; x.fillRect(cx, cy, 30, 3); x.fillStyle = '#e9e6dc'; x.font = 'bold 18px monospace'; x.fillText(k, cx + 9, cy + 22); });
+    });
+    // LCD: redrawn when the text changes
+    const lcdC = document.createElement('canvas'); lcdC.width = 160; lcdC.height = 64; const lcdX = lcdC.getContext('2d');
+    const lcd = new THREE.CanvasTexture(lcdC); lcd.encoding = THREE.sRGBEncoding;
+    let lcdText = null;
+    this.setChargeDisplay = (txt, armed) => {
+      if (txt === lcdText) return; lcdText = txt;
+      lcdX.fillStyle = armed ? '#2a0806' : '#0b1a0b'; lcdX.fillRect(0, 0, 160, 64);
+      lcdX.fillStyle = armed ? '#ff4a32' : '#7dff6a'; lcdX.font = 'bold 34px monospace'; lcdX.textAlign = 'center'; lcdX.textBaseline = 'middle'; lcdX.fillText(txt, 80, 34);
+      lcdX.fillStyle = 'rgba(255,255,255,0.06)'; lcdX.fillRect(0, 0, 160, 18); lcd.needsUpdate = true;
+    };
+    this.setChargeDisplay('--:--', false);
+    const rb = (w, h, d) => new THREE.BoxGeometry(w, h, d);   // centred boxes (keeps the top details exactly on the surfaces)
+    const add = (geo, mat, x, y, z, ry) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); if (ry) m.rotation.y = ry; m.castShadow = true; g.add(m); return m; };
+    const blockMat = S({ map: wrap, roughness: 0.82, metalness: 0 }), tapeMat = S({ map: tape, roughness: 0.6, metalness: 0.05 });
+    for (const bx of [-0.075, 0.075]) for (const bz of [-0.056, 0.056]) add(rb(0.146, 0.062, 0.108, 0.012), blockMat, bx, 0.031, bz);
+    for (const tz of [-0.06, 0.06]) add(new THREE.BoxGeometry(0.31, 0.066, 0.032), tapeMat, 0, 0.033, tz);   // tape bands around the bundle
+    // control unit, keypad, LCD bezel, LED, antenna
+    const plastic = S({ color: 0x2a2c2e, roughness: 0.55, metalness: 0.1 });
+    add(rb(0.17, 0.032, 0.118, 0.008), plastic, 0, 0.078, 0);
+    const kp = add(new THREE.PlaneGeometry(0.064, 0.08), S({ map: keypad, roughness: 0.6 }), 0.04, 0.0945, 0.004); kp.rotation.x = -Math.PI / 2;
+    add(new THREE.BoxGeometry(0.076, 0.006, 0.044), S({ color: 0x111213, roughness: 0.4 }), -0.042, 0.0955, -0.02);
+    const screen = add(new THREE.PlaneGeometry(0.068, 0.036), S({ map: lcd, emissive: 0xffffff, emissiveMap: lcd, emissiveIntensity: 0.9, roughness: 0.2 }), -0.042, 0.0992, -0.02); screen.rotation.x = -Math.PI / 2;
+    const led = add(new THREE.SphereGeometry(0.0075, 10, 8), S({ color: 0x401010, emissive: 0xff2a14, emissiveIntensity: 0.4, roughness: 0.3 }), -0.07, 0.098, 0.036);
+    add(new THREE.CylinderGeometry(0.0035, 0.0035, 0.11, 6), S({ color: 0x151515, roughness: 0.5 }), 0.072, 0.15, -0.045);
+    add(new THREE.SphereGeometry(0.0065, 8, 6), S({ color: 0x151515, roughness: 0.5 }), 0.072, 0.206, -0.045);
+    // detonators in the blocks and the wires running to them
+    const cap = S({ color: 0xb7b3a6, roughness: 0.3, metalness: 0.85 });
+    const wires = [[0xc62d24, [-0.06, 0.09, 0.05], [-0.11, 0.1, 0.07], [-0.12, 0.065, 0.082]], [0x2e5bc4, [-0.02, 0.09, 0.055], [-0.03, 0.11, 0.09], [-0.035, 0.065, 0.11]],
+      [0xd8b72a, [0.02, 0.09, -0.055], [0.06, 0.11, -0.09], [0.07, 0.065, -0.11]], [0x2f8a3a, [0.06, 0.09, -0.05], [0.11, 0.1, -0.07], [0.12, 0.065, -0.082]]];
+    for (const [col, a, b, c] of wires) {
+      const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(...a), new THREE.Vector3(...b), new THREE.Vector3(...c)]);
+      add(new THREE.TubeGeometry(curve, 14, 0.0028, 6, false), S({ color: col, roughness: 0.45 }), 0, 0, 0);
+      add(new THREE.CylinderGeometry(0.0055, 0.0055, 0.03, 8), cap, c[0], c[1] - 0.008, c[2]);
+    }
+    this.chargeLed = led;
     this.chargeLight = new THREE.Sprite(new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xff3020, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.chargeLight.position.set(0.14, 0.24, 0.06); this.chargeLight.scale.set(0.35, 0.35, 1); g.add(this.chargeLight);
+    this.chargeLight.position.set(-0.07, 0.11, 0.036); this.chargeLight.scale.set(0.16, 0.16, 1); g.add(this.chargeLight);
+    g.scale.setScalar(1.3);    // a touch larger than life so it reads from a distance
     g.visible = false; this.scene.add(g); this.chargeMesh = g;
   }
 
@@ -565,6 +611,7 @@ BV.Game = class {
     this.charge.state = 'dropped'; this.charge.carrier = null;
     this.charge.pos.set(c.pos.x, c.pos.y, c.pos.z);
     this.chargeMesh.position.copy(this.charge.pos); this.chargeMesh.visible = true; this.chargeMesh.rotation.y = Math.random() * 6;
+    if (this.setChargeDisplay) this.setChargeDisplay('--:--', false); if (this.chargeLed) this.chargeLed.material.emissiveIntensity = 0.35;
     this.chargeLight.visible = false;
     this.pickFetcher();
     if (this.player && this.player.team === this.attackTeam) BV.HUD.notice('The charge has been dropped', 'warn');
@@ -633,6 +680,10 @@ BV.Game = class {
         this._lightOff = this.time + 0.08;
       }
       if (this.time > this._lightOff) this.chargeLight.visible = false;
+      // live countdown on the LCD and the LED pulsing with each beep
+      { const t = Math.max(0, this.chargeT), mm = Math.floor(t / 60), ss = Math.floor(t % 60), cs = Math.floor((t % 1) * 10);
+        if (this.setChargeDisplay) this.setChargeDisplay(t < 10 ? `0${Math.floor(t)}.${cs}` : `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`, true);
+        if (this.chargeLed) this.chargeLed.material.emissiveIntensity = this.chargeLight.visible ? 3.2 : 0.35; }
       if (this.chargeT <= 0) {
         ch.state = 'exploded'; this.chargeMesh.visible = false;
         this.explode(ch.pos, 26, 520, null, { name: 'Vector Charge', armorPen: 0.85, reward: 0 }, false);
@@ -646,6 +697,7 @@ BV.Game = class {
     ch.state = 'planted'; ch.carrier = null; ch.pos.set(p.pos.x, p.pos.y, p.pos.z); ch.site = this.map.siteAt(p.pos.x, p.pos.z) || this.map.nearestSite(p.pos.x, p.pos.z).site;
     this.chargeMesh.position.copy(ch.pos); this.chargeMesh.rotation.y = p.yaw; this.chargeMesh.visible = true;
     this.phase = 'planted'; this.chargeT = R.chargeTime; this.beepT = 0; this._lightOff = 0;
+    if (this.setChargeDisplay) this.setChargeDisplay('ARMED', true);
     p.money = Math.min(R.maxMoney, p.money + 300); p.score += 2;
     BV.Audio.chargeArmed();
     BV.HUD.notice('Vector Charge armed at Site ' + ch.site.name, 'alert', 3);
