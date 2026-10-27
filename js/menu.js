@@ -6,7 +6,7 @@
 BV.Menu = (function () {
   const $ = (id) => document.getElementById(id);
   let engine = null, returnTo = 'menu';
-  const opts = { team: 'RAVEN', difficulty: 'NORMAL', teamSize: 5, roundsToWin: 5 };
+  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 5 };   // Very easy selected by default
 
   function panel(id) {
     document.querySelectorAll('#menu .panel').forEach(p => p.classList.toggle('hidden', p.id !== id));

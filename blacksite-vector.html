@@ -4784,7 +4784,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '3.12.0';
+BV.VERSION = '3.12.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -11189,7 +11189,7 @@ BV.HUD = (function () {
 BV.Menu = (function () {
   const $ = (id) => document.getElementById(id);
   let engine = null, returnTo = 'menu';
-  const opts = { team: 'RAVEN', difficulty: 'NORMAL', teamSize: 5, roundsToWin: 5 };
+  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 5 };   // Very easy selected by default
 
   function panel(id) {
     document.querySelectorAll('#menu .panel').forEach(p => p.classList.toggle('hidden', p.id !== id));
