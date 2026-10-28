@@ -36,7 +36,7 @@ BV.Map = (function () {
   function floor(x0, z0, x1, z1, mat) { B(x0, z0, x1, z1, -0.2, 0, mat, { solid: false, faces: ['py'] }); }
   function crate(x, z, s, h, mat, y) { B(x - s / 2, z - s / 2, x + s / 2, z + s / 2, y || 0, (y || 0) + (h || s), mat || 'crate'); }
   function barrel(x, z) { cyls.push({ x, z, r: 0.42, h: 1.15, mat: 'barrel' }); B(x - 0.42, z - 0.42, x + 0.42, z + 0.42, 0, 1.15, 'barrel', { solid: true, faces: [] }); }
-  function lamp(x, y, z, r, i, warm) { lamps.push({ x, y, z, r, i, c: warm === false ? [0.55, 0.75, 1.0] : [1.0, 0.72, 0.38] }); }
+  function lamp(x, y, z, r, i, warm) { lamps.push({ x, y, z, r, i, c: warm === 'white' ? [1.0, 0.96, 0.9] : warm === false ? [0.55, 0.75, 1.0] : [1.0, 0.72, 0.38] }); }
 
   /* ---------------- geometry definition ---------------- */
   function defineSector17() {
@@ -311,7 +311,7 @@ BV.Map = (function () {
     crate(52, -14, 1.6, 1.6, 'crateMil'); cont(58, 14, true); crate(-50, 12, 1.6, 1.6); cont(-52, -24, false);
     // sodium street lamps (and a few cold floodlights on the cranes)
     for (const [x, z] of [[-48, -30], [-24, -28], [0, -28], [24, -28], [-40, 0], [-18, -12], [6, -12], [30, 0], [-30, 18], [-4, 18], [22, 18], [-50, 34], [14, 38], [58, 0], [58, 28]]) post(x, z);
-    lamp(-12, 14, -37, 22, 1.2, false); lamp(44, 14, -37, 22, 1.2, false);
+    lamp(-12, 14, -37, 22, 1.2, 'white'); lamp(44, 14, -37, 22, 1.2, 'white');   // white crane floodlights (blue ones read as Vanguard)
     lamp(36, 6.5, 28, 12, 1.0); lamp(48, 6.5, 28, 12, 1.0); lamp(36, 6.5, 38, 12, 1.0); lamp(48, 6.5, 38, 12, 1.0);
     // navigation grid: points every 3 m clear of solid boxes, plus the doors
     const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.7 && x < b.max[0] + 0.7 && z > b.min[2] - 0.7 && z < b.max[2] + 0.7 && b.min[1] < 1.8 && b.max[1] > 0.2);
