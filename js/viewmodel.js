@@ -213,7 +213,53 @@ BV.Viewmodel = class {
   swing() { this.t.swing = 0.32; if (this.pack && this.def && this.def.cls === 'melee') this.pack.play('attack'); }
   inspect() { if (this.t.reload <= 0 && this.t.draw <= 0 && this.def && this.def.cls !== 'grenade') this.t.inspect = 2.6; }
   land(speed) { const k = Math.min(1, speed / 12); this.sp.pv.y -= 0.9 * k; this.sp.rv.x -= 3 * k; }
-  shot(def) {
+  /* Colt suppressor: on/off state, and the screw-on / screw-off animation (left hand by IK) */
+  coltUpdate(dt, st) {
+    const P = this.pack, C = P.colt, V = THREE.Vector3, Q = THREE.Quaternion, g = P.gun.group;
+    if (!this._pgBase || this._pgBase.g !== g) this._pgBase = { g, pos: g.position.clone(), rot: g.rotation.clone() };
+    const sm = (x) => x * x * (3 - 2 * x), cl = (x) => Math.max(0, Math.min(1, x));
+    if (!(st.silT > 0)) {
+      C.silencer.visible = st.silenced; C.silencer.position.copy(C.home.pos); C.silencer.quaternion.copy(C.home.quat);
+      P.gun.muzzle.position.copy(st.silenced ? C.muzzleOn : C.muzzleOff);
+      g.position.copy(this._pgBase.pos); g.rotation.copy(this._pgBase.rot); return;
+    }
+    const u = 1 - st.silT / BV.SIL_TIME;
+    const e = sm(cl(Math.min(u / 0.2, (1 - u) / 0.2)));     // raise and turn the pistol towards the left hand
+    const s = cl((u - 0.2) / 0.6);                            // screwing phase
+    const travel = st.silOn ? 1 - s : s;                      // 0 = screwed on, 1 = off the barrel
+    const q = new Q().setFromAxisAngle(C.axis, (st.silOn ? 1 : -1) * travel * Math.PI * 6);   // three turns
+    C.silencer.position.copy(C.home.pos).sub(C.pivot).applyQuaternion(q).add(C.pivot).addScaledVector(C.axis, travel * 0.16);
+    C.silencer.quaternion.copy(q).multiply(C.home.quat);
+    C.silencer.visible = travel < 0.999 || e > 0.3;
+    P.gun.muzzle.position.copy(travel < 0.05 ? C.muzzleOn : C.muzzleOff);
+    const b = this._pgBase; g.position.set(b.pos.x - 0.03 * e, b.pos.y + 0.035 * e, b.pos.z + 0.02 * e);
+    g.rotation.set(b.rot.x + 0.15 * e, b.rot.y + 0.45 * e, b.rot.z + 0.35 * e);
+    // left arm: IK to the suppressor, blended in and out with the raise
+    if (!C.arm) { const f = (n) => { let r = null; P.inner.traverse(o => { if (!r && o.isBone && o.name.replace(/_\d+$/, '') === n) r = o; }); return r; };
+      C.arm = { A: f('L_arm'), E: f('L_elbow'), W: f('L_wrist'), fingers: ['point', 'middle', 'ring', 'pink', 'thumb'].map(n => [1, 2, 3].map(j => f('L_' + n + j))) };
+      C.silencer.geometry.computeBoundingBox(); C.silCenter = C.silencer.geometry.boundingBox.getCenter(new V()); }
+    const { A, E, W } = C.arm; if (!A || !E || !W) return;
+    g.updateMatrixWorld(true);
+    const target = C.silencer.localToWorld(C.silCenter.clone()), pole = this.root.localToWorld(new V(-0.6, -0.6, 0.1));
+    const save = [A.quaternion.clone(), E.quaternion.clone(), W.quaternion.clone()];
+    const aim = (bone, child, want) => { const bp = bone.getWorldPosition(new V()), cp = child.getWorldPosition(new V());
+      const r = new Q().setFromUnitVectors(cp.sub(bp).normalize(), want.clone().sub(bp).normalize());
+      bone.quaternion.copy(bone.parent.getWorldQuaternion(new Q()).invert().multiply(r.multiply(bone.getWorldQuaternion(new Q())))); bone.updateMatrixWorld(true); };
+    const a = A.getWorldPosition(new V()), l1 = a.distanceTo(E.getWorldPosition(new V())), l2 = E.getWorldPosition(new V()).distanceTo(W.getWorldPosition(new V()));
+    const dir = target.clone().sub(a); let d = Math.min(Math.max(dir.length(), Math.abs(l1 - l2) + 1e-3), l1 + l2 - 1e-3); dir.normalize();
+    const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+    const pd = pole.sub(a); pd.sub(dir.clone().multiplyScalar(pd.dot(dir))).normalize();
+    aim(A, E, a.clone().addScaledVector(dir, x).addScaledVector(pd, h)); aim(E, W, a.clone().addScaledVector(dir, d));
+    // twist the wrist while screwing, curl the fingers round the suppressor
+    if (s > 0 && s < 1) { const fd = W.getWorldPosition(new V()).sub(E.getWorldPosition(new V())).normalize();
+      const tw = new Q().setFromAxisAngle(fd, Math.sin(s * Math.PI * 6) * 0.5);
+      W.quaternion.copy(W.parent.getWorldQuaternion(new Q()).invert().multiply(tw.multiply(W.getWorldQuaternion(new Q())))); }
+    const ik = [A.quaternion.clone(), E.quaternion.clone(), W.quaternion.clone()];
+    [A, E, W].forEach((bn, i) => bn.quaternion.copy(save[i]).slerp(ik[i], e));
+    const ax = new V(0, 0, 1); C.arm.fingers.forEach((jl, fi) => jl.forEach(bn => { if (bn) bn.rotateOnAxis(ax, e * (fi === 4 ? 0.35 : 0.8)); }));
+  }
+  shot(def, sil) {
+    if (sil) { this._silShot = true; }
     const k = (def.cls === 'sniper' ? 2.6 : def.cls === 'shotgun' ? 2.2 : def.cls === 'dmr' ? 1.5 : def.cls === 'pistol' ? 1.2 : 1) * (BV.classic ? 1.35 : 1);
     // spring impulses: back, up and a little random yaw/roll
     this.sp.pv.z += 0.95 * k; this.sp.pv.y += 0.2 * k;
@@ -222,7 +268,7 @@ BV.Viewmodel = class {
     this.t.slide = 1;
     if (this.pack) this.pack.play('fire');
     this.t.kick = 1; this.kickK = k; this.t.heat = Math.min(1, (this.t.heat || 0) + 0.18 * k);
-    this.t.flash = this.t.flashMax = this.fp.t;
+    this.t.flashMax = this.fp.t; this.t.flash = this._silShot ? 0 : this.fp.t; this._silShot = false;   // no flash with the suppressor on
     this.flash.material.rotation = Math.random() * Math.PI * 2;
     this.flash.material.color.setHex(this.fp.c);
     const s = this.fp.s * (0.8 + Math.random() * 0.45); this.flash.scale.set(s, s, 1);
@@ -273,6 +319,7 @@ BV.Viewmodel = class {
     if (st.sprint && !t.reload) { px -= 0.03; py -= 0.05; rx -= 0.3; ry += 0.6; rz += 0.2; }
     if (st.crouch) { py -= 0.008; rz -= 0.04; }
     if (this.pack) this.pack.update(dt);
+    if (this.pack && this.pack.colt) this.coltUpdate(dt, st);
     // ---- slide blowback (pistols with a separate slide): snaps back and returns in ~90 ms ----
     if (this.gun.slide) {
       const sl = this.gun.slide, e = t.slide > 0 ? Math.sqrt(t.slide) : 0;   // full travel at the shot, eases home

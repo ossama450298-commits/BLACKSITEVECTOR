@@ -68,7 +68,16 @@ BV.Player = (function () {
       let i = order.indexOf(p.slot); i = (i + (inp.mouse.wheel > 0 ? 1 : -1) + order.length) % order.length;
       game.switchSlot(p, order[i]);
     }
-    if (inp.pressed('KeyR')) game.startReload(p);
+    // right click with a suppressed pistol: screw the suppressor on / off
+    if (inp.mouse.rightPressed && w && w.def.silencer && !p.reloading && p.switchT <= 0 && !(p.silT > 0)) {
+      p.silT = BV.SIL_TIME; p.silOn = w.silenced === false; p.silW = w;
+    }
+    if (p.silT > 0) {
+      const half = BV.SIL_TIME * 0.5, was = p.silT; p.silT = Math.max(0, p.silT - dt);
+      if (p.silW !== w) p.silT = 0;
+      else if (was > half && p.silT <= half) { w.silenced = p.silOn; BV.HUD.notice(p.silOn ? 'Suppressor on' : 'Suppressor off', '', 1.2); }
+    }
+    if (inp.pressed('KeyR') && !(p.silT > 0)) game.startReload(p);
     if (inp.pressed('KeyG')) game.dropActive(p);                                     // drop the weapon in hand
     if (inp.pressed('KeyE') && !p.planting && !p.defusing) game.tryPickupSwap(p);   // swap with a weapon at your feet
     if (inp.mouse.rightPressed && w && w.def.zoom && !p.reloading && p.switchT <= 0) {
@@ -77,7 +86,7 @@ BV.Player = (function () {
     }
     const fireDown = inp.mouse.left;
     const holdingCharge = w && w.def.cls === 'charge';
-    if (fireDown && w && !holdingCharge) {
+    if (fireDown && w && !holdingCharge && !(p.silT > 0)) {
       const auto = w.def.auto || w.def.cls === 'melee';
       if (auto || !lastFireDown) game.fire(p);
     }

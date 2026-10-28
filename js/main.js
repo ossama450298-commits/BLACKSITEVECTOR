@@ -200,9 +200,9 @@
     if (d.cls === 'sniper') return p.zoom === 1 ? 32 : 11;
     return 42;
   };
-  E.onPlayerShot = (def) => {
-    E.viewmodel.shot(def); E.punch += def.kick * 0.9;
-    const p = game.player, d = p.dir(E._v2); E.flashLight(p.eye(E._v).addScaledVector(d, 0.9), def.cls === 'pistol' ? 0.7 : 1.1);
+  E.onPlayerShot = (def, sil) => {
+    E.viewmodel.shot(def, sil); E.punch += def.kick * (sil ? 0.75 : 0.9);
+    const p = game.player, d = p.dir(E._v2); if (!sil) E.flashLight(p.eye(E._v).addScaledVector(d, 0.9), def.cls === 'pistol' ? 0.7 : 1.1);
     const mz = E.viewmodel.muzzleWorld(E._mz || (E._mz = new THREE.Vector3()), camera);
     BV.Effects.puff(mz.x, mz.y, mz.z, 0.12, 0.6, 0.18, 0xc8c4ba);
     const dx = d.x, dz = d.z;
@@ -411,6 +411,7 @@
       E.viewmodel.update(dt, {
         speed: Math.hypot(p.vel.x, p.vel.z), onGround: p.onGround, crouch: p.crouch > 0.5, sprint: p.sprint,
         mdx, mdy,
+        silT: p.silT || 0, silOn: !!p.silOn, silenced: !!(p.weapon && p.weapon.def.silencer && p.weapon.silenced !== false),
         busy: p.planting || p.defusing, planting: !!p.planting, defusing: !!p.defusing, visible: p.alive && !E.thirdPerson && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
       });
       BV.HUD.update(dt);

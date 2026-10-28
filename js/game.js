@@ -288,6 +288,7 @@ BV.Game = class {
 
   /* ----------------------------- weapons ----------------------------- */
   switchSlot(c, slot, force) {
+    c.silT = 0;
     if (!c.inv[slot] || (slot === c.slot && !force)) return false;
     if (slot === 4 && !c.hasGrenade()) return false;
     if (c.planting || c.defusing) return false;
@@ -343,7 +344,8 @@ BV.Game = class {
       return false;
     }
     w.mag--; c.nextFire = now + def.rate;
-    const spread = this.spreadFor(c);
+    const sil = !!(def.silencer && w.silenced !== false);   // suppressor on: quieter, no flash, a little tighter
+    const spread = this.spreadFor(c) * (sil ? 0.85 : 1);
     // reusable per-shot temporaries (no allocations while firing)
     if (!this.S) this.S = { eye: new THREE.Vector3(), fwd: new THREE.Vector3(), right: new THREE.Vector3(), up: new THREE.Vector3(), dir: new THREE.Vector3(), shell: new THREE.Vector3() };
     const eye = this.S.eye.copy(c.eye(this.T1)), fwd = this.S.fwd.copy(c.dir(this.T2));
@@ -362,8 +364,8 @@ BV.Game = class {
       const climb = def.kick * (1 + Math.min(c.shotsFired, 10) * 0.12);
       c.pitch = BV.U.clamp(c.pitch + climb, -1.5, 1.5);
       if (c.shotsFired > 4) c.yaw += (Math.random() - 0.5) * def.kick * 1.3;
-      this.engine.onPlayerShot(def);
-    } else if (c.model.flashAnchor) {
+      this.engine.onPlayerShot(def, sil);
+    } else if (c.model.flashAnchor && !sil) {
       c.model.root.updateMatrixWorld(true);
       c.model.flashAnchor.getWorldPosition(this.T3); BV.Effects.muzzle(this.T3, def.cls === 'pistol' ? 0.35 : def.cls === 'smg' ? 0.42 : 0.6);
       const near = c.pos.distanceTo(this.player.pos);
@@ -377,8 +379,8 @@ BV.Game = class {
         }
       }
     }
-    BV.Audio.shot(def, c.isPlayer ? null : c.pos);
-    this.emitNoise(c.pos, 50, c);
+    BV.Audio.shot(def, c.isPlayer ? null : c.pos, sil);
+    this.emitNoise(c.pos, sil ? 14 : 50, c);
     if (c.isBot && w.mag === 0 && w.reserve > 0) this.startReload(c);
     return true;
   }
@@ -897,6 +899,7 @@ BV.Game = class {
         e.walkPhase += sp * dt * 2.1;
         m.state = m.state || {}; m.state.kneel = (this.planter === e && this.phase === 'live') || this.defuser === e; m.state.sprint = e.sprint && sp > 4; m.state.reloading = e.reloading; m.state.back = sp > 0.5 && (-Math.sin(e.yaw) * e.vel.x - Math.cos(e.yaw) * e.vel.z) < -0.4 * sp;
         m.animate(dt, sp, e.crouch, e.pitch, e.walkPhase, this.time - e.lastShot < 0.08);
+        if (m.silObj) m.silObj.visible = !!(e.weapon && e.weapon.def.silencer && e.weapon.silenced !== false);
         m.root.visible = !e.isPlayer || (this.engine.thirdPerson === true);
       } else {
         e.deathT += dt; m.die(e.deathT / 0.6); m.root.visible = true;

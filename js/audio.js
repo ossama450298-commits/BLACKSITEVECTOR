@@ -83,8 +83,16 @@ BV.Audio = (function () {
   const ok = () => ctx && ctx.state !== 'closed';
 
   /* ---------- weapons ---------- */
-  function shot(def, pos) {
+  function shot(def, pos, sil) {
     if (!ok() || !def.snd) return;
+    if (sil) {   // suppressed: a dull, short 'thup' with a little mechanical clack, heard only nearby
+      const sp = spatial(pos, 35); if (sp.g <= 0.001) return; const t = ctx.currentTime, v = def.snd.v * sp.g;
+      noise(t, 0.09, 'lowpass', 1400, 380, 0.8, v * 0.42, sp.pan);
+      noise(t, 0.02, 'bandpass', 2600, 2600, 2.5, v * 0.16, sp.pan);
+      tone(t, 'sine', 90, 40, 0.08, v * 0.25, sp.pan);
+      noise(t + 0.045, 0.025, 'bandpass', 3800, 3800, 4, v * 0.12, sp.pan);   // slide clack
+      return;
+    }
     const sp = spatial(pos, 120); if (sp.g <= 0.001) return;
     const t = ctx.currentTime, s = def.snd, v = s.v * sp.g;
     const lp = 1 - sp.far * 0.75; // distant shots lose high end

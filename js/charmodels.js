@@ -98,6 +98,7 @@ BV.CharModels = (function () {
       setWeapon(def) {
         if (currentGun) gunHolder.remove(currentGun.group);
         currentGun = M.gun(def.model);
+        this.silObj = currentGun.group.userData.silencer || null;   // suppressor shown only while fitted
         const s = def.cls === 'melee' ? 1.2 : 1.0; currentGun.group.scale.set(s, s, s);
         currentGun.group.traverse(o => { if (o.isMesh) o.castShadow = false; });
         gunHolder.add(currentGun.group);

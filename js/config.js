@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.6.4';
+BV.VERSION = '4.7.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -46,6 +46,10 @@ BV.WEAPONS = {
               rate: 0.15, mag: 15, reserve: 60, reload: 2.1, spread: 0.006, moveSpread: 0.028, airSpread: 0.12,
               shotSpread: 0.012, kick: 0.010, drop: 0.93, price: 200, speed: 1.0, model: 'pistol',
               snd: { f: 2400, l: 0.16, t: 150, v: 0.8 }, reward: 300 },
+  warden45: { id: 'warden45', name: 'Warden .45 SD', slot: 2, cls: 'pistol', auto: false, damage: 40, head: 3.2, armorPen: 0.65,
+              rate: 0.28, mag: 7, reserve: 28, reload: 2.2, spread: 0.008, moveSpread: 0.04, airSpread: 0.15,
+              shotSpread: 0.028, kick: 0.026, drop: 0.9, price: 700, speed: 0.98, model: 'colt', silencer: true,
+              snd: { f: 1400, l: 0.22, t: 105, v: 1.0 }, reward: 300 },
   falcon45: { id: 'falcon45', name: 'Falcon .45', slot: 2, cls: 'pistol', auto: false, damage: 44, head: 3.2, armorPen: 0.7,
               rate: 0.30, mag: 8, reserve: 32, reload: 2.3, spread: 0.009, moveSpread: 0.04, airSpread: 0.15,
               shotSpread: 0.03, kick: 0.028, drop: 0.9, price: 650, speed: 0.98, model: 'pistolHeavy',
@@ -96,7 +100,7 @@ BV.WEAPONS = {
 
 /* Buy menu layout (category -> items). 'armor' is special. */
 BV.SHOP = [
-  { name: 'Pistols',   items: ['viper9', 'falcon45'] },
+  { name: 'Pistols',   items: ['viper9', 'falcon45', 'warden45'] },
   { name: 'SMGs',      items: ['specter9', 'vectormp'] },
   { name: 'Shotgun',   items: ['hammer12'] },
   { name: 'Rifles',    items: ['arx17', 'halberd4', 'kestrel5', 'bastion60'] },
@@ -168,6 +172,7 @@ BV.MAP_ID = (BV.settings && BV.MAPS.some(m => m.id === BV.settings.map)) ? BV.se
 /* playable characters per team (same order as BV.Real.characters) */
 BV.CHARACTERS = { VANGUARD: [{ id: 'operator', name: 'Operator' }, { id: 'char_swat', name: 'SWAT' }],
                   RAVEN:    [{ id: 'operator', name: 'Operator' }, { id: 'char_merc', name: 'Mercenary' }] };
+BV.SIL_TIME = 1.9;   // seconds to screw the suppressor on or off
 BV.saveSettings = function () {
   try { localStorage.setItem('blacksite-vector-settings', JSON.stringify(BV.settings)); } catch (e) { /* ignore */ }
 };

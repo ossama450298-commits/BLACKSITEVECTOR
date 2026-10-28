@@ -397,7 +397,7 @@ BV.Map = (function () {
     name: 'HARBOR-9',
     linkDist: 7.5,
     water: true,
-    env: { sky: 'sky_harbor', fog: 0x121b2a, hemiSky: 0x6a80aa, hemiGround: 0x1c1e24, hemi: 0.78, sun: 0xa8bcff, sunI: 0.7, exposure: 1.15 },
+    env: { sky: 'sky_harbor', fog: 0x1b2638, hemiSky: 0x9aaccc, hemiGround: 0x3a3c44, hemi: 1.25, sun: 0xc4d0f2, sunI: 1.35, exposure: 1.42 },   // brighter night (v4.7)
     spawns: {
       attack: [[-56, -3], [-56, 3], [-53, 0], [-58, 0], [-53, -5], [-53, 5], [-58, -6]],
       defend: [[56, -3], [56, 3], [59, 0], [53, 0], [59, -6], [59, 6], [53, 6]]

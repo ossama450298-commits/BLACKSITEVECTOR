@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let colt = null; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -141,6 +141,7 @@ BV.Real = (function () {
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
+    if (BV.REAL.colt) jobs.push(parse(BV.REAL.colt).then(g => { styleMaterials(g.scene); colt = g.scene; }));
     for (const k of ['char_swat', 'char_merc']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
     if (BV.REAL.timebomb) jobs.push(parse(BV.REAL.timebomb).then(g => { styleMaterials(g.scene); timebomb = g.scene; }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
@@ -157,6 +158,7 @@ BV.Real = (function () {
      frames at 30 fps, cut by watching base / slide / bolt / magazine motion (the pistol follows the
      author's own key list). len = real weapon length (m): the pack is scaled from its own geometry. */
   const PACKS = {
+    warden45: { data: 'fp_pistol',  len: 0.21, gy: 0.62, gz: 0.22, swap: 'colt', clips: { fire: [0, 11], reload: [12, 82], reloadEmpty: [95, 175], draw: [187, 233], idle: [234, 264] } },
     viper9:   { data: 'fp_pistol',  len: 0.21, gy: 0.62, gz: 0.22, clips: { fire: [0, 11], reload: [12, 82], reloadEmpty: [95, 175], draw: [187, 233], idle: [234, 264] } },
     falcon45: { data: 'fp_heavy',   len: 0.23, gy: 0.62, gz: 0.22, clips: { fire: [0, 9], reloadEmpty: [9, 84], reload: [87, 147], idle: [195, 219], draw: [222, 248] } },
     specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
@@ -195,6 +197,35 @@ BV.Real = (function () {
     }
     return { scene: g.scene, clips, s: c.fixedScale || c.len / L, grip, tip, knife: !!c.knife, place: c.place || null, worldTpl };
   }
+  /* replace the pistol pack's Beretta with the Colt M1911: every Colt part hangs from the pack bone that moves
+     the matching Beretta part (slide, magazine, hammer, trigger, frame), so draw/fire/reload animate the Colt */
+  function swapColt(inner) {
+    inner.updateMatrixWorld(true);
+    const B = {}; inner.traverse(o => { if (['base', 'slide', 'mag', 'hammer', 'trigger'].includes(o.name) && !B[o.name]) B[o.name] = o; });
+    if (!B.base) return null;
+    inner.traverse(o => { if (o.isMesh && !o.isSkinnedMesh && /_beretta_/.test(o.name)) o.visible = false; });
+    const src = colt.clone(true); src.updateMatrixWorld(true);
+    // Colt space -> pack space: turned 180 deg (its barrel points the other way), scaled up a touch, grips aligned
+    const s = 1.15, R = new THREE.Matrix4().makeRotationY(Math.PI), RS = new THREE.Matrix4().multiplyMatrices(R, new THREE.Matrix4().makeScale(s, s, s));
+    const cm = new THREE.Vector3(0, -0.028, 0.074).applyMatrix4(RS), pm = new THREE.Vector3(0, 0.038, 0.181);
+    const T = new THREE.Matrix4().makeTranslation(pm.x - cm.x, pm.y - cm.y, pm.z - cm.z).multiply(RS);
+    const toBase = new THREE.Matrix4().copy(B.base.matrixWorld).invert().multiply(inner.matrixWorld).multiply(T);
+    const map = { Shutter: 'slide', Magazine: 'mag', MagFollower: 'mag', Round: 'mag', Shell: 'mag', Hammer: 'hammer', Trigger: 'trigger' };
+    const info = {}, list = []; src.traverse(o => { if (o.isMesh) list.push(o); });
+    for (const o of list) {
+      const key = o.name.replace(/_lowTris.*$/, ''), bone = B[map[key]] || B.base;
+      const W = new THREE.Matrix4().copy(inner.matrixWorld).multiply(T).multiply(o.matrixWorld);
+      const m = new THREE.Mesh(o.geometry, o.material); m.name = 'colt_' + key; m.frustumCulled = false; m.castShadow = false;
+      new THREE.Matrix4().copy(bone.matrixWorld).invert().multiply(W).decompose(m.position, m.quaternion, m.scale);
+      bone.add(m); if (key === 'Silencer') info.silencer = m;
+    }
+    const P = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(toBase);
+    info.muzzleOff = P(0, 0.04, -0.097); info.muzzleOn = P(0, 0.041, -0.243); info.pivot = P(0, 0.0405, -0.17);
+    info.axis = P(0, 0.0405, -1).sub(P(0, 0.0405, 0)).normalize();   // barrel direction, in base space
+    if (info.silencer) info.home = { pos: info.silencer.position.clone(), quat: info.silencer.quaternion.clone() };
+    info.base = B.base;
+    return info.silencer ? info : null;
+  }
   function fpPack(id) {
     if (id === 'arx17') return akPack();
     const c = PACKS[id]; if (!c) return null; const D = packs[c.data]; if (!D || D === 'loading') return null;
@@ -203,6 +234,7 @@ BV.Real = (function () {
     if (D.place) inner.position.set(D.place[0], D.place[1], D.place[2]);  // placed straight in view space (knife)
     else inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);   // grip at the weapon origin
     group.add(inner);
+    const coltInfo = c.swap === 'colt' && colt ? swapColt(inner) : null;
     const mixer = new THREE.AnimationMixer(inner), actions = {};
     for (const k in D.clips) actions[k] = mixer.clipAction(D.clips[k]);
     actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
@@ -211,6 +243,7 @@ BV.Real = (function () {
     const muzzle = new THREE.Object3D();
     if (base) { const tip = inner.localToWorld(D.tip.clone()); muzzle.position.copy(base.worldToLocal(tip)); const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x); base.add(muzzle); }
     else { muzzle.position.set(0, 0.05, -c.len * 0.7); group.add(muzzle); }
+    if (coltInfo && base) muzzle.position.copy(coltInfo.muzzleOn);
     const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
     let cur = actions.idle, atk = 0;
     const pack = {
@@ -232,7 +265,7 @@ BV.Real = (function () {
         if (cur !== actions.idle && !cur.isRunning()) { const a = actions.idle; a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.timeScale = 1; a.play(); cur.crossFadeTo(a, 0.15, false); cur = a; }
       },
       get busy() { return cur !== actions.idle && cur.isRunning(); },
-      _mixer: mixer, _actions: actions, get _cur() { return cur; }
+      _mixer: mixer, _actions: actions, get _cur() { return cur; }, colt: coltInfo, inner
     };
     return pack;
   }
@@ -377,6 +410,14 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    if (model === 'colt' && colt) {   // third person: the Colt, origin at the grip, suppressor as a separate piece
+      const group = new THREE.Group(), inner = colt.clone(true); inner.position.set(0, 0.028, -0.077); group.add(inner);
+      let silencer = null; inner.traverse(o => { if (o.isMesh) { o.castShadow = true; if (/^Silencer/.test(o.name)) silencer = o; } });
+      const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.069, -0.32); group.add(muzzle);
+      const eject = new THREE.Object3D(); eject.position.set(0.02, 0.07, -0.05); group.add(eject);
+      group.userData.silencer = silencer;
+      return { group, muzzle, mag: null, magHome: null, eject, real: true, imported: true };
+    }
     if (model === 'charge' && timebomb) {   // the charge carried in the hands (third person)
       const C = chargeModel(), group = new THREE.Group(); C.group.scale.setScalar(0.62); C.group.rotation.set(-1.15, 0, 0); C.group.position.set(0, -0.03, -0.12); group.add(C.group);
       const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0, -0.25); group.add(muzzle); const eject = new THREE.Object3D(); group.add(eject);
