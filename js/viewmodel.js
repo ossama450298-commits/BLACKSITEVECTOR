@@ -121,24 +121,86 @@ BV.Viewmodel = class {
     if (!this.useRig) {
       const g = new THREE.Group(), TB = BV.Real && BV.Real.chargeModel && BV.Real.chargeModel();
       const bomb = TB ? TB.group : null; if (bomb) { bomb.scale.setScalar(0.72); g.add(bomb); }
-      const arms = BV.Models.viewArms(this.team || 'VANGUARD'); g.add(arms.group);
+      // realistic arms (pistol pack, weapon removed) posed by two-bone IK; fallback: the procedural ones
+      const rig = BV.Real && BV.Real.armsRig && BV.Real.armsRig();
+      let arms = null;
+      if (rig) {
+        g.add(rig.group); g.updateMatrixWorld(true);
+        // put the shoulders behind and below the eye, a body's width apart
+        const sl = rig.bones.L_arm.getWorldPosition(new THREE.Vector3()), sr = rig.bones.R_arm.getWorldPosition(new THREE.Vector3());
+        g.worldToLocal(sl); g.worldToLocal(sr);
+        const mid = sl.clone().add(sr).multiplyScalar(0.5); rig.group.position.sub(mid).add(new THREE.Vector3(0, -0.26, 0.12));
+      } else { arms = BV.Models.viewArms(this.team || 'VANGUARD'); g.add(arms.group); }
       g.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
-      this.root.add(g); this.useRig = { g, bomb, arms }; this.useT = 0;
+      this.root.add(g); this.useRig = { g, bomb, arms, rig }; this.useT = 0;
     }
-    const R = this.useRig, t = (this.useT += dt), def = !!st.defusing, drop = (1 - k) * 0.28, L = R.arms.left, H = R.arms.right;
+    const R = this.useRig, t = (this.useT += dt), def = !!st.defusing, drop = (1 - k) * 0.28;
     R.g.visible = true;
+    const ease = (x) => x * x * (3 - 2 * x);
     if (R.bomb) {
-      if (!def) { R.bomb.position.set(-0.01, -0.07 - drop, -0.41); R.bomb.rotation.set(0.95, 0.12, 0); }        // held, tilted towards the eyes
-      else { R.bomb.position.set(0.0, -0.215 - drop, -0.6); R.bomb.rotation.set(0.42, 0.4, 0); }                // lying on the ground
+      if (!def) { R.bomb.position.set(-0.01, -0.07 - drop, -0.41); R.bomb.rotation.set(0.95, 0.12, 0); }
+      else { R.bomb.position.set(0.0, -0.215 - drop, -0.6); R.bomb.rotation.set(0.42, 0.4, 0); }
     }
+    // hand targets in view space (camera = origin, -Z forward)
+    let lT, rT, lPole, rPole, rIndex = 0;
     if (!def) {
-      L.position.set(-0.122, -0.085 - drop, -0.4); L.rotation.set(0.55, -0.35, 1.35);
-      const tap = Math.max(0, Math.sin(t * 15)) * 0.011, hop = Math.floor(t * 2.5) % 3;              // finger taps, moving between keys
-      H.position.set(0.02 + hop * 0.012, -0.045 - drop + tap, -0.42 + hop * 0.006); H.rotation.set(1.0, 0.25, -1.25);
+      const keyT = (t * 2.4) % 1, key = Math.floor(t * 2.4) % 4, press = ease(Math.min(1, Math.max(0, 1 - Math.abs(keyT - 0.5) * 3)));   // move, press, release
+      const kx = [0.0, 0.03, 0.06, 0.03][key], kz = [0, 0.012, 0, -0.012][key];
+      lT = new THREE.Vector3(-0.14, -0.1 - drop, -0.395);
+      rT = new THREE.Vector3(0.03 + kx, -0.09 - drop + 0.03 * (1 - press), -0.405 + kz);
+      rIndex = press;
     } else {
-      const sw = Math.sin(t * 2.6) * 0.035, pick = Math.abs(Math.sin(t * 8)) * 0.008;                     // working along the wires
-      L.position.set(-0.08 + sw * 0.4, -0.18 - drop, -0.56); L.rotation.set(0.95, -0.25, 1.2);
-      H.position.set(0.08 + sw, -0.17 - drop + pick, -0.57); H.rotation.set(1.05, 0.3, -1.2);
+      const sw = Math.sin(t * 2.2) * 0.04, pick = Math.abs(Math.sin(t * 7)) * 0.01;
+      lT = new THREE.Vector3(-0.12 + sw * 0.3, -0.2 - drop, -0.55); rT = new THREE.Vector3(0.09 + sw, -0.19 - drop + pick, -0.56);
+    }
+    lPole = new THREE.Vector3(-0.6, -0.55, 0.0); rPole = new THREE.Vector3(0.6, -0.55, 0.0);
+    if (R.rig) this.poseArms(R, lT, rT, lPole, rPole, def, rIndex);
+    else { R.arms.left.position.copy(lT); R.arms.left.rotation.set(0.55, -0.35, 1.35); R.arms.right.position.copy(rT); R.arms.right.rotation.set(1.0, 0.25, -1.25); }
+  }
+  // two-bone IK for both arms of the realistic rig (targets/poles in the use-rig's space)
+  poseArms(R, lT, rT, lPole, rPole, def, rIndex) {
+    const rig = R.rig, B = rig.bones, g = R.g;
+    for (const n in rig.base) B[n].quaternion.copy(rig.base[n]);
+    g.updateMatrixWorld(true);
+    const W = (v) => g.localToWorld(v.clone());
+    const aim = (bone, child, want) => {
+      const bp = bone.getWorldPosition(new THREE.Vector3()), cp = child.getWorldPosition(new THREE.Vector3());
+      const q = new THREE.Quaternion().setFromUnitVectors(cp.sub(bp).normalize(), want.clone().sub(bp).normalize());
+      const nq = q.multiply(bone.getWorldQuaternion(new THREE.Quaternion())), pq = bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+      bone.quaternion.copy(pq.multiply(nq)); bone.updateMatrixWorld(true);
+    };
+    const solve = (side, target, pole) => {
+      const A = B[side + '_arm'], E = B[side + '_elbow'], Wr = B[side + '_wrist']; if (!A || !E || !Wr) return;
+      const a = A.getWorldPosition(new THREE.Vector3()), e = E.getWorldPosition(new THREE.Vector3()), w = Wr.getWorldPosition(new THREE.Vector3());
+      const l1 = a.distanceTo(e), l2 = e.distanceTo(w), T = W(target), P = W(pole);
+      const dir = T.clone().sub(a); let d = dir.length(); dir.normalize();
+      d = Math.min(Math.max(d, Math.abs(l1 - l2) + 1e-3), l1 + l2 - 1e-3);
+      const x = (l1 * l1 - l2 * l2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
+      const pd = P.clone().sub(a); pd.sub(dir.clone().multiplyScalar(pd.dot(dir))).normalize();
+      const elbowT = a.clone().add(dir.clone().multiplyScalar(x)).add(pd.multiplyScalar(h));
+      aim(A, E, elbowT); aim(E, Wr, a.clone().add(dir.multiplyScalar(d)));
+    };
+    solve('L', lT, lPole); solve('R', rT, rPole);
+    // wrist roll (about the forearm) and bend, so the palms face the charge instead of the sky
+    const tune = this.handTune || (def ? { rollL: -2.2, rollR: 2.2, bendL: 0.45, bendR: 0.45 } : { rollL: 1.6, rollR: 2.2, bendL: 0.1, bendR: 0.45 });
+    const wrist = (side, roll, bend) => {
+      const E = B[side + '_elbow'], Wr = B[side + '_wrist']; if (!E || !Wr) return;
+      const fdir = Wr.getWorldPosition(new THREE.Vector3()).sub(E.getWorldPosition(new THREE.Vector3())).normalize();
+      const side3 = new THREE.Vector3(0, 1, 0).applyQuaternion(g.getWorldQuaternion(new THREE.Quaternion())).cross(fdir).normalize();
+      const q = new THREE.Quaternion().setFromAxisAngle(fdir, roll).multiply(new THREE.Quaternion().setFromAxisAngle(side3, bend));
+      const nq = q.multiply(Wr.getWorldQuaternion(new THREE.Quaternion())), pq = Wr.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+      Wr.quaternion.copy(pq.multiply(nq)); Wr.updateMatrixWorld(true);
+    };
+    wrist('L', tune.rollL, tune.bendL); wrist('R', tune.rollR, tune.bendR);
+    this.fingers(B, 'L', def ? 0.55 : 0.95, def ? 0.55 : 0.95);       // left hand: closed round the charge (plant) / half open (defuse)
+    this.fingers(B, 'R', def ? 0.5 : 1.25, def ? 0.35 : 0.15 + rIndex * 0.35);  // right hand: index pointing and pressing
+  }
+  fingers(B, side, curl, indexCurl) {
+    const ax = this.fingerAxis || (this.fingerAxis = new THREE.Vector3(0, 0, 1));
+    for (const f of ['point', 'middle', 'ring', 'pink', 'thumb']) for (const j of [1, 2, 3]) {
+      const b = B[side + '_' + f + j]; if (!b) continue;
+      const c = f === 'point' ? indexCurl : f === 'thumb' ? curl * 0.4 : curl;
+      b.rotateOnAxis(ax, (side === 'L' ? 1 : 1) * c * (j === 1 ? 0.6 : 0.5));
     }
   }
   swing() { this.t.swing = 0.32; if (this.pack && this.def && this.def.cls === 'melee') this.pack.play('attack'); }

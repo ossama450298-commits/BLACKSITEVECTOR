@@ -235,6 +235,19 @@ BV.Real = (function () {
     };
     return pack;
   }
+  /* realistic first-person arms (from the pistol pack, weapon removed) for hand-posed actions such as
+     planting and defusing. Returns the arms in view space at their idle pose plus their bones. */
+  function armsRig() {
+    const D = packs.fp_pistol; if (!D || D === 'loading') return null;
+    const group = new THREE.Group(), inner = THREE.SkeletonUtils.clone(D.scene);
+    inner.scale.setScalar(D.s); inner.rotation.y = Math.PI; inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);
+    group.add(inner);
+    inner.traverse(o => { if (o.isMesh) { if (!o.isSkinnedMesh) o.visible = false; o.frustumCulled = false; o.castShadow = false; } });
+    const mixer = new THREE.AnimationMixer(inner); mixer.clipAction(D.clips.idle).play(); mixer.update(0); mixer.stopAllAction();
+    const bones = {}; inner.traverse(o => { if (o.isBone) bones[o.name.replace(/_\d+$/, '')] = o; });
+    const base = {}; for (const k in bones) base[k] = bones[k].quaternion.clone();
+    return { group, inner, bones, base };
+  }
   /* first-person AK74 with arms and hand-made animations (DJMaesen, CC BY). The source has a single
      8.1 s timeline; it is cut into actions by watching the bolt and magazine (30 fps frames) */
   function prepAk74(g) {
@@ -484,5 +497,5 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { _packs: packs, load, gun, akPack, fpPack, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, load, gun, akPack, fpPack, armsRig, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
