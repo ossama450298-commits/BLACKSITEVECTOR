@@ -305,7 +305,6 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
     <div id="hud-wname">Viper-9</div>
     <div id="hud-ammo"><span id="ammo-mag">15</span><span id="ammo-res">/ 60</span></div>
   </div>
-  <div id="hs-pop" class="hidden">HEADSHOT</div>
   <div id="charge-icon" class="hidden">
     <svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true">
       <rect x="3" y="9" width="50" height="26" rx="3" fill="#b9a36f" stroke="#1d1f19" stroke-width="2"/>
@@ -4798,7 +4797,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.6.0';
+BV.VERSION = '4.6.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -10235,7 +10234,7 @@ BV.Game = class {
     if (attacker && attacker.isPlayer && attacker !== t) { BV.HUD.hitmarker(head, t.hp <= 0); BV.Audio.hitmarker(head); }
     if (this.training && t.isPlayer) t.hp = Math.max(t.hp, 1);
     if (t.hp <= 0) {
-      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.HUD.headshot && BV.HUD.headshot(); BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }
+      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }   // sound only, no on-screen pop-up
       this.kill(t, attacker, def, head);
     }
   }

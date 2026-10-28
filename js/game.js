@@ -543,7 +543,7 @@ BV.Game = class {
     if (attacker && attacker.isPlayer && attacker !== t) { BV.HUD.hitmarker(head, t.hp <= 0); BV.Audio.hitmarker(head); }
     if (this.training && t.isPlayer) t.hp = Math.max(t.hp, 1);
     if (t.hp <= 0) {
-      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.HUD.headshot && BV.HUD.headshot(); BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }
+      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }   // sound only, no on-screen pop-up
       this.kill(t, attacker, def, head);
     }
   }
