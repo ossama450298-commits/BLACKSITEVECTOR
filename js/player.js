@@ -61,7 +61,10 @@ BV.Player = (function () {
     if (uiOpen) { lastFireDown = false; game.playerUse = false; return; }
     // ---------- weapons ----------
     const w = p.weapon;
-    for (let i = 1; i <= 5; i++) if (inp.pressed('Digit' + i)) game.switchSlot(p, i);
+    for (let i = 1; i <= 5; i++) if (inp.pressed('Digit' + i)) {
+      if (i === 4 && p.slot === 4 && p.cycleNade()) { game.engine.viewmodel.equip(p.weapon.def); BV.HUD.notice(p.weapon.def.name, '', 0.8); continue; }   // 4 again: next grenade type
+      game.switchSlot(p, i);
+    }
     if (inp.pressed('KeyQ')) game.switchSlot(p, p.prevSlot);
     if (inp.mouse.wheel) {
       const order = [1, 2, 3, 4, 5].filter(sl => p.inv[sl] && (sl !== 4 || p.hasGrenade()));

@@ -18,7 +18,7 @@ BV.Combatant = class {
     this.onGround = true; this.landSpeed = 0;
     this.hp = 100; this.armor = 0; this.alive = true;
     this.money = BV.RULES.startMoney; this.kills = 0; this.deaths = 0; this.score = 0;
-    this.inv = { 1: null, 2: null, 3: null, 4: null };
+    this.inv = { 1: null, 2: null, 3: null, 4: null }; this.nades = {}; this.helmet = false; this.hasKit = false;
     this.slot = 2; this.prevSlot = 3;
     this.nextFire = 0; this.shotsFired = 0; this.lastShot = -9; this.switchT = 0;
     this.reloading = false; this.reloadT = 0; this.zoom = 0;
@@ -54,18 +54,28 @@ BV.Combatant = class {
   }
   giveWeapon(id) {
     const def = BV.WEAPONS[id];
-    if (def.slot === 4) {
-      if (!this.inv[4]) this.inv[4] = { def, count: 0 };
-      this.inv[4].count = Math.min(2, this.inv[4].count + 1);
-      return;
+    if (def.slot === 4) {   // grenades: one count per type, slot 4 shows the selected type
+      this.nades = this.nades || {};
+      this.nades[id] = Math.min(def.max || 1, (this.nades[id] || 0) + 1);
+      if (!this.hasGrenade()) this.nadeSel = id;
+      this.syncNades(); return;
     }
     this.inv[def.slot] = new BV.WeaponInstance(id);
   }
-  hasGrenade() { return this.inv[4] && this.inv[4].count > 0; }
+  hasGrenade() { return !!(this.inv[4] && this.inv[4].count > 0); }
+  syncNades() {
+    const n = this.nades || {}; let id = this.nadeSel;
+    if (!(n[id] > 0)) id = ['shard', 'flash', 'smoke'].find(k => n[k] > 0) || null;
+    this.nadeSel = id; this.inv[4] = id ? { def: BV.WEAPONS[id], count: n[id] } : null;
+  }
+  cycleNade() {   // press 4 again: next grenade type
+    const n = this.nades || {}, list = ['shard', 'flash', 'smoke'].filter(k => n[k] > 0); if (list.length < 2) return false;
+    this.nadeSel = list[(list.indexOf(this.nadeSel) + 1) % list.length]; this.syncNades(); return true;
+  }
   /* strip to default kit (after death or halftime) */
   defaultKit() {
     this.inv = { 1: null, 2: new BV.WeaponInstance('viper9'), 3: new BV.WeaponInstance('bladex'), 4: null };
-    this.slot = 2; this.armor = 0;
+    this.slot = 2; this.armor = 0; this.nades = {}; this.nadeSel = null; this.helmet = false; this.hasKit = false;
   }
   refill() { [1, 2].forEach(s => { const w = this.inv[s]; if (w) { w.mag = w.def.mag; w.reserve = w.def.reserve; } }); }
   bestSlot() { return this.inv[1] ? 1 : 2; }

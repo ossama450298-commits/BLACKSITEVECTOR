@@ -169,6 +169,10 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 #hs-pop.show { animation: hsPop 0.9s ease-out forwards; }
 @keyframes hsPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(0.96); } }
 body.classic #hs-pop { font-family: var(--hud-font); color: rgba(255,200,80,0.95); text-shadow: none; }
+/* flashbang white-out and the defuse-kit tag */
+#flashbang { position: absolute; inset: 0; background: #fffdf6; opacity: 0; pointer-events: none; z-index: 40; }
+#kit-icon { position: absolute; left: 22px; bottom: 214px; padding: 3px 9px; font: 700 12px/1.2 var(--hud-font, sans-serif); letter-spacing: 0.12em;
+  color: #9fd4ff; border: 1px solid rgba(120,180,255,0.6); background: rgba(16,22,30,0.6); }
 /* character pick in the match setup */
 .char-pick { display: flex; align-items: center; gap: 12px; }
 #char-thumb { width: 64px; height: 88px; object-fit: cover; border: 1px solid rgba(217,164,65,0.5); background: rgba(20,18,14,0.5); }

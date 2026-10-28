@@ -83,6 +83,15 @@ BV.Audio = (function () {
   const ok = () => ctx && ctx.state !== 'closed';
 
   /* ---------- weapons ---------- */
+  // flashbang bang + ear ringing, smoke hiss, helmet ping
+  function flashbang(pos) { if (!ok()) return; const sp = spatial(pos, 90); if (sp.g <= 0.001) return; const t = ctx.currentTime;
+    noise(t, 0.12, 'highpass', 2600, 2600, 0.7, 1.2 * sp.g, sp.pan); noise(t, 0.35, 'bandpass', 900, 300, 0.8, 0.9 * sp.g, sp.pan); tone(t, 'sine', 70, 30, 0.3, 0.8 * sp.g, sp.pan); }
+  function ringing(dur, amt) { if (!ok()) return; const t = ctx.currentTime, g = ctx.createGain(), o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(3150, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16 * amt + 0.02, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.5, dur));
+    o.connect(g); g.connect(sfxBus || master); o.start(t); o.stop(t + Math.max(0.5, dur) + 0.1); }
+  function smoke(pos) { if (!ok()) return; const sp = spatial(pos, 40); if (sp.g <= 0.001) return; noise(ctx.currentTime, 2.4, 'bandpass', 2400, 900, 0.6, 0.35 * sp.g, sp.pan, 0.3); }
+  function helmet(pos) { if (!ok()) return; const sp = spatial(pos, 60); if (sp.g <= 0.001) return; const t = ctx.currentTime;
+    tone(t, 'triangle', 1900, 1200, 0.22, 0.4 * sp.g, sp.pan); noise(t, 0.04, 'highpass', 4000, 4000, 1, 0.5 * sp.g, sp.pan); }
   function shot(def, pos, sil) {
     if (!ok() || !def.snd) return;
     if (sil) {   // suppressed: a dull, short 'thup' with a little mechanical clack, heard only nearby
@@ -247,7 +256,7 @@ BV.Audio = (function () {
   }
   function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
 
-  return { headshot, 
+  return { flashbang, ringing, smoke, helmet,  headshot, 
     init, resume, applyVolumes, setListener, shot, knife, reload, dryFire, draw, zoom, step, land, jump,
     impact, hitmarker, hurt, death, bounce, shell, explosion, beep, keypad, chargeArmed, defused, ui, roundStinger,
     startAmbience, stopAmbience, startMusic, stopMusic,

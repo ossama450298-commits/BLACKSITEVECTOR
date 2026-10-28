@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.7.0';
+BV.VERSION = '4.8.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -80,6 +80,10 @@ BV.WEAPONS = {
   charge:    { id: 'charge', name: 'Demo Charge', slot: 5, cls: 'charge', auto: false, damage: 0, head: 0, armorPen: 0,
               rate: 1, mag: 1, reserve: 0, reload: 1, spread: 0, moveSpread: 0, airSpread: 0, shotSpread: 0, kick: 0, drop: 1,
               price: 0, speed: 1, model: 'charge', snd: { f: 800, l: 0.05, t: 40, v: 0.2 }, reward: 0 },
+  shade4:   { id: 'shade4', name: 'Shade-4 SD', slot: 1, cls: 'rifle', auto: true, damage: 30, head: 4.0, armorPen: 0.7,
+              rate: 0.095, mag: 25, reserve: 75, reload: 2.4, spread: 0.0026, moveSpread: 0.04, airSpread: 0.18,
+              shotSpread: 0.0048, kick: 0.0088, drop: 0.97, price: 3100, speed: 0.92, model: 'm4sd', silencer: true,
+              snd: { f: 1900, l: 0.18, t: 120, v: 0.9 }, reward: 300 },
   halberd4: { id: 'halberd4', name: 'Halberd-4', slot: 1, cls: 'rifle', auto: true, damage: 31, head: 4.0, armorPen: 0.72,
               rate: 0.09, mag: 30, reserve: 90, reload: 2.3, spread: 0.0028, moveSpread: 0.042, airSpread: 0.18,
               shotSpread: 0.005, kick: 0.0095, drop: 0.97, price: 3000, speed: 0.92, model: 'rifleCarbine',
@@ -94,8 +98,12 @@ BV.WEAPONS = {
               airSpread: 0.3, shotSpread: 0, kick: 0.06, drop: 0.99, price: 4750, speed: 0.8, model: 'sniper', zoom: 4,
               snd: { f: 1100, l: 0.50, t: 70, v: 1.4 }, reward: 150 },
 
-  shard:    { id: 'shard', name: 'Shard-G', slot: 4, cls: 'grenade', damage: 98, radius: 6.5, rate: 1.0,
-              price: 300, speed: 1.0, model: 'grenade', reward: 300 }
+  shard:    { id: 'shard', name: 'Shard-G', slot: 4, cls: 'grenade', damage: 98, radius: 6.5, rate: 1.0, max: 1,
+              price: 300, speed: 1.0, model: 'grenade', reward: 300 },
+  flash:    { id: 'flash', name: 'Glare-F', slot: 4, cls: 'grenade', kind: 'flash', damage: 0, radius: 24, rate: 1.0, max: 2, fuse: 1.45,
+              price: 200, speed: 1.0, model: 'grenade', reward: 0 },
+  smoke:    { id: 'smoke', name: 'Veil-S', slot: 4, cls: 'grenade', kind: 'smoke', damage: 0, radius: 4.3, rate: 1.0, max: 1, fuse: 1.8,
+              price: 300, speed: 1.0, model: 'grenade', reward: 0 }
 };
 
 /* Buy menu layout (category -> items). 'armor' is special. */
@@ -103,9 +111,9 @@ BV.SHOP = [
   { name: 'Pistols',   items: ['viper9', 'falcon45', 'warden45'] },
   { name: 'SMGs',      items: ['specter9', 'vectormp'] },
   { name: 'Shotgun',   items: ['hammer12'] },
-  { name: 'Rifles',    items: ['arx17', 'halberd4', 'kestrel5', 'bastion60'] },
+  { name: 'Rifles',    items: ['arx17', 'halberd4', 'shade4', 'kestrel5', 'bastion60'] },
   { name: 'Precision', items: ['lynx7'] },
-  { name: 'Gear',      items: ['armor', 'shard'] }
+  { name: 'Gear',      items: ['armor', 'helmet', 'kit', 'shard', 'flash', 'smoke'] }
 ];
 BV.ARMOR_PRICE = 650;
 
@@ -172,6 +180,12 @@ BV.MAP_ID = (BV.settings && BV.MAPS.some(m => m.id === BV.settings.map)) ? BV.se
 /* playable characters per team (same order as BV.Real.characters) */
 BV.CHARACTERS = { VANGUARD: [{ id: 'operator', name: 'Operator' }, { id: 'char_swat', name: 'SWAT' }],
                   RAVEN:    [{ id: 'operator', name: 'Operator' }, { id: 'char_merc', name: 'Mercenary' }] };
+/* non-weapon gear sold in the buy menu */
+BV.GEAR = {
+  armor:  { name: 'Plate armour', price: 650, desc: 'Absorbs a share of damage to head and body' },
+  helmet: { name: 'Helmet', price: 350, desc: 'Stops one bullet to the head (not sniper rounds)' },
+  kit:    { name: 'Defuse kit', price: 400, desc: 'Defuse in 3.5 s instead of 6.5 s · Vanguard' }
+};
 BV.SIL_TIME = 1.9;   // seconds to screw the suppressor on or off
 BV.saveSettings = function () {
   try { localStorage.setItem('blacksite-vector-settings', JSON.stringify(BV.settings)); } catch (e) { /* ignore */ }

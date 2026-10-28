@@ -38,6 +38,7 @@ BV.Bot = class extends BV.Combatant {
     let best = null, bd = 1e9;
     const fwdx = -Math.sin(this.yaw), fwdz = -Math.cos(this.yaw);
     for (const e of g.ents) {
+      if (g.time < (this.blindUntil || 0)) break;   // flashed: sees nobody
       if (!e.alive || e.team === this.team) continue;
       const dx = e.pos.x - this.pos.x, dz = e.pos.z - this.pos.z, dy = e.pos.y - this.pos.y;
       const d = Math.sqrt(dx * dx + dz * dz + dy * dy);
@@ -49,6 +50,7 @@ BV.Bot = class extends BV.Combatant {
       }
       // check head first then chest (partial cover)
       if (!BV.Physics.los(eye, e.headPos(this._t)) && !BV.Physics.los(eye, e.chest(this._t))) continue;
+      if (g.smokeBlocks && g.smokeBlocks(eye, e.chest(this._t))) continue;   // smoke hides them
       const score = d - (e === this.target ? 6 : 0);
       if (score < bd) { bd = score; best = e; }
     }

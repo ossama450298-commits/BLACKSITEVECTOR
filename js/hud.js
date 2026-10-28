@@ -64,6 +64,13 @@ BV.HUD = (function () {
     while (el.killfeed.children.length > 6) el.killfeed.lastChild.remove();
     setTimeout(() => d.remove(), 7000);
   }
+  // flashbang: white-out that fades, strongest at first
+  function flashed(amt, dur) {
+    let f = document.getElementById('flashbang');
+    if (!f) { f = document.createElement('div'); f.id = 'flashbang'; document.getElementById('hud').appendChild(f); }
+    f.style.transition = 'none'; f.style.opacity = String(Math.min(1, 0.55 + amt * 0.45)); void f.offsetWidth;
+    f.style.transition = `opacity ${dur.toFixed(2)}s cubic-bezier(.7,0,.9,.5)`; f.style.opacity = '0';
+  }
   function headshot() {
     const e = document.getElementById('hs-pop'); if (!e) return;
     e.classList.remove('hidden', 'show'); void e.offsetWidth; e.classList.add('show');
@@ -85,6 +92,7 @@ BV.HUD = (function () {
 
   /* ---------- per-frame refresh ---------- */
   function update(dt) {
+    { const k = document.getElementById('kit-icon'), p = game && game.player; if (k && p) k.classList.toggle('hidden', !(p.alive && p.hasKit)); }
     const g = game, p = g.player; if (!p) return;
     const target = p.alive ? p : (g.spectate && g.spectate.target) || p;
     // vitals
@@ -248,8 +256,11 @@ BV.HUD = (function () {
 
   /* ---------- buy menu ---------- */
   function statLine(d) {
-    if (d === 'armor') return 'Absorbs a share of damage to head and body';
+    if (typeof d === 'string') return BV.GEAR[d].desc;
+    if (d.kind === 'flash') return `Blinds whoever looks at it · max ${d.max}`;
+    if (d.kind === 'smoke') return `Smoke screen · 15 s · blocks sight`;
     if (d.cls === 'grenade') return `Fragmentation · ${d.radius} m radius`;
+    if (d.silencer) return `${d.damage} dmg · ${Math.round(60 / d.rate)} rpm · ${d.mag}/${d.reserve} · suppressor (right click)`;
     const rpm = Math.round(60 / d.rate);
     return `${d.damage}${d.pellets ? '×' + d.pellets : ''} dmg · ${rpm} rpm · ${d.mag}/${d.reserve}${d.zoom ? ' · scope' : ''}`;
   }
@@ -258,8 +269,8 @@ BV.HUD = (function () {
     for (const cat of BV.SHOP) {
       h += `<div class="buy-col"><h5>${cat.name}</h5>`;
       for (const id of cat.items) {
-        const d = id === 'armor' ? null : BV.WEAPONS[id];
-        h += `<button class="buy-item" data-buy="${id}"><span class="n">${d ? d.name : 'Plate armour'}</span><span class="p">$${d ? d.price : BV.ARMOR_PRICE}</span><span class="s">${statLine(d || 'armor')}</span></button>`;
+        const d = BV.GEAR[id] ? null : BV.WEAPONS[id], gear = BV.GEAR[id];
+        h += `<button class="buy-item" data-buy="${id}"><span class="n">${d ? d.name : gear.name}</span><span class="p">$${d ? d.price : (id === 'armor' ? BV.ARMOR_PRICE : gear.price)}</span><span class="s">${statLine(d || id)}</span></button>`;
       }
       h += '</div>';
     }
@@ -267,7 +278,7 @@ BV.HUD = (function () {
     el['buy-grid'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-buy]'); if (!b) return;
       const r = game.buy(b.dataset.buy);
-      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead' }[r] || '';
+      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead', team: 'Vanguard only' }[r] || '';
       el['buy-status'].textContent = msg;
       BV.Audio.ui(r === 'bought' ? 'buy' : 'deny');
       refreshBuy(true);
@@ -279,15 +290,15 @@ BV.HUD = (function () {
     const p = game.player;
     el['buy-money'].textContent = '$' + p.money;
     el['buy-grid'].querySelectorAll('[data-buy]').forEach(b => {
-      const id = b.dataset.buy, price = id === 'armor' ? BV.ARMOR_PRICE : BV.WEAPONS[id].price;
-      b.classList.toggle('cant', price > p.money);
-      const owned = id === 'armor' ? p.armor >= 100 : (BV.WEAPONS[id].slot === 4 ? false : p.inv[BV.WEAPONS[id].slot] && p.inv[BV.WEAPONS[id].slot].def.id === id);
+      const id = b.dataset.buy, price = id === 'armor' ? BV.ARMOR_PRICE : BV.GEAR[id] ? BV.GEAR[id].price : BV.WEAPONS[id].price;
+      b.classList.toggle('cant', price > p.money || (id === 'kit' && p.team !== game.defendTeam()));
+      const W = BV.WEAPONS[id], owned = id === 'armor' ? p.armor >= 100 : id === 'helmet' ? p.helmet : id === 'kit' ? p.hasKit : (W.slot === 4 ? (p.nades && (p.nades[id] || 0) >= (W.max || 1)) : p.inv[W.slot] && p.inv[W.slot].def.id === id);
       b.classList.toggle('owned', !!owned);
     });
   }
   function buyMenu(v) { el.buymenu.classList.toggle('hidden', !v); if (v) { el['buy-status'].textContent = ''; refreshBuy(true); } }
   function fps(v, txt) { el.fps.classList.toggle('hidden', !v); if (v) el.fps.textContent = txt; }
 
-  return { headshot,  init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
+  return { flashed, headshot,  init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
     get buyOpen() { return el && !el.buymenu.classList.contains('hidden'); } };
 })();

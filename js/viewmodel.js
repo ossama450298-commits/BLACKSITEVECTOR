@@ -228,7 +228,7 @@ BV.Viewmodel = class {
     const s = cl((u - 0.2) / 0.6);                            // screwing phase
     const travel = st.silOn ? 1 - s : s;                      // 0 = screwed on, 1 = off the barrel
     const q = new Q().setFromAxisAngle(C.axis, (st.silOn ? 1 : -1) * travel * Math.PI * 6);   // three turns
-    C.silencer.position.copy(C.home.pos).sub(C.pivot).applyQuaternion(q).add(C.pivot).addScaledVector(C.axis, travel * 0.16);
+    C.silencer.position.copy(C.home.pos).sub(C.pivot).applyQuaternion(q).add(C.pivot).addScaledVector(C.axis, travel * 0.16 * (C.unit || 1));
     C.silencer.quaternion.copy(q).multiply(C.home.quat);
     C.silencer.visible = travel < 0.999 || e > 0.3;
     P.gun.muzzle.position.copy(travel < 0.05 ? C.muzzleOn : C.muzzleOff);

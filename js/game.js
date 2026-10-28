@@ -9,7 +9,7 @@
 BV.Game = class {
   constructor(engine) {
     this.engine = engine; this.scene = engine.scene; this.map = BV.Map;
-    this.ents = []; this.player = null; this.grenades = [];
+    this.ents = []; this.player = null; this.grenades = []; this.smokes = [];
     this.time = 0; this.frame = 0; this.phase = 'menu'; this.phaseT = 0; this.timer = 0;
     this.score = { VANGUARD: 0, RAVEN: 0 }; this.lossStreak = { VANGUARD: 0, RAVEN: 0 };
     this.round = 0; this.attackTeam = 'RAVEN';
@@ -128,7 +128,7 @@ BV.Game = class {
     for (const e of this.ents) { if (e.model) this.scene.remove(e.model.root); if (e.tag) this.scene.remove(e.tag); }
     this.ents = []; this.player = null;
     for (const gr of this.grenades) this.scene.remove(gr.mesh);
-    this.grenades = [];
+    this.grenades = []; (this.smokes || []).forEach(sm => this.scene.remove(sm.group)); this.smokes = [];
     this.clearDrops();
   }
 
@@ -184,7 +184,7 @@ BV.Game = class {
     const R = BV.RULES;
     BV.Effects.clear();
     for (const gr of this.grenades) this.scene.remove(gr.mesh);
-    this.grenades = [];
+    this.grenades = []; (this.smokes || []).forEach(sm => this.scene.remove(sm.group)); this.smokes = [];
     this.clearDrops();                                   // weapons on the floor go away with the round
     const atk = this.attackTeam;
     const spawns = { attack: BV.U.shuffle(this.map.data.spawns.attack.slice()), defend: BV.U.shuffle(this.map.data.spawns.defend.slice()) };
@@ -246,6 +246,7 @@ BV.Game = class {
       const sniperTaken = this.ents.some(e => e !== b && e.team === b.team && e.inv[1] && e.inv[1].def.id === 'lynx7');
       if (m >= 5400 && r < 0.2 && !sniperTaken) buy('lynx7');
       else if (m >= 5200 && r < 0.32) buy('bastion60');
+      else if (m >= 3650 && r < 0.12) buy('shade4');
       else if (m >= 3650) buy(r < 0.25 ? 'kestrel5' : (b.team === 'RAVEN' ? (r < 0.75 ? 'arx17' : 'halberd4') : (r < 0.75 ? 'halberd4' : 'arx17')));
       else if (m >= 3350) buy('arx17');
       else if (m >= 2550 && r < 0.35) buy('hammer12');
@@ -253,6 +254,10 @@ BV.Game = class {
       else if (m >= 1300 && this.round > 1 && r < 0.4) buy('specter9');
     }
     if (b.armor < 60 && m >= BV.ARMOR_PRICE) { m -= BV.ARMOR_PRICE; b.armor = 100; }
+    if (b.armor > 0 && !b.helmet && m >= BV.GEAR.helmet.price && Math.random() < 0.6) { m -= BV.GEAR.helmet.price; b.helmet = true; }
+    if (b.team === this.defendTeam() && !b.hasKit && m >= BV.GEAR.kit.price && Math.random() < 0.45) { m -= BV.GEAR.kit.price; b.hasKit = true; }
+    if (m >= 200 && !(b.nades && b.nades.flash) && Math.random() < 0.35) buy('flash');
+    if (m >= 300 && !(b.nades && b.nades.smoke) && Math.random() < 0.2) buy('smoke');
     if (!b.inv[1] && m >= 650 && b.inv[2].def.id === 'viper9' && Math.random() < 0.6) buy('falcon45');
     if (m >= 300 && !b.hasGrenade() && Math.random() < 0.55) buy('shard');
     b.money = m;
@@ -277,9 +282,18 @@ BV.Game = class {
       if (p.money < BV.ARMOR_PRICE) return 'money';
       p.money -= BV.ARMOR_PRICE; p.armor = 100; return 'bought';
     }
+    if (id === 'helmet') {
+      if (p.helmet) return 'have'; if (p.money < BV.GEAR.helmet.price) return 'money';
+      p.money -= BV.GEAR.helmet.price; p.helmet = true; return 'bought';
+    }
+    if (id === 'kit') {
+      if (p.team !== this.defendTeam()) return 'team';
+      if (p.hasKit) return 'have'; if (p.money < BV.GEAR.kit.price) return 'money';
+      p.money -= BV.GEAR.kit.price; p.hasKit = true; return 'bought';
+    }
     const d = BV.WEAPONS[id];
     if (p.money < d.price) return 'money';
-    if (d.slot === 4 && p.inv[4] && p.inv[4].count >= 2) return 'have';
+    if (d.slot === 4 && p.nades && (p.nades[id] || 0) >= (d.max || 1)) return 'have';
     if (d.slot !== 4 && p.inv[d.slot] && p.inv[d.slot].def.id === id) { p.inv[d.slot].reserve = d.reserve; p.inv[d.slot].mag = d.mag; return 'have'; }
     p.money -= d.price; p.giveWeapon(id);
     if (d.slot !== 4) this.switchSlot(p, d.slot, true);
@@ -406,7 +420,12 @@ BV.Game = class {
     if (hitE) {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
       let dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
-      if (hitPart === 'head' && def.cls !== 'melee') dmg = 9999;   // a bullet to the head is always lethal, armour or not
+      if (hitPart === 'head' && def.cls !== 'melee') {   // a bullet to the head is lethal... unless a helmet takes it (once; not sniper rounds)
+        if (hitE.helmet && def.cls !== 'sniper') {
+          hitE.helmet = false; dmg = Math.min(dmg, 34); BV.Audio.helmet && BV.Audio.helmet(hitE.isPlayer ? null : hitE.pos);
+          if (hitE.isPlayer) BV.HUD.notice('Your helmet stopped a headshot', '', 1.6); else if (c.isPlayer) BV.HUD.notice('Helmet!', '', 0.9);
+        } else dmg = 9999;
+      }
       if (c.isPlayer) { this.stats.hits++; if (hitPart === 'head') this.stats.heads++; }
       if (!hitE.isPlayer) BV.Effects.bloodHit(end, dir, hitPart === 'head');
       if (primary) BV.Audio.impact(end, 'flesh');
@@ -472,17 +491,17 @@ BV.Game = class {
 
   throwGrenade(c) {
     const inv = c.inv[4]; if (!inv || inv.count <= 0) return false;
-    inv.count--; c.nextFire = this.time + 0.9;
+    c.nades[inv.def.id] = (c.nades[inv.def.id] || 1) - 1; c.syncNades(); c.nextFire = this.time + 0.9;
     const eye = c.eye(this.T1), fwd = c.dir(this.T2);
     const mesh = (BV.Real && BV.Real.thrownGrenade && BV.Real.thrownGrenade()) || new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), BV.Models.mat(0x4c5236));
     mesh.rotation.set(Math.random() * 6, Math.random() * 6, 0);
     const pos = eye.clone().addScaledVector(fwd, 0.5);
     mesh.position.copy(pos); this.scene.add(mesh);
     const vel = fwd.clone().multiplyScalar(14.5).add(new THREE.Vector3(c.vel.x * 0.5, 2.2, c.vel.z * 0.5));
-    this.grenades.push({ pos, vel, fuse: 1.7, owner: c, mesh, def: inv.def, bounces: 0 });
+    this.grenades.push({ pos, vel, fuse: inv.def.fuse || 1.7, owner: c, mesh, def: inv.def, bounces: 0 });
     BV.Audio.knife(c.isPlayer ? null : c.pos);
     if (c.isPlayer) this.engine.viewmodel.swing();
-    if (inv.count <= 0) { const back = c.inv[c.prevSlot] && c.prevSlot !== 4 ? c.prevSlot : c.bestSlot(); setTimeout(() => { if (c.alive && c.slot === 4) this.switchSlot(c, back); }, 350); }
+    if (!c.hasGrenade()) { const back = c.inv[c.prevSlot] && c.prevSlot !== 4 ? c.prevSlot : c.bestSlot(); setTimeout(() => { if (c.alive && c.slot === 4) this.switchSlot(c, back); }, 350); }
     return true;
   }
   updateGrenades(dt) {
@@ -501,8 +520,65 @@ BV.Game = class {
         } else g.pos.add(step);
       }
       g.mesh.position.copy(g.pos); g.mesh.rotation.x += dt * 8; g.mesh.rotation.z += dt * 5;
-      if (g.fuse <= 0) { this.explode(g.pos, g.def.radius, g.def.damage, g.owner, g.def, true); this.scene.remove(g.mesh); this.grenades.splice(i, 1); }
+      if (g.fuse <= 0) {
+        if (g.def.kind === 'smoke') this.spawnSmoke(g.pos.clone(), g.def.radius);
+        else if (g.def.kind === 'flash') this.flashBang(g.pos.clone(), g.def.radius, g.owner);
+        else this.explode(g.pos, g.def.radius, g.def.damage, g.owner, g.def, true);
+        this.scene.remove(g.mesh); this.grenades.splice(i, 1);
+      }
     }
+  }
+  /* smoke screen: a cloud of soft sprites that blocks the bots' line of sight for ~15 s */
+  spawnSmoke(pos, radius) {
+    if (!this._smokeTex) { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 2, 32, 32, 31);
+      gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+      this._smokeTex = new THREE.CanvasTexture(c); }
+    const group = new THREE.Group(), sprites = [];
+    for (let i = 0; i < 30; i++) {
+      const m = new THREE.SpriteMaterial({ map: this._smokeTex, color: new THREE.Color().setHSL(0.1, 0.04, 0.62 + Math.random() * 0.12), transparent: true, opacity: 0, depthWrite: false, fog: true });
+      const s = new THREE.Sprite(m), a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * radius * 0.7;
+      s.userData = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.4 + Math.random() * 2.4, sz: 2.6 + Math.random() * 2.2, spin: (Math.random() - 0.5) * 0.3 };
+      group.add(s); sprites.push(s);
+    }
+    group.position.set(pos.x, Math.max(0, pos.y - 0.1), pos.z); this.scene.add(group);
+    this.smokes.push({ pos: new THREE.Vector3(pos.x, pos.y + 1.3, pos.z), r: radius, t: 0, life: 15, group, sprites });
+    BV.Audio.smoke && BV.Audio.smoke(pos); this.emitNoise(pos, 25, null);
+  }
+  updateSmokes(dt) {
+    for (let i = this.smokes.length - 1; i >= 0; i--) {
+      const s = this.smokes[i]; s.t += dt;
+      const grow = Math.min(1, s.t / 1.6), fade = s.t > s.life - 2 ? Math.max(0, (s.life - s.t) / 2) : 1;
+      for (const sp of s.sprites) { const u = sp.userData; sp.position.set(u.x * (0.4 + 0.6 * grow), u.y * (0.5 + 0.5 * grow), u.z * (0.4 + 0.6 * grow));
+        sp.scale.setScalar(u.sz * (0.35 + 0.65 * grow)); sp.material.opacity = 0.78 * grow * fade; sp.material.rotation += u.spin * dt; }
+      if (s.t >= s.life) { this.scene.remove(s.group); s.sprites.forEach(sp => sp.material.dispose()); this.smokes.splice(i, 1); }
+    }
+  }
+  smokeBlocks(a, b) {   // does any active smoke cloud sit across the segment a-b?
+    for (const s of this.smokes) {
+      if (s.t < 0.9 || s.t > s.life - 1.2) continue;
+      const r = s.r * Math.min(1, s.t / 1.6) * 0.88, ax = b.x - a.x, ay = b.y - a.y, az = b.z - a.z, L = ax * ax + ay * ay + az * az || 1;
+      const t = Math.max(0, Math.min(1, ((s.pos.x - a.x) * ax + (s.pos.y - a.y) * ay + (s.pos.z - a.z) * az) / L));
+      const dx = a.x + ax * t - s.pos.x, dy = (a.y + ay * t - s.pos.y) * 1.4, dz = a.z + az * t - s.pos.z;
+      if (dx * dx + dy * dy + dz * dz < r * r) return true;
+    }
+    return false;
+  }
+  /* flashbang: blinds whoever sees it, more when close and looking at it */
+  flashBang(pos, radius, owner) {
+    BV.Audio.flashbang && BV.Audio.flashbang(pos); this.engine.flashLight(new THREE.Vector3(pos.x, pos.y + 0.6, pos.z), 22);
+    const src = new THREE.Vector3(pos.x, pos.y + 0.25, pos.z);
+    for (const e of this.ents) {
+      if (!e.alive) continue;
+      const eye = e.eye(this.T3), d = eye.distanceTo(src); if (d > radius) continue;
+      if (!BV.Physics.los(src, eye)) continue;
+      const facing = e.dir(this.T4).dot(src.clone().sub(eye).normalize());
+      const f = facing > 0.5 ? 1 : facing > -0.1 ? 0.6 : 0.22, amt = Math.min(1, (1 - d / radius) * 1.5) * f;
+      if (amt < 0.05) continue;
+      const dur = 0.4 + 4.2 * amt;
+      if (e.isPlayer) { BV.HUD.flashed && BV.HUD.flashed(amt, dur); BV.Audio.ringing && BV.Audio.ringing(dur * 0.8, amt); }
+      else { e.blindUntil = this.time + dur * 0.9; e.target = null; }
+    }
+    this.emitNoise(pos, 40, owner);
   }
   explode(pos, radius, damage, owner, def, needLos) {
     BV.Effects.explosion(pos); BV.Audio.explosion(pos); this.engine.flashLight(new THREE.Vector3(pos.x, pos.y + 1.5, pos.z), 12);
@@ -550,6 +626,7 @@ BV.Game = class {
     }
   }
   kill(t, attacker, def, head) {
+    t.helmet = false; t.hasKit = false; t.nades = {}; t.inv[4] = null;
     t.alive = false; t.hp = 0; t.deaths++; t.deathT = 0; t.planting = t.defusing = false;
     this.cancelObjective(t);
     if (attacker && attacker !== t) {
@@ -707,7 +784,7 @@ BV.Game = class {
       const keep = d.alive && this.phase === 'planted' && (d.isBot || this.playerUse) && d.pos.distanceTo(ch.pos) < 1.8;
       if (!keep) this.cancelObjective(d);
       else {
-        this.defuseProgress += dt / R.defuseTime;
+        this.defuseProgress += dt / (R.defuseTime * (this.defuser && this.defuser.hasKit ? 0.54 : 1));   // kit: 3.5 s
         if (this.defuseProgress >= 1) { BV.Audio.defused(); this.defuser.score += 2; this.defuser.defusing = false; this.endRound(this.defendTeam(), 'defused'); }
       }
     }
@@ -856,7 +933,7 @@ BV.Game = class {
       if (e.isBot && e.alive) this.movementFx(e, dt);
     }
     this.updateObjective(dt);
-    this.updateGrenades(dt);
+    this.updateGrenades(dt); this.updateSmokes(dt);
     if (this.phase === 'live' || this.phase === 'planted') this.checkWin();
     // player spotting (for the radar), staggered
     if (this.lightStep) return;                  // extra physics sub-step: no spotting / model sync

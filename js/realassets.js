@@ -164,6 +164,7 @@ BV.Real = (function () {
     specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     vectormp: { data: 'fp_smg',     len: 0.58, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
+    shade4:   { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  sd: true, clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [99, 147], idle: [147, 180], draw: [183, 200] } },
@@ -226,6 +227,26 @@ BV.Real = (function () {
     info.base = B.base;
     return info.silencer ? info : null;
   }
+  /* a built suppressor tube on a rifle pack: hung from the weapon bone at the muzzle, along the barrel */
+  let sdTex = null;
+  function suppressorMesh(len, rad) {
+    if (!sdTex) { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#1e201f'; x.fillRect(0, 0, 64, 256);
+      for (let i = 0; i < 9; i++) { x.fillStyle = 'rgba(255,255,255,0.05)'; x.fillRect(0, 20 + i * 26, 64, 3); }
+      for (let i = 0; i < 500; i++) { x.fillStyle = `rgba(0,0,0,${Math.random() * 0.3})`; x.fillRect(Math.random() * 64, Math.random() * 256, 2, 2); }
+      sdTex = new THREE.CanvasTexture(c); sdTex.encoding = THREE.sRGBEncoding; }
+    const g = new THREE.CylinderGeometry(rad, rad, len, 18, 1); g.rotateX(Math.PI / 2);   // along Z
+    return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: sdTex, roughness: 0.55, metalness: 0.55 }));
+  }
+  function addSuppressor(inner, base, tip) {
+    inner.updateMatrixWorld(true);
+    const ws = base.getWorldScale(new THREE.Vector3()).x, u = 1 / ws;
+    const tw = base.localToWorld(tip.clone()), fw = base.worldToLocal(tw.clone().add(new THREE.Vector3(0, 0, -1)));
+    const axis = fw.sub(tip.clone()).normalize(), len = 0.19 * u;
+    const m = suppressorMesh(0.19, 0.019); m.scale.setScalar(u); m.frustumCulled = false; m.name = 'suppressor';
+    m.position.copy(tip).addScaledVector(axis, len * 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), axis); base.add(m);
+    return { silencer: m, home: { pos: m.position.clone(), quat: m.quaternion.clone() }, pivot: m.position.clone(), axis, unit: u,
+             muzzleOff: tip.clone(), muzzleOn: tip.clone().addScaledVector(axis, len), base };
+  }
   function fpPack(id) {
     if (id === 'arx17') return akPack();
     const c = PACKS[id]; if (!c) return null; const D = packs[c.data]; if (!D || D === 'loading') return null;
@@ -243,7 +264,9 @@ BV.Real = (function () {
     const muzzle = new THREE.Object3D();
     if (base) { const tip = inner.localToWorld(D.tip.clone()); muzzle.position.copy(base.worldToLocal(tip)); const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x); base.add(muzzle); }
     else { muzzle.position.set(0, 0.05, -c.len * 0.7); group.add(muzzle); }
-    if (coltInfo && base) muzzle.position.copy(coltInfo.muzzleOn);
+    let sdInfo = coltInfo;
+    if (c.sd && base) sdInfo = addSuppressor(inner, base, muzzle.position.clone());   // rifle with a screw-on suppressor
+    if (sdInfo) muzzle.position.copy(sdInfo.muzzleOn);
     const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
     let cur = actions.idle, atk = 0;
     const pack = {
@@ -265,7 +288,7 @@ BV.Real = (function () {
         if (cur !== actions.idle && !cur.isRunning()) { const a = actions.idle; a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.timeScale = 1; a.play(); cur.crossFadeTo(a, 0.15, false); cur = a; }
       },
       get busy() { return cur !== actions.idle && cur.isRunning(); },
-      _mixer: mixer, _actions: actions, get _cur() { return cur; }, colt: coltInfo, inner
+      _mixer: mixer, _actions: actions, get _cur() { return cur; }, colt: sdInfo, inner
     };
     return pack;
   }
@@ -410,6 +433,11 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    if (model === 'm4sd') {   // third person: the carbine plus the suppressor tube at its muzzle
+      const g = gun('rifleCarbine') || (BV.Models && BV.Models.gun('rifleCarbine')); if (!g) return null;
+      const s = suppressorMesh(0.19, 0.019); g.group.add(s); s.position.copy(g.muzzle.position).add(new THREE.Vector3(0, 0, -0.095));
+      g.muzzle.position.z -= 0.19; g.group.userData.silencer = s; return g;
+    }
     if (model === 'colt' && colt) {   // third person: the Colt, origin at the grip, suppressor as a separate piece
       const group = new THREE.Group(), inner = colt.clone(true); inner.position.set(0, 0.028, -0.077); group.add(inner);
       let silencer = null; inner.traverse(o => { if (o.isMesh) { o.castShadow = true; if (/^Silencer/.test(o.name)) silencer = o; } });
