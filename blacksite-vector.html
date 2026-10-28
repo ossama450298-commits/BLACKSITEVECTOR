@@ -175,6 +175,12 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 #ammo-mag { font-size: 40px; font-weight: 700; } #ammo-res { font-size: 18px; color: var(--ink-dim); margin-left: 6px; }
 #hud-ammo.low #ammo-mag { color: var(--rust); }
 /* charge carried: CS-style icon above the money, flashing green inside a plant site */
+/* headshot kill pop-up */
+#hs-pop { position: absolute; left: 50%; top: 43%; transform: translate(-50%, -50%); font-family: var(--title-font), Impact, sans-serif; font-size: 44px; letter-spacing: 0.12em;
+  color: #ffd25a; text-shadow: 0 0 14px rgba(255,120,40,0.85), 0 3px 0 #2a1206; pointer-events: none; }
+#hs-pop.show { animation: hsPop 0.9s ease-out forwards; }
+@keyframes hsPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(0.96); } }
+body.classic #hs-pop { font-family: var(--hud-font); color: rgba(255,200,80,0.95); text-shadow: none; }
 /* character pick in the match setup */
 .char-pick { display: flex; align-items: center; gap: 12px; }
 #char-thumb { width: 64px; height: 88px; object-fit: cover; border: 1px solid rgba(217,164,65,0.5); background: rgba(20,18,14,0.5); }
@@ -299,6 +305,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
     <div id="hud-wname">Viper-9</div>
     <div id="hud-ammo"><span id="ammo-mag">15</span><span id="ammo-res">/ 60</span></div>
   </div>
+  <div id="hs-pop" class="hidden">HEADSHOT</div>
   <div id="charge-icon" class="hidden">
     <svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true">
       <rect x="3" y="9" width="50" height="26" rx="3" fill="#b9a36f" stroke="#1d1f19" stroke-width="2"/>
@@ -4791,7 +4798,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.5.0';
+BV.VERSION = '4.6.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -5126,6 +5133,14 @@ BV.Audio = (function () {
     else if (kind === 'metal') { tone(t, 'triangle', 2400 + Math.random() * 900, 1500, 0.12, 0.12 * sp.g, sp.pan); noise(t, 0.04, 'highpass', 4000, 4000, 1, 0.15 * sp.g, sp.pan); }
     else { noise(t, 0.05, 'bandpass', 1800 + Math.random() * 1500, 900, 1.5, 0.22 * sp.g, sp.pan); }
   }
+  // headshot kill: a sharp metallic 'tink' over a low thump
+  function headshot() {
+    if (!ctx) return; const t = ctx.currentTime, g = ctx.createGain(); g.connect(sfxBus || master || ctx.destination);
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(2400, t); o.frequency.exponentialRampToValueAtTime(1500, t + 0.12);
+    const g1 = ctx.createGain(); g1.gain.setValueAtTime(0.0001, t); g1.gain.exponentialRampToValueAtTime(0.35, t + 0.005); g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.28); o.connect(g1); g1.connect(g); o.start(t); o.stop(t + 0.3);
+    const b = ctx.createOscillator(); b.type = 'sine'; b.frequency.setValueAtTime(140, t); b.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.4, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.18); b.connect(g2); g2.connect(g); b.start(t); b.stop(t + 0.2);
+  }
   function hitmarker(head) {
     if (!ok()) return; const t = ctx.currentTime;
     tone(t, 'square', head ? 1900 : 1300, head ? 1700 : 1150, 0.05, 0.08, 0);
@@ -5224,7 +5239,7 @@ BV.Audio = (function () {
   }
   function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
 
-  return {
+  return { headshot, 
     init, resume, applyVolumes, setListener, shot, knife, reload, dryFire, draw, zoom, step, land, jump,
     impact, hitmarker, hurt, death, bounce, shell, explosion, beep, keypad, chargeArmed, defused, ui, roundStinger,
     startAmbience, stopAmbience, startMusic, stopMusic,
@@ -10080,7 +10095,8 @@ BV.Game = class {
     const end = this.T4.set(eye.x + dir.x * maxT, eye.y + dir.y * maxT, eye.z + dir.z * maxT).clone();
     if (hitE) {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
-      const dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
+      let dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
+      if (hitPart === 'head' && def.cls !== 'melee') dmg = 9999;   // a bullet to the head is always lethal, armour or not
       if (c.isPlayer) { this.stats.hits++; if (hitPart === 'head') this.stats.heads++; }
       if (!hitE.isPlayer) BV.Effects.bloodHit(end, dir, hitPart === 'head');
       if (primary) BV.Audio.impact(end, 'flesh');
@@ -10218,7 +10234,10 @@ BV.Game = class {
     const head = part === 'head';
     if (attacker && attacker.isPlayer && attacker !== t) { BV.HUD.hitmarker(head, t.hp <= 0); BV.Audio.hitmarker(head); }
     if (this.training && t.isPlayer) t.hp = Math.max(t.hp, 1);
-    if (t.hp <= 0) this.kill(t, attacker, def, head);
+    if (t.hp <= 0) {
+      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.HUD.headshot && BV.HUD.headshot(); BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }
+      this.kill(t, attacker, def, head);
+    }
   }
   kill(t, attacker, def, head) {
     t.alive = false; t.hp = 0; t.deaths++; t.deathT = 0; t.planting = t.defusing = false;
@@ -11301,6 +11320,11 @@ BV.HUD = (function () {
     while (el.killfeed.children.length > 6) el.killfeed.lastChild.remove();
     setTimeout(() => d.remove(), 7000);
   }
+  function headshot() {
+    const e = document.getElementById('hs-pop'); if (!e) return;
+    e.classList.remove('hidden', 'show'); void e.offsetWidth; e.classList.add('show');
+    clearTimeout(e._t); e._t = setTimeout(() => { e.classList.remove('show'); e.classList.add('hidden'); }, 950);
+  }
   function hitmarker(head, kill) { el.hitmarker.className = (head ? 'head' : '') + (kill ? ' kill' : ''); hitT = kill ? 0.35 : 0.18; }
   function damageFrom(angle) {
     const a = document.createElement('div'); a.className = 'dmg-arc';
@@ -11520,7 +11544,7 @@ BV.HUD = (function () {
   function buyMenu(v) { el.buymenu.classList.toggle('hidden', !v); if (v) { el['buy-status'].textContent = ''; refreshBuy(true); } }
   function fps(v, txt) { el.fps.classList.toggle('hidden', !v); if (v) el.fps.textContent = txt; }
 
-  return { init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
+  return { headshot,  init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
     get buyOpen() { return el && !el.buymenu.classList.contains('hidden'); } };
 })();
 

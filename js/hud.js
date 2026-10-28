@@ -64,6 +64,11 @@ BV.HUD = (function () {
     while (el.killfeed.children.length > 6) el.killfeed.lastChild.remove();
     setTimeout(() => d.remove(), 7000);
   }
+  function headshot() {
+    const e = document.getElementById('hs-pop'); if (!e) return;
+    e.classList.remove('hidden', 'show'); void e.offsetWidth; e.classList.add('show');
+    clearTimeout(e._t); e._t = setTimeout(() => { e.classList.remove('show'); e.classList.add('hidden'); }, 950);
+  }
   function hitmarker(head, kill) { el.hitmarker.className = (head ? 'head' : '') + (kill ? ' kill' : ''); hitT = kill ? 0.35 : 0.18; }
   function damageFrom(angle) {
     const a = document.createElement('div'); a.className = 'dmg-arc';
@@ -283,6 +288,6 @@ BV.HUD = (function () {
   function buyMenu(v) { el.buymenu.classList.toggle('hidden', !v); if (v) { el['buy-status'].textContent = ''; refreshBuy(true); } }
   function fps(v, txt) { el.fps.classList.toggle('hidden', !v); if (v) el.fps.textContent = txt; }
 
-  return { init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
+  return { headshot,  init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,
     get buyOpen() { return el && !el.buymenu.classList.contains('hidden'); } };
 })();

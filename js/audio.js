@@ -133,6 +133,14 @@ BV.Audio = (function () {
     else if (kind === 'metal') { tone(t, 'triangle', 2400 + Math.random() * 900, 1500, 0.12, 0.12 * sp.g, sp.pan); noise(t, 0.04, 'highpass', 4000, 4000, 1, 0.15 * sp.g, sp.pan); }
     else { noise(t, 0.05, 'bandpass', 1800 + Math.random() * 1500, 900, 1.5, 0.22 * sp.g, sp.pan); }
   }
+  // headshot kill: a sharp metallic 'tink' over a low thump
+  function headshot() {
+    if (!ctx) return; const t = ctx.currentTime, g = ctx.createGain(); g.connect(sfxBus || master || ctx.destination);
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(2400, t); o.frequency.exponentialRampToValueAtTime(1500, t + 0.12);
+    const g1 = ctx.createGain(); g1.gain.setValueAtTime(0.0001, t); g1.gain.exponentialRampToValueAtTime(0.35, t + 0.005); g1.gain.exponentialRampToValueAtTime(0.0001, t + 0.28); o.connect(g1); g1.connect(g); o.start(t); o.stop(t + 0.3);
+    const b = ctx.createOscillator(); b.type = 'sine'; b.frequency.setValueAtTime(140, t); b.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+    const g2 = ctx.createGain(); g2.gain.setValueAtTime(0.4, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.18); b.connect(g2); g2.connect(g); b.start(t); b.stop(t + 0.2);
+  }
   function hitmarker(head) {
     if (!ok()) return; const t = ctx.currentTime;
     tone(t, 'square', head ? 1900 : 1300, head ? 1700 : 1150, 0.05, 0.08, 0);
@@ -231,7 +239,7 @@ BV.Audio = (function () {
   }
   function stopMusic() { if (musicTimer) { clearInterval(musicTimer); musicTimer = null; } }
 
-  return {
+  return { headshot, 
     init, resume, applyVolumes, setListener, shot, knife, reload, dryFire, draw, zoom, step, land, jump,
     impact, hitmarker, hurt, death, bounce, shell, explosion, beep, keypad, chargeArmed, defused, ui, roundStinger,
     startAmbience, stopAmbience, startMusic, stopMusic,

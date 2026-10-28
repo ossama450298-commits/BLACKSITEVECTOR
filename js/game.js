@@ -403,7 +403,8 @@ BV.Game = class {
     const end = this.T4.set(eye.x + dir.x * maxT, eye.y + dir.y * maxT, eye.z + dir.z * maxT).clone();
     if (hitE) {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
-      const dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
+      let dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
+      if (hitPart === 'head' && def.cls !== 'melee') dmg = 9999;   // a bullet to the head is always lethal, armour or not
       if (c.isPlayer) { this.stats.hits++; if (hitPart === 'head') this.stats.heads++; }
       if (!hitE.isPlayer) BV.Effects.bloodHit(end, dir, hitPart === 'head');
       if (primary) BV.Audio.impact(end, 'flesh');
@@ -541,7 +542,10 @@ BV.Game = class {
     const head = part === 'head';
     if (attacker && attacker.isPlayer && attacker !== t) { BV.HUD.hitmarker(head, t.hp <= 0); BV.Audio.hitmarker(head); }
     if (this.training && t.isPlayer) t.hp = Math.max(t.hp, 1);
-    if (t.hp <= 0) this.kill(t, attacker, def, head);
+    if (t.hp <= 0) {
+      if (head && attacker && attacker.isPlayer && attacker !== t) { BV.HUD.headshot && BV.HUD.headshot(); BV.Audio.headshot ? BV.Audio.headshot() : BV.Audio.hitmarker(true); }
+      this.kill(t, attacker, def, head);
+    }
   }
   kill(t, attacker, def, head) {
     t.alive = false; t.hp = 0; t.deaths++; t.deathT = 0; t.planting = t.defusing = false;

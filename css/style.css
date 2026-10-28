@@ -163,6 +163,12 @@ table.keys td:nth-child(odd) { color: var(--amber); white-space: nowrap; font-we
 #ammo-mag { font-size: 40px; font-weight: 700; } #ammo-res { font-size: 18px; color: var(--ink-dim); margin-left: 6px; }
 #hud-ammo.low #ammo-mag { color: var(--rust); }
 /* charge carried: CS-style icon above the money, flashing green inside a plant site */
+/* headshot kill pop-up */
+#hs-pop { position: absolute; left: 50%; top: 43%; transform: translate(-50%, -50%); font-family: var(--title-font), Impact, sans-serif; font-size: 44px; letter-spacing: 0.12em;
+  color: #ffd25a; text-shadow: 0 0 14px rgba(255,120,40,0.85), 0 3px 0 #2a1206; pointer-events: none; }
+#hs-pop.show { animation: hsPop 0.9s ease-out forwards; }
+@keyframes hsPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.8); } 14% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(0.96); } }
+body.classic #hs-pop { font-family: var(--hud-font); color: rgba(255,200,80,0.95); text-shadow: none; }
 /* character pick in the match setup */
 .char-pick { display: flex; align-items: center; gap: 12px; }
 #char-thumb { width: 64px; height: 88px; object-fit: cover; border: 1px solid rgba(217,164,65,0.5); background: rgba(20,18,14,0.5); }
