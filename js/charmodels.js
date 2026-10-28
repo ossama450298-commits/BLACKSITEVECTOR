@@ -42,22 +42,23 @@ BV.CharModels = (function () {
     rotWorld(upperB, _rq);
   }
 
-  function create(teamId) {
+  function create(teamId, variant) {
     const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD', M = BV.Models;
     const root = new THREE.Group(), bodyG = new THREE.Group(); root.add(bodyG);
-    const model = THREE.SkeletonUtils.clone(BV.Real.soldier.scene);
+    const list = BV.Real.characters ? BV.Real.characters(teamId) : [], pick = list.length ? list[(variant || 0) % list.length] : null;
+    const model = THREE.SkeletonUtils.clone(pick ? pick.scene : BV.Real.soldier.scene), isBase = !pick || pick.id === 'operator';
     model.rotation.y = Math.PI;
     bodyG.add(model);
     const bones = {}; model.traverse(o => { if (o.isBone) bones[o.name.replace(/^mixamorig/, '').replace(/_\d+$/, '')] = o; });
     const mats = [];
     // per-instance materials; Raven gets a darker, earthier uniform tint
-    const tint = V ? null : new THREE.Color(0x8c7b66);
+    const tint = V || !isBase ? null : new THREE.Color(0x8c7b66);   // new characters keep their own colours
     model.traverse(o => {
       if (!o.isMesh) return;
       const hiQ = BV.settings.quality === 'high' || BV.settings.quality === 'ultra';
       o.frustumCulled = false; o.castShadow = hiQ; o.receiveShadow = true;
       const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint);
-        if (V && /Topmat|Bottommat|Hatmat/i.test(n.name || '')) policeBlue(n);   // Vanguard: police-blue uniform
+        if (V && (isBase ? /Topmat|Bottommat|Hatmat/i : /Body/i).test(n.name || '')) policeBlue(n);   // Vanguard: police-blue uniform
         n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
       o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
     });

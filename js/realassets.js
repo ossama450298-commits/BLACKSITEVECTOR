@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -141,6 +141,7 @@ BV.Real = (function () {
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
+    for (const k of ['char_swat', 'char_merc', 'char_stalker']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
     if (BV.REAL.timebomb) jobs.push(parse(BV.REAL.timebomb).then(g => { styleMaterials(g.scene); timebomb = g.scene; }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
@@ -497,5 +498,11 @@ BV.Real = (function () {
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);
     return true;
   }
-  return { _packs: packs, load, gun, akPack, fpPack, armsRig, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  // operator variety: every model shares the operator skeleton and animations
+  function characters(team) {
+    const base = soldier ? [{ scene: soldier.scene, id: 'operator' }] : [];
+    const extra = team === 'VANGUARD' ? ['char_swat'] : ['char_merc', 'char_stalker'];
+    return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
+  }
+  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

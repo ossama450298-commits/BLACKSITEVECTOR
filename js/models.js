@@ -686,8 +686,8 @@ BV.Models = (function () {
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return g;
   }
-  function soldier(teamId) {
-    if (BV.CharModels && BV.CharModels.ready) return BV.CharModels.create(teamId);
+  function soldier(teamId, variant) {
+    if (BV.CharModels && BV.CharModels.ready) return BV.CharModels.create(teamId, variant);
     const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD';
     const root = new THREE.Group();
     const body = new THREE.Group(); root.add(body);

@@ -162,7 +162,7 @@ BV.Game = class {
   }
 
   addEnt(e) {
-    e.model = BV.Models.soldier(e.team);
+    if (e.variant === undefined) { this._vc = this._vc || {}; e.variant = this._vc[e.team] = (this._vc[e.team] || 0) + 1; } e.model = BV.Models.soldier(e.team, e.variant);
     this.scene.add(e.model.root);
     if (this.player && e.team === this.player.team && e !== this.player) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: BV.Textures.nameTag(e.name, BV.TEAMS[e.team].css), transparent: true, depthWrite: false, depthTest: true }));
@@ -173,7 +173,7 @@ BV.Game = class {
   rebuildModels() {
     for (const e of this.ents) {
       this.scene.remove(e.model.root);
-      e.model = BV.Models.soldier(e.team); this.scene.add(e.model.root);
+      if (e.variant === undefined) { this._vc = this._vc || {}; e.variant = this._vc[e.team] = (this._vc[e.team] || 0) + 1; } e.model = BV.Models.soldier(e.team, e.variant); this.scene.add(e.model.root);
       if (e.weapon) e.model.setWeapon(e.weapon.def);
     }
   }
