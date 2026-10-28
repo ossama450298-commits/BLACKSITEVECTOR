@@ -403,7 +403,7 @@
       E.viewmodel.update(dt, {
         speed: Math.hypot(p.vel.x, p.vel.z), onGround: p.onGround, crouch: p.crouch > 0.5, sprint: p.sprint,
         mdx, mdy,
-        busy: p.planting || p.defusing, visible: p.alive && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
+        busy: p.planting || p.defusing, planting: !!p.planting, defusing: !!p.defusing, visible: p.alive && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
       });
       BV.HUD.update(dt);
     } else if (E.state === 'pause') {

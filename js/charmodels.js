@@ -85,6 +85,10 @@ BV.CharModels = (function () {
     const U = { aim: act(upper.Pistol_Aim_Neutral), up: act(upper.Pistol_Aim_Up), down: act(upper.Pistol_Aim_Down), shoot: act(upper.Pistol_Shoot), reload: act(upper.Pistol_Reload), run: act(upper.Sprint_Loop) };
     const hit = upper.Hit_Chest ? mixer.clipAction(upper.Hit_Chest) : null; if (hit) hit.setLoop(THREE.LoopOnce, 1);
     const death = BV.Real.clips.Death01 ? mixer.clipAction(BV.Real.clips.Death01) : null; if (death) { death.setLoop(THREE.LoopOnce, 1); death.clampWhenFinished = true; }
+    // kneel-and-work (planting / defusing the charge): the middle of the Mixamo clip, looped, full body
+    const kneelClip = BV.Real.clips.Plant ? THREE.AnimationUtils.subclip(BV.Real.clips.Plant, 'Kneel', 42, 138, 30) : null;
+    const kneel = kneelClip ? mixer.clipAction(kneelClip) : null; if (kneel) { kneel.play(); kneel.setEffectiveWeight(0); }
+    let wK = 0;
     const wL = {}, wU = {}; for (const k in L) wL[k] = 0; for (const k in U) wU[k] = 0;
     const supportLocal = new THREE.Vector3(), _tw = new THREE.Vector3(), _belt = new THREE.Vector3(), _sh = new THREE.Vector3(), _v = new THREE.Vector3();
     let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle', lodAcc = 0, lodN = 0;
@@ -109,10 +113,12 @@ BV.CharModels = (function () {
         if (lodN++ % step) return;            // the first update after a (re)spawn is never skipped
         dt = lodAcc; lodAcc = 0;
         const st = api.state || {}, k = Math.min(1, dt * 9);
+        wK += ((st.kneel && kneel ? 1 : 0) - wK) * Math.min(1, dt * 5); if (kneel) kneel.setEffectiveWeight(wK);
+        gunHolder.visible = wK < 0.4;                          // weapon slung while the hands work on the charge
         const crouching = crouch > 0.5, moving = speed > 0.35;
         const tL = { idle: 0, walk: 0, jog: 0, sprint: 0, cidle: 0, cwalk: 0 };
         if (crouching) tL[moving ? 'cwalk' : 'cidle'] = 1; else if (!moving) tL.idle = 1; else if (st.sprint) tL.sprint = 1; else if (speed < 2.6) tL.walk = 1; else tL.jog = 1;
-        for (const n in L) { if (!L[n]) continue; wL[n] += (tL[n] - wL[n]) * k; L[n].setEffectiveWeight(wL[n]); }
+        for (const n in L) { if (!L[n]) continue; wL[n] += (tL[n] - wL[n]) * k; L[n].setEffectiveWeight(wL[n] * (1 - wK)); }
         const dir = st.back ? -1 : 1;
         if (L.walk) L.walk.timeScale = dir * BV.U.clamp(speed / 1.6, 0.6, 1.6);
         if (L.jog) L.jog.timeScale = dir * BV.U.clamp(speed / 4.2, 0.7, 1.5);
@@ -125,7 +131,7 @@ BV.CharModels = (function () {
         if (st.sprint && !firing) tU.run = 1; else if (st.reloading && cls === 'pistol') tU.reload = 1; else if (firing && cls === 'pistol') tU.shoot = 1;
         else { tU.aim = 1 - Math.abs(pu); if (pu > 0) tU.up = pu; else tU.down = -pu; }
         if (U.reload && tU.reload && wU.reload < 0.05) U.reload.time = 0;
-        for (const n in U) { if (!U[n]) continue; wU[n] += (tU[n] - wU[n]) * Math.min(1, dt * 14); U[n].setEffectiveWeight(wU[n]); }
+        for (const n in U) { if (!U[n]) continue; wU[n] += (tU[n] - wU[n]) * Math.min(1, dt * 14); U[n].setEffectiveWeight(wU[n] * (1 - wK)); }
         mixer.update(dt);
         bodyG.position.y = 0.045;           // mesh sits ~4 cm low in the source rig
         api.place(pitch, st);
@@ -145,11 +151,11 @@ BV.CharModels = (function () {
         gunHolder.rotation.set(p + kick * 0.1, 0, relPh > 0 ? Math.sin(Math.min(1, relPh) * Math.PI * 0.5) * 0.45 : 0);
         gunHolder.updateMatrixWorld(true);
         ikW += (1 - ikW) * 0.3;
-        if (bones.RightArm && bones.RightForeArm && bones.RightHand) { _tw.set(0, -0.02, 0.04); gunHolder.localToWorld(_tw); ik(bones.RightArm, bones.RightForeArm, bones.RightHand, _tw, ikW); }
+        if (bones.RightArm && bones.RightForeArm && bones.RightHand) { _tw.set(0, -0.02, 0.04); gunHolder.localToWorld(_tw); ik(bones.RightArm, bones.RightForeArm, bones.RightHand, _tw, ikW * (1 - wK)); }
         if (bones.LeftArm && bones.LeftForeArm && bones.LeftHand) {
           _tw.copy(supportLocal); gunHolder.localToWorld(_tw);
           if (relPh > 0) { _belt.set(-0.15, 1.0, -0.12); bodyG.localToWorld(_belt); _tw.lerp(_belt, Math.sin(BV.U.clamp(relPh / 1.4, 0, 1) * Math.PI)); }
-          ik(bones.LeftArm, bones.LeftForeArm, bones.LeftHand, _tw, ikW);
+          ik(bones.LeftArm, bones.LeftForeArm, bones.LeftHand, _tw, ikW * (1 - wK));
         }
       },
       flinch() { if (hit && !dying) { hit.reset(); hit.setEffectiveWeight(0.8); hit.fadeOut(0.3); hit.play(); } },
@@ -168,6 +174,7 @@ BV.CharModels = (function () {
       reset() {
         dying = false; lastDie = 0; bodyG.position.y = 0.045;
         if (death) death.stop();
+        wK = 0; if (kneel) kneel.setEffectiveWeight(0); gunHolder.visible = true;
         for (const n in L) if (L[n]) { L[n].stop(); L[n].play(); wL[n] = n === 'idle' ? 1 : 0; L[n].setEffectiveWeight(wL[n]); }
         for (const n in U) if (U[n]) { U[n].stop(); U[n].play(); wU[n] = n === 'aim' ? 1 : 0; U[n].setEffectiveWeight(wU[n]); }
         lodN = 0; lodAcc = 0; mixer.update(0.001);   // posed before the first render (never shown in the T-pose)

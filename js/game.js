@@ -881,7 +881,7 @@ BV.Game = class {
       const sp = Math.hypot(e.vel.x, e.vel.z);
       if (e.alive) {
         e.walkPhase += sp * dt * 2.1;
-        m.state = m.state || {}; m.state.sprint = e.sprint && sp > 4; m.state.reloading = e.reloading; m.state.back = sp > 0.5 && (-Math.sin(e.yaw) * e.vel.x - Math.cos(e.yaw) * e.vel.z) < -0.4 * sp;
+        m.state = m.state || {}; m.state.kneel = (this.planter === e && this.phase === 'live') || this.defuser === e; m.state.sprint = e.sprint && sp > 4; m.state.reloading = e.reloading; m.state.back = sp > 0.5 && (-Math.sin(e.yaw) * e.vel.x - Math.cos(e.yaw) * e.vel.z) < -0.4 * sp;
         m.animate(dt, sp, e.crouch, e.pitch, e.walkPhase, this.time - e.lastShot < 0.08);
         m.root.visible = !e.isPlayer || (this.engine.thirdPerson === true);
       } else {

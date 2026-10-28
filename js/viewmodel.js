@@ -113,6 +113,34 @@ BV.Viewmodel = class {
     this.sp.pv.y += 0.4; this.sp.rv.x += 2.5; // settle impulse after the raise
   }
   reload(time, empty) { this.t.reload = time; this.t.reloadMax = time; this.t.inspect = 0; if (this.pack) this.pack.play(empty ? 'reloadEmpty' : 'reload', time); }
+  /* first-person charge handling: the bomb in the hands, typing the code (plant) or working on the
+     wires with the charge on the ground (defuse) */
+  updateUse(dt, st) {
+    const k = this.useK || 0;
+    if (k < 0.01) { if (this.useRig) this.useRig.g.visible = false; return; }
+    if (!this.useRig) {
+      const g = new THREE.Group(), TB = BV.Real && BV.Real.chargeModel && BV.Real.chargeModel();
+      const bomb = TB ? TB.group : null; if (bomb) { bomb.scale.setScalar(0.72); g.add(bomb); }
+      const arms = BV.Models.viewArms(this.team || 'VANGUARD'); g.add(arms.group);
+      g.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } });
+      this.root.add(g); this.useRig = { g, bomb, arms }; this.useT = 0;
+    }
+    const R = this.useRig, t = (this.useT += dt), def = !!st.defusing, drop = (1 - k) * 0.28, L = R.arms.left, H = R.arms.right;
+    R.g.visible = true;
+    if (R.bomb) {
+      if (!def) { R.bomb.position.set(-0.01, -0.07 - drop, -0.41); R.bomb.rotation.set(0.95, 0.12, 0); }        // held, tilted towards the eyes
+      else { R.bomb.position.set(0.0, -0.215 - drop, -0.6); R.bomb.rotation.set(0.42, 0.4, 0); }                // lying on the ground
+    }
+    if (!def) {
+      L.position.set(-0.122, -0.085 - drop, -0.4); L.rotation.set(0.55, -0.35, 1.35);
+      const tap = Math.max(0, Math.sin(t * 15)) * 0.011, hop = Math.floor(t * 2.5) % 3;              // finger taps, moving between keys
+      H.position.set(0.02 + hop * 0.012, -0.045 - drop + tap, -0.42 + hop * 0.006); H.rotation.set(1.0, 0.25, -1.25);
+    } else {
+      const sw = Math.sin(t * 2.6) * 0.035, pick = Math.abs(Math.sin(t * 8)) * 0.008;                     // working along the wires
+      L.position.set(-0.08 + sw * 0.4, -0.18 - drop, -0.56); L.rotation.set(0.95, -0.25, 1.2);
+      H.position.set(0.08 + sw, -0.17 - drop + pick, -0.57); H.rotation.set(1.05, 0.3, -1.2);
+    }
+  }
   swing() { this.t.swing = 0.32; if (this.pack && this.def && this.def.cls === 'melee') this.pack.play('attack'); }
   inspect() { if (this.t.reload <= 0 && this.t.draw <= 0 && this.def && this.def.cls !== 'grenade') this.t.inspect = 2.6; }
   land(speed) { const k = Math.min(1, speed / 12); this.sp.pv.y -= 0.9 * k; this.sp.rv.x -= 3 * k; }
@@ -253,7 +281,10 @@ BV.Viewmodel = class {
       ry += a * 0.9; rz += a * 0.35; px -= a * 0.06; py += a * 0.03; rx += Math.sin(p * Math.PI * 2) * a * 0.12;
       if (p > 0.45 && p < 0.7) { const b = Math.sin((p - 0.45) / 0.25 * Math.PI); rz -= b * 0.9; ry -= b * 0.5; }
     }
-    if (st.busy) { py -= 0.3; rx -= 0.8; }
+    // planting / defusing: the weapon eases away and the hands work on the charge (see updateUse)
+    this.useK = (this.useK || 0) + ((st.busy ? 1 : 0) - (this.useK || 0)) * Math.min(1, dt * 6);
+    { const k = this.useK; py -= 0.5 * k; rx -= 0.9 * k; }
+    this.updateUse(dt, st);
     this.holder.position.set(px, py, pz); this.holder.rotation.set(rx, ry, rz);
     // ---- muzzle flash ----
     if (t.flash > 0) {
