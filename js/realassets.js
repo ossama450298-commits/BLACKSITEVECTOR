@@ -377,6 +377,11 @@ BV.Real = (function () {
     return (split[model] = { body, mag: mag.children.length ? mag : null });
   }
   function gun(model) {
+    if (model === 'charge' && timebomb) {   // the charge carried in the hands (third person)
+      const C = chargeModel(), group = new THREE.Group(); C.group.scale.setScalar(0.62); C.group.rotation.set(-1.15, 0, 0); C.group.position.set(0, -0.03, -0.12); group.add(C.group);
+      const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0, -0.25); group.add(muzzle); const eject = new THREE.Object3D(); group.add(eject);
+      return { group, muzzle, mag: null, magHome: null, eject, real: true };
+    }
     // weapons whose third-person model comes from their first-person pack (e.g. the LMG)
     for (const id in PACKS) { const c = PACKS[id]; if (c.world === model && packs[c.data] && packs[c.data].worldTpl) {
       const D = packs[c.data], group = new THREE.Group(), inner = D.worldTpl.clone();

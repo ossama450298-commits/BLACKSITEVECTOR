@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.3.0';
+BV.VERSION = '4.4.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -73,6 +73,9 @@ BV.WEAPONS = {
               rate: 0.075, mag: 100, reserve: 200, reload: 4.6, spread: 0.0055, moveSpread: 0.07, airSpread: 0.25,
               shotSpread: 0.0075, kick: 0.0125, drop: 0.97, price: 5200, speed: 0.8, model: 'lmg',
               snd: { f: 1450, l: 0.25, t: 110, v: 1.05 }, reward: 300 },
+  charge:    { id: 'charge', name: 'Demo Charge', slot: 5, cls: 'charge', auto: false, damage: 0, head: 0, armorPen: 0,
+              rate: 1, mag: 1, reserve: 0, reload: 1, spread: 0, moveSpread: 0, airSpread: 0, shotSpread: 0, kick: 0, drop: 1,
+              price: 0, speed: 1, model: 'charge', snd: { f: 800, l: 0.05, t: 40, v: 0.2 }, reward: 0 },
   halberd4: { id: 'halberd4', name: 'Halberd-4', slot: 1, cls: 'rifle', auto: true, damage: 31, head: 4.0, armorPen: 0.72,
               rate: 0.09, mag: 30, reserve: 90, reload: 2.3, spread: 0.0028, moveSpread: 0.042, airSpread: 0.18,
               shotSpread: 0.005, kick: 0.0095, drop: 0.97, price: 3000, speed: 0.92, model: 'rifleCarbine',

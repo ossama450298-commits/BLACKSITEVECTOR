@@ -61,10 +61,10 @@ BV.Player = (function () {
     if (uiOpen) { lastFireDown = false; game.playerUse = false; return; }
     // ---------- weapons ----------
     const w = p.weapon;
-    for (let i = 1; i <= 4; i++) if (inp.pressed('Digit' + i)) game.switchSlot(p, i);
+    for (let i = 1; i <= 5; i++) if (inp.pressed('Digit' + i)) game.switchSlot(p, i);
     if (inp.pressed('KeyQ')) game.switchSlot(p, p.prevSlot);
     if (inp.mouse.wheel) {
-      const order = [1, 2, 3, 4].filter(sl => p.inv[sl] && (sl !== 4 || p.hasGrenade()));
+      const order = [1, 2, 3, 4, 5].filter(sl => p.inv[sl] && (sl !== 4 || p.hasGrenade()));
       let i = order.indexOf(p.slot); i = (i + (inp.mouse.wheel > 0 ? 1 : -1) + order.length) % order.length;
       game.switchSlot(p, order[i]);
     }
@@ -76,7 +76,8 @@ BV.Player = (function () {
       p.zoom = (p.zoom + 1) % (max + 1); BV.Audio.zoom();
     }
     const fireDown = inp.mouse.left;
-    if (fireDown && w) {
+    const holdingCharge = w && w.def.cls === 'charge';
+    if (fireDown && w && !holdingCharge) {
       const auto = w.def.auto || w.def.cls === 'melee';
       if (auto || !lastFireDown) game.fire(p);
     }
@@ -87,7 +88,7 @@ BV.Player = (function () {
     if (p.reloading || p.slot !== 1) p._rezoom = 0;
 
     // ---------- objective ----------
-    game.playerUse = inp.down('KeyE');
+    game.playerUse = inp.down('KeyE') || (holdingCharge && inp.mouse.left);   // hold E, or hold fire with the charge in hand
     // clear feedback when E does nothing (no charge, outside the site, moving, freeze time)
     if (inp.pressed('KeyE') && p.team === game.attackTeam && game.phase !== 'planted' && !game.drops.some(d => Math.hypot(d.pos.x - p.pos.x, d.pos.z - p.pos.z) < 1.5)) {
       const site = game.map.siteAt(p.pos.x, p.pos.z);

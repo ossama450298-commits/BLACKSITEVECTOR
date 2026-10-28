@@ -53,12 +53,13 @@ BV.Viewmodel = class {
   equip(def, team) {
     if (this.gun) this.holder.remove(this.gun.group);
     this.def = def; this.team = team;
-    this.gun = BV.Models.gun(def.model);
+    this.gun = def.cls === 'charge' ? { group: new THREE.Group(), muzzle: new THREE.Object3D(), mag: null, magHome: null, eject: new THREE.Object3D() }   // the charge is drawn by the hands rig
+      : BV.Models.gun(def.model);
     // ARX-17: hand-animated first-person arms + AK (draw, idle, fire, reload, empty reload)
     this.pack = null;
     if (BV.Real && BV.Real.fpPack) { const P = BV.Real.fpPack(def.id); if (P) { this.pack = P; this.gun = P.gun; } }   // both styles (classic gets retro textures)
     this.arms = BV.Models.viewArms(team);
-    if (this.pack) this.arms.group.visible = false;
+    if (this.pack || def.cls === 'charge') this.arms.group.visible = false;
     const g = this.gun.group;
     if (def.cls === 'pistol') { this.arms.left.position.set(-0.024, -0.062, 0.03); this.arms.left.rotation.set(0.45, -0.25, 1.75); this.arms.right.position.set(0.012, -0.048, 0.042); this.arms.right.rotation.set(0.15, 0.1, -1.3); this.arms.group.scale.setScalar(0.85); }
     if (def.cls === 'melee') { this.arms.left.visible = false; }
@@ -137,13 +138,18 @@ BV.Viewmodel = class {
     const R = this.useRig, t = (this.useT += dt), def = !!st.defusing, drop = (1 - k) * 0.28;
     R.g.visible = true;
     const ease = (x) => x * x * (3 - 2 * x);
-    if (R.bomb) {
+    if (R.bomb && !(!def && !st.planting)) {
       if (!def) { R.bomb.position.set(-0.01, -0.07 - drop, -0.41); R.bomb.rotation.set(0.95, 0.12, 0); }
       else { R.bomb.position.set(0.0, -0.215 - drop, -0.6); R.bomb.rotation.set(0.42, 0.4, 0); }
     }
     // hand targets in view space (camera = origin, -Z forward)
     let lT, rT, lPole, rPole, rIndex = 0;
-    if (!def) {
+    const hold = !def && !st.planting;          // carrying the charge in both hands
+    if (hold) {
+      if (R.bomb) { R.bomb.position.set(0.0, -0.17 - drop, -0.44); R.bomb.rotation.set(0.55, 0.0, 0); }
+      const sway = Math.sin(t * 1.6) * 0.004;
+      lT = new THREE.Vector3(-0.128, -0.185 - drop + sway, -0.43); rT = new THREE.Vector3(0.128, -0.185 - drop + sway, -0.43);
+    } else if (!def) {
       const keyT = (t * 2.4) % 1, key = Math.floor(t * 2.4) % 4, press = ease(Math.min(1, Math.max(0, 1 - Math.abs(keyT - 0.5) * 3)));   // move, press, release
       const kx = [0.0, 0.03, 0.06, 0.03][key], kz = [0, 0.012, 0, -0.012][key];
       lT = new THREE.Vector3(-0.14, -0.1 - drop, -0.395);
@@ -154,11 +160,11 @@ BV.Viewmodel = class {
       lT = new THREE.Vector3(-0.12 + sw * 0.3, -0.2 - drop, -0.55); rT = new THREE.Vector3(0.09 + sw, -0.19 - drop + pick, -0.56);
     }
     lPole = new THREE.Vector3(-0.6, -0.55, 0.0); rPole = new THREE.Vector3(0.6, -0.55, 0.0);
-    if (R.rig) this.poseArms(R, lT, rT, lPole, rPole, def, rIndex);
+    if (R.rig) this.poseArms(R, lT, rT, lPole, rPole, def, rIndex, hold);
     else { R.arms.left.position.copy(lT); R.arms.left.rotation.set(0.55, -0.35, 1.35); R.arms.right.position.copy(rT); R.arms.right.rotation.set(1.0, 0.25, -1.25); }
   }
   // two-bone IK for both arms of the realistic rig (targets/poles in the use-rig's space)
-  poseArms(R, lT, rT, lPole, rPole, def, rIndex) {
+  poseArms(R, lT, rT, lPole, rPole, def, rIndex, hold) {
     const rig = R.rig, B = rig.bones, g = R.g;
     for (const n in rig.base) B[n].quaternion.copy(rig.base[n]);
     g.updateMatrixWorld(true);
@@ -182,7 +188,7 @@ BV.Viewmodel = class {
     };
     solve('L', lT, lPole); solve('R', rT, rPole);
     // wrist roll (about the forearm) and bend, so the palms face the charge instead of the sky
-    const tune = this.handTune || (def ? { rollL: -2.2, rollR: 2.2, bendL: 0.45, bendR: 0.45 } : { rollL: 1.6, rollR: 2.2, bendL: 0.1, bendR: 0.45 });
+    const tune = this.handTune || (hold ? { rollL: 1.6, rollR: -1.6, bendL: 0.15, bendR: 0.15 } : def ? { rollL: -2.2, rollR: 2.2, bendL: 0.45, bendR: 0.45 } : { rollL: 1.6, rollR: 2.2, bendL: 0.1, bendR: 0.45 });
     const wrist = (side, roll, bend) => {
       const E = B[side + '_elbow'], Wr = B[side + '_wrist']; if (!E || !Wr) return;
       const fdir = Wr.getWorldPosition(new THREE.Vector3()).sub(E.getWorldPosition(new THREE.Vector3())).normalize();
@@ -192,7 +198,8 @@ BV.Viewmodel = class {
       Wr.quaternion.copy(pq.multiply(nq)); Wr.updateMatrixWorld(true);
     };
     wrist('L', tune.rollL, tune.bendL); wrist('R', tune.rollR, tune.bendR);
-    this.fingers(B, 'L', def ? 0.55 : 0.95, def ? 0.55 : 0.95);       // left hand: closed round the charge (plant) / half open (defuse)
+    this.fingers(B, 'L', def ? 0.55 : 0.95, def ? 0.55 : 0.95);
+    if (hold) { this.fingers(B, 'R', 0.95, 0.95); return; }       // left hand: closed round the charge (plant) / half open (defuse)
     this.fingers(B, 'R', def ? 0.5 : 1.25, def ? 0.35 : 0.15 + rIndex * 0.35);  // right hand: index pointing and pressing
   }
   fingers(B, side, curl, indexCurl) {
@@ -344,7 +351,8 @@ BV.Viewmodel = class {
       if (p > 0.45 && p < 0.7) { const b = Math.sin((p - 0.45) / 0.25 * Math.PI); rz -= b * 0.9; ry -= b * 0.5; }
     }
     // planting / defusing: the weapon eases away and the hands work on the charge (see updateUse)
-    this.useK = (this.useK || 0) + ((st.busy ? 1 : 0) - (this.useK || 0)) * Math.min(1, dt * 6);
+    const holdC = this.def && this.def.cls === 'charge';
+    this.useK = (this.useK || 0) + ((st.busy || holdC ? 1 : 0) - (this.useK || 0)) * Math.min(1, dt * 6);
     { const k = this.useK; py -= 0.5 * k; rx -= 0.9 * k; }
     this.updateUse(dt, st);
     this.holder.position.set(px, py, pz); this.holder.rotation.set(rx, ry, rz);

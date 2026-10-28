@@ -597,7 +597,9 @@ BV.Game = class {
   }
   // G: drop the weapon in hand (primary or pistol), then switch to the best remaining one
   dropActive(p) {
-    const slot = p.slot; if (slot !== 1 && slot !== 2) return;
+    const slot = p.slot;
+    if (slot === 5 && p.hasCharge) { this.dropCharge(p); return; }
+    if (slot !== 1 && slot !== 2) return;
     const inst = p.inv[slot]; if (!inst || p.reloading) return;
     p.inv[slot] = null;
     const fwd = p.dir(new THREE.Vector3());
@@ -657,7 +659,7 @@ BV.Game = class {
     this.chargeFetcher = best;
   }
   beginPlant(c) {
-    if (this.phase !== 'live' || !c.hasCharge || !c.alive || !c.onGround) return false;
+    if (this.phase !== 'live' || !c.hasCharge || !c.alive || !(c.onGround || this.time - (c._groundT || -9) < 0.35)) return false;
     if (!this.map.siteAt(c.pos.x, c.pos.z)) return false;
     if (this.planter !== c) { this.planter = c; this.plantProgress = 0; c.planting = true; c.reloading = false; c.zoom = 0; }
     return true;
@@ -674,10 +676,17 @@ BV.Game = class {
     if (this.defuser === c) { this.defuser = null; this.defuseProgress = 0; c.defusing = false; }
   }
   updateObjective(dt) {
+    // the charge lives in slot 5 while carried (selectable like a weapon)
+    for (const e of this.ents) {
+      if (!e.alive) continue;
+      if (e.hasCharge && !e.inv[5]) e.inv[5] = new BV.WeaponInstance('charge');
+      else if (!e.hasCharge && e.inv[5]) { e.inv[5] = null; if (e.slot === 5) { e.planting = false; this.switchSlot(e, e.bestSlot(), true); } }
+      if (e.onGround) e._groundT = this.time;
+    }
     const R = BV.RULES, ch = this.charge;
     if (this.planter) {
       const p = this.planter;
-      const keep = p.alive && p.hasCharge && this.phase === 'live' && (p.isBot || this.playerUse) && Math.hypot(p.vel.x, p.vel.z) < 0.6;
+      const keep = p.alive && p.hasCharge && this.phase === 'live' && (p.isBot || this.playerUse) && Math.hypot(p.vel.x, p.vel.z) < 1.2;
       if (!keep) this.cancelObjective(p);
       else {
         const before = Math.floor(this.plantProgress * 8);
