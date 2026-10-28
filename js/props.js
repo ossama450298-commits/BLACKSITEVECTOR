@@ -117,6 +117,9 @@ BV.Props = (function () {
 
     /* --- electrical cabinets with status LEDs --- */
     const cabMat = S({ map: cabinetT(), roughness: 0.62, metalness: 0.1 });   // low metalness: no sky reflection
+    if (BV.MAP_ID === 'harbor9') {   // HARBOR-9's moon and ambient light are blue: keep the cabinets reading white
+      cabMat.color.set(0xfff1dc); cabMat.emissive.set(0xffffff); cabMat.emissiveMap = cabMat.map; cabMat.emissiveIntensity = 0.42; cabMat.envMapIntensity = 0;
+    }
     const cabGeo = new THREE.BoxGeometry(0.9, 1.15, 0.3);
     const cabs = onWallSpot(boxes, 3, 22), cabList = [], ledP = [], ledC = [];
     cabs.forEach(sp => {
