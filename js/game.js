@@ -143,6 +143,7 @@ BV.Game = class {
     this.time = 0; this.killfeedClear = true;
     const pTeam = opts.team === 'AUTO' || !opts.team ? BV.U.pick(['VANGUARD', 'RAVEN']) : opts.team;
     const p = new BV.Combatant('You', pTeam, false);
+    p.variant = opts.team === pTeam ? (opts.character || 0) : 0;   // the character chosen in the menu
     this.addEnt(p); this.player = p;
     if (this.training) {
       const foe = BV.otherTeam(pTeam);

@@ -284,6 +284,7 @@
     if (code === 'Tab' && (E.state === 'play' || E.state === 'buy')) BV.HUD.scoreboard(down);
     if (!down) return;
     if (code === 'KeyF' && E.state === 'play' && game.player && game.player.alive) E.viewmodel.inspect();
+    if (code === 'KeyV' && E.state === 'play') { E.thirdPerson = !E.thirdPerson; BV.HUD.notice(E.thirdPerson ? 'Third-person view (V)' : 'First-person view (V)', '', 1.2); }
     if (code === 'KeyB') { if (E.state === 'play') E.openBuy(); else if (E.state === 'buy') E.closeBuy(); }
     if (code === 'Escape') {
       if (E.state === 'buy') E.closeBuy();
@@ -325,6 +326,13 @@
       E.camKick = (E.camKick || 0) * Math.exp(-dt * 14);
       E.strafe = BV.U.clamp(lateral / 4.6, -1, 1);
       camera.rotation.set(p.pitch + E.punch + E.camKick + (Math.random() - 0.5) * sh * 0.1, p.yaw + (Math.random() - 0.5) * sh * 0.1, E.roll);
+      // third-person view (V): over the right shoulder, pulled in when a wall is behind
+      if (E.thirdPerson) {
+        const fwd = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation), right = new THREE.Vector3(1, 0, 0).applyEuler(camera.rotation), eye = camera.position.clone();
+        let d = 2.4; for (let s = 0.3; s <= 2.4; s += 0.15) { const c = eye.clone().addScaledVector(fwd, -s).addScaledVector(right, 0.55 * s / 2.4); if (!BV.Physics.los(eye, c)) { d = Math.max(0.35, s - 0.3); break; } }
+        camera.position.addScaledVector(fwd, -d).addScaledVector(right, 0.55 * d / 2.4); camera.position.y += 0.12 * d / 2.4;
+      }
+      if (p.model) p.model.root.visible = !!E.thirdPerson;
     } else {
       const sp = game.spectate;
       if (sp && sp.t > 0 || !sp || !sp.target) {
@@ -403,7 +411,7 @@
       E.viewmodel.update(dt, {
         speed: Math.hypot(p.vel.x, p.vel.z), onGround: p.onGround, crouch: p.crouch > 0.5, sprint: p.sprint,
         mdx, mdy,
-        busy: p.planting || p.defusing, planting: !!p.planting, defusing: !!p.defusing, visible: p.alive && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
+        busy: p.planting || p.defusing, planting: !!p.planting, defusing: !!p.defusing, visible: p.alive && !E.thirdPerson && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
       });
       BV.HUD.update(dt);
     } else if (E.state === 'pause') {

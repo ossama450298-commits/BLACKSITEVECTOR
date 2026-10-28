@@ -35,6 +35,17 @@ BV.Menu = (function () {
   function init(e) {
     engine = e;
     $('ver').textContent = BV.VERSION;
+    // character pick: the chosen team's operators, with a portrait
+    function buildCharSeg() {
+      const seg = document.getElementById('char-seg'), row = document.getElementById('char-row'), img = document.getElementById('char-thumb'); if (!seg) return;
+      const list = BV.CHARACTERS[opts.team]; row.style.display = list ? '' : 'none'; if (!list) return;
+      if (!(opts.character < list.length)) opts.character = 0;
+      seg.innerHTML = '';
+      list.forEach((c, i) => { const b = document.createElement('button'); b.textContent = c.name; b.classList.toggle('on', i === opts.character);
+        b.addEventListener('click', () => { opts.character = i; BV.Audio && BV.Audio.ui && BV.Audio.ui('click'); buildCharSeg(); }); seg.appendChild(b); });
+      const th = BV.CHAR_THUMBS && BV.CHAR_THUMBS[opts.team] && BV.CHAR_THUMBS[opts.team][opts.character]; img.src = th || '';
+    }
+    window.__buildCharSeg = buildCharSeg; buildCharSeg();
     // map selector: the chosen map is built at start-up, so switching saves the choice and reloads
     const mapSeg = document.getElementById('map-seg');
     if (mapSeg) {
@@ -62,7 +73,7 @@ BV.Menu = (function () {
       syncSeg(seg, opts[seg.dataset.key]);
       seg.addEventListener('click', (ev) => {
         const b = ev.target.closest('button'); if (!b) return;
-        const k = seg.dataset.key; opts[k] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v;
+        const k = seg.dataset.key; opts[k] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v; if (k === 'team') buildCharSeg();
         syncSeg(seg, opts[k]); BV.Audio.ui('click');
       });
     });

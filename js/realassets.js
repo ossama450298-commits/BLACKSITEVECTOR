@@ -141,7 +141,7 @@ BV.Real = (function () {
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
-    for (const k of ['char_swat', 'char_merc', 'char_stalker']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
+    for (const k of ['char_swat', 'char_merc']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
     if (BV.REAL.timebomb) jobs.push(parse(BV.REAL.timebomb).then(g => { styleMaterials(g.scene); timebomb = g.scene; }));
     if (BV.REAL.frag) jobs.push(parse(BV.REAL.frag).then(g => { styleMaterials(g.scene); frag = buildFrag(g.scene); }));
     if (BV.REAL.makarov) jobs.push(parse(BV.REAL.makarov).then(g => { styleMaterials(g.scene); makarov = buildMakarov(g.scene); }));
@@ -506,7 +506,7 @@ BV.Real = (function () {
   // operator variety: every model shares the operator skeleton and animations
   function characters(team) {
     const base = soldier ? [{ scene: soldier.scene, id: 'operator' }] : [];
-    const extra = team === 'VANGUARD' ? ['char_swat'] : ['char_merc', 'char_stalker'];
+    const extra = team === 'VANGUARD' ? ['char_swat'] : ['char_merc'];   // stalker held back until its boots skin cleanly
     return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
   }
   return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
