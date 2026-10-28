@@ -53,8 +53,8 @@ BV.Props = (function () {
     for (let i = 0; i < 300; i++) { g.fillStyle = 'rgba(30,20,10,0.15)'; g.fillRect(Math.random() * w, Math.random() * h, 3, 1); }
   });
   const cabinetT = () => ctex(128, 160, (g, w, h) => {
-    g.fillStyle = '#7d817a'; g.fillRect(0, 0, w, h);
-    g.strokeStyle = '#4b4e49'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12); g.beginPath(); g.moveTo(w / 2, 6); g.lineTo(w / 2, h - 6); g.stroke();
+    g.fillStyle = '#e4e5e0'; g.fillRect(0, 0, w, h);   // painted white (a grey/metal finish read as blue under HARBOR-9's night sky)
+    g.strokeStyle = '#a3a59f'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12); g.beginPath(); g.moveTo(w / 2, 6); g.lineTo(w / 2, h - 6); g.stroke();
     g.fillStyle = '#e3b52c'; g.beginPath(); g.moveTo(w * 0.25, 30); g.lineTo(w * 0.36, 50); g.lineTo(w * 0.14, 50); g.fill();
     g.fillStyle = '#111'; g.font = 'bold 14px Arial'; g.textAlign = 'center'; g.fillText('!', w * 0.25, 48);
     g.font = 'bold 10px Arial'; g.fillText('400 V', w * 0.25, 66); g.fillText('S17-E' + (Math.random() * 90 + 10 | 0), w * 0.75, 30);
@@ -116,7 +116,7 @@ BV.Props = (function () {
     instanced(scene, palletGeo, wood, palletList, 0);
 
     /* --- electrical cabinets with status LEDs --- */
-    const cabMat = S({ map: cabinetT(), roughness: 0.55, metalness: 0.45 });
+    const cabMat = S({ map: cabinetT(), roughness: 0.62, metalness: 0.1 });   // low metalness: no sky reflection
     const cabGeo = new THREE.BoxGeometry(0.9, 1.15, 0.3);
     const cabs = onWallSpot(boxes, 3, 22), cabList = [], ledP = [], ledC = [];
     cabs.forEach(sp => {
