@@ -404,7 +404,7 @@ BV.Real = (function () {
   }
   /* realistic city around the compound (four rotated copies, beyond the play area) */
   function placeCity(scene) {
-    if (!city) return false;
+    if (!city || (BV.Map.data && BV.Map.data.noCity)) return false;
     const box = new THREE.Box3().setFromObject(city), c = box.getCenter(new THREE.Vector3()), y = -box.min.y - 0.5;
     let spots = [[0, 0, -315], [Math.PI, 0, 315], [Math.PI / 2, 365, 0], [-Math.PI / 2, -365, 0]];
     if (BV.Map.data.water) spots = spots.slice(1);   // the harbour faces open water to the north
@@ -478,7 +478,7 @@ BV.Real = (function () {
   }
   /* the abandoned warehouse as a landmark south of the compound, outside the play area */
   function placeWarehouse(scene) {
-    if (!warehouse) return false;
+    if (!warehouse || (BV.Map.data && BV.Map.data.noWarehouse)) return false;
     const box = new THREE.Box3().setFromObject(warehouse), c = box.getCenter(new THREE.Vector3());
     const g = new THREE.Group(), inner = warehouse; inner.position.set(-c.x, -box.min.y - 0.2, -c.z); g.add(inner);
     g.position.set(-14, 0, 76); g.rotation.y = Math.PI * 0.5; scene.add(g);

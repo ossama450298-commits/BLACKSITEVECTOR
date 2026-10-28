@@ -21,6 +21,8 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 ## Cielo y superficies
 | Recurso | Autor | Licencia | Uso |
 |---|---|---|---|
+| Ground054 | ambientCG | CC0 1.0 | Suelo de arena de DUSTLINE |
+| Sand 01 | Poly Haven | CC0 1.0 | Muros de adobe de DUSTLINE |
 | Blue Lagoon Night · Goegap | Poly Haven | CC0 1.0 | Cielos de HARBOR-9 y DUSTLINE (convertidos de EXR a JPG con mapeo tonal) |
 | Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
 | [City](https://sketchfab.com/3d-models/city-1f50f0d6ec5a493d8e91d7db1106b324) | SpatialNeglect | CC BY 4.0 | Ciudad del horizonte: cuatro copias giradas alrededor del recinto (texturas a 512 px) |

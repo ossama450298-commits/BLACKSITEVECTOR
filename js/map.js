@@ -321,6 +321,78 @@ BV.Map = (function () {
     Object.assign(data, HARBOR);
     data.waypoints = wp;
   }
+  /* ================= DUSTLINE: desert town at midday ================= */
+  function defineDustline() {
+    const house = (x0, z0, x1, z1, h) => { B(x0, z0, x1, z1, 0, h, 'adobe'); B(x0 - 0.15, z0 - 0.15, x1 + 0.15, z1 + 0.15, h, h + 0.35, 'adobe', { solid: false }); };   // flat roof with parapet lip
+    const arch = (x, z0, z1) => { B(x - 0.6, z0, x + 0.6, z0 + 1.2, 0, 4.4, 'adobe'); B(x - 0.6, z1 - 1.2, x + 0.6, z1, 0, 4.4, 'adobe'); B(x - 0.6, z0, x + 0.6, z1, 3.5, 4.4, 'adobe', { solid: false }); };
+    const stall = (x, z) => { for (const [dx, dz] of [[-1.4, -0.9], [1.4, -0.9], [-1.4, 0.9], [1.4, 0.9]]) B(x + dx - 0.07, z + dz - 0.07, x + dx + 0.07, z + dz + 0.07, 0, 2.5, 'crate', { solid: false });
+      B(x - 1.7, z - 1.2, x + 1.7, z + 1.2, 2.5, 2.6, 'roof', { solid: false }); B(x - 1.3, z - 0.5, x + 1.3, z + 0.5, 0, 1.0, 'crate'); };
+    const sandbags = (x0, z0, x1, z1) => B(x0, z0, x1, z1, 0, 1.25, 'dirt');
+    // ground: sand everywhere, compacted streets
+    floor(-62, -44, 62, 44, 'sand');
+    // town wall
+    B(-64, -46, 64, -44, 0, 7, 'adobe'); B(-64, 44, 64, 46, 0, 7, 'adobe'); B(-64, -46, -62, 46, 0, 7, 'adobe'); B(62, -46, 64, 46, 0, 7, 'adobe');
+    // north row
+    house(-44, -40, -32, -27, 5); house(-28, -43, -18, -30, 4.5); house(-12, -41, 0, -28, 6); house(6, -43, 18, -30, 5); house(20, -44, 28, -36, 4);
+    // middle-north row (north alley between this row and the north one)
+    house(-40, -22, -30, -9, 4); house(-24, -24, -13, -9, 5.5); house(-7, -22, 7, -9, 4.5); house(13, -24, 24, -8, 5);
+    // middle-south row
+    house(-40, 9, -28, 20, 5); house(-22, 8, -10, 22, 4); house(-4, 10, 10, 22, 6); house(16, 8, 26, 20, 4.5);
+    // south row
+    house(-44, 30, -30, 44, 5); house(-24, 28, -10, 40, 4.5); house(-4, 30, 12, 44, 5); house(18, 34, 28, 44, 4);
+    // main street: arches, a well, carts and cover
+    arch(-19, -9, 8); arch(10, -9, 8);
+    B(-2.2, -2.2, 2.2, 2.2, 0, 0.9, 'adobe'); B(-1.6, -1.6, 1.6, 1.6, 0.9, 1.0, 'dirt', { solid: false });   // well
+    crate(-32, 2, 1.5, 1.5); crate(-30.4, 2, 1.5, 1.5); crate(-31.2, 2, 1.4, 1.4, 'crate', 1.5);
+    crate(18, -3, 1.5, 1.5, 'crateMil'); crate(24, 4, 1.6, 1.6); barrel(-10, -5); barrel(-9, -6); barrel(4, 6);
+    sandbags(-46, -6, -44.5, 4);
+    // site A: market square (north-east)
+    stall(36, -36); stall(42, -30); stall(48, -38); crate(45, -25.5, 1.6, 1.6); barrel(38, -27); barrel(39, -26.4); crate(51, -30, 1.5, 1.5);
+    house(30, -44, 36, -40, 4); house(54, -44, 62, -36, 5);
+    // site B: military outpost (south-east): sandbag ring with gaps, concrete T-walls, a guard tower
+    sandbags(31, 23, 40, 24.3); sandbags(45, 23, 53, 24.3); sandbags(31, 23, 32.3, 30); sandbags(31, 35, 32.3, 43);
+    B(52.6, 26, 53.2, 31, 0, 3, 'concreteDark'); B(52.6, 34, 53.2, 40, 0, 3, 'concreteDark');
+    B(38, 32, 41, 33.2, 0, 3, 'concreteDark'); crate(46, 36, 1.6, 1.6, 'crateMil'); crate(46, 37.6, 1.6, 1.6, 'crateMil'); crate(46, 36.8, 1.5, 1.5, 'crateMil', 1.6);
+    for (const [tx, tz] of [[48, 28], [51, 28], [48, 31], [51, 31]]) B(tx - 0.15, tz - 0.15, tx + 0.15, tz + 0.15, 0, 5, 'metal');
+    B(47.5, 27.5, 51.5, 31.5, 4.8, 5.1, 'crate', { solid: false }); B(47.5, 27.5, 51.5, 27.7, 5.1, 6.0, 'crate', { solid: false });
+    B(36.9, 40.9, 37.1, 41.1, 0, 11, 'metal', { solid: false });   // radio mast
+    // Raven dunes (west) and Vanguard camp (east) cover
+    sandbags(-52, -18, -48, -16.7); crate(-50, 16, 1.6, 1.6); sandbags(52, -16, 56, -14.7); crate(57, 14, 1.6, 1.6, 'crateMil');
+    // navigation grid
+    const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.7 && x < b.max[0] + 0.7 && z > b.min[2] - 0.7 && z < b.max[2] + 0.7 && b.min[1] < 1.8 && b.max[1] > 0.2);
+    const wp = []; for (let x = -60; x <= 60; x += 3) for (let z = -42; z <= 42; z += 3) if (free(x, z)) wp.push([x, z]);
+    Object.assign(data, DUSTLINE); data.waypoints = wp;
+  }
+  const DUSTLINE = {
+    name: 'DUSTLINE', linkDist: 7.5, noCity: true, noWarehouse: true,
+    env: { sky: 'sky_desert', fog: 0xd9c8a2, hemiSky: 0xc8dcf0, hemiGround: 0xb08c5c, hemi: 1.0, sun: 0xfff0d4, sunI: 3.1, exposure: 1.02 },
+    spawns: {
+      attack: [[-56, -3], [-56, 3], [-53, 0], [-58, 0], [-53, -5], [-53, 5], [-58, -6]],
+      defend: [[56, -3], [56, 3], [59, 0], [53, 0], [59, -6], [59, 6], [53, 6]]
+    },
+    spawnCenter: { attack: [-55, 0], defend: [56, 0] },
+    sites: [
+      { name: 'A', min: [32, -42], max: [54, -24], center: [43, -33], plant: [[43, -33, 0], [39, -38, 0], [47, -27, 0]],
+        defend: [[51, -26, 0, Math.PI / 2], [50, -41, 0, Math.PI * 0.6], [44, -25, 0, Math.PI * 0.4], [34, -41, 0, Math.PI * 0.55], [52, -33, 0, Math.PI / 2]] },
+      { name: 'B', min: [32, 24], max: [53, 43], center: [43, 33], plant: [[43, 34, 0], [36, 38, 0], [49, 26, 0]],
+        defend: [[50, 25, 0, Math.PI * 0.75], [44, 41, 0, Math.PI * 0.6], [51, 38, 0, Math.PI * 0.5], [35, 26, 0, Math.PI * 0.85], [49, 33, 0, Math.PI * 0.7]] }
+    ],
+    routes: {
+      A: [{ name: 'north', stage: [22, -26] }, { name: 'main', stage: [28, -6] }],
+      B: [{ name: 'south', stage: [22, 25] }, { name: 'main', stage: [28, 6] }]
+    },
+    midPatrol: [[0, -5], [14, 0], [-14, 4], [3, -25], [4, 25]],
+    links: [],
+    zoneFn: (x, z) => {
+      if (x < -44) return 'Raven Dunes';
+      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Market (A)' : 'Outpost (B)';
+      if (x > 54) return 'Vanguard Camp';
+      if (Math.abs(z) < 8.5) return 'Main Street';
+      if (z < -26) return 'North Quarter';
+      if (z > 22) return 'South Quarter';
+      return z < 0 ? 'North Alley' : 'South Alley';
+    }
+  };
   const HARBOR = {
     name: 'HARBOR-9',
     linkDist: 7.5,
@@ -475,12 +547,12 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = BV.TEX_SCALE = { brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+  const TEX_SCALE = BV.TEX_SCALE = { sand: 4, adobe: 2.6, brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
     asphalt: 2.6, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
   const METAL = { metal: 0.45, roof: 0.35, container: 0.3, trim: 0.35, glass: 0.2, window: 0.3, door: 0.3 };
-  const NORMAL_STR = { brick2: 2.6, asphaltCracked: 1.0, brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
+  const NORMAL_STR = { sand: 1.3, adobe: 1.0, brick2: 2.6, asphaltCracked: 1.0, brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
 
   const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, paintLow: 0, plate: 0 };
 
@@ -666,6 +738,7 @@ BV.Map = (function () {
       if (r() < 0.3) { const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.3, 22, 10), fm); ch.position.set(m.position.x + 3, h + 10, m.position.z); sky.add(ch); }
     }
     BV.Models.mergeTree(sky); scene.add(sky); data.skyline = sky;
+    if (data.noCity) sky.visible = false;   // open desert horizon
     // two harbour gantry cranes
     const cm = BV.mat({ color: 0x7a2a1c, roughness: 0.7, metalness: 0.4 });
     const crane = (x, z, rot) => {
@@ -678,7 +751,8 @@ BV.Map = (function () {
       for (let k = 0; k < 8; k++) { const br = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 17), cm); br.position.set(-8 + (k % 2) * 16, 6 + Math.floor(k / 2) * 7.5, 0); br.rotation.x = 0.8 * (k % 4 < 2 ? 1 : -1); g.add(br); }
       g.position.set(x, 0, z); g.rotation.y = rot; BV.Models.mergeTree(g); scene.add(g);
     };
-    crane(110, -95, 0.4); crane(140, -60, 0.4);
+    if (!data.noCity) { crane(110, -95, 0.4); crane(140, -60, 0.4); }
+    if (BV.MAP_ID === 'sector17') {
     // sagging overhead cables
     const wm = BV.mat({ color: 0x151515, roughness: 0.6 });
     const cable = (a, b, sag) => {
@@ -688,6 +762,7 @@ BV.Map = (function () {
     cable([-34, 7.6, -28.3], [-34, 9.6, -44], 1.2); cable([-22, 7.6, -28.3], [-20, 9.6, -44], 1.3); cable([8, 6.6, -28.3], [10, 9.6, -44], 1.2);
     cable([-30, 7.6, -9.7], [-30, 7.6, 9.7], 1.6); cable([-18, 7.6, -9.7], [-16, 7.6, 9.7], 1.8); cable([4, 6.6, -9.7], [6, 6.6, 9.7], 1.5);
     cable([-40.3, 7.4, -20], [-62, 9.6, -24], 1.4); cable([-40.3, 7.4, 20], [-62, 9.6, 18], 1.4);
+    }
     // dry grass tufts and gravel (instanced)
     const gc = document.createElement('canvas'); gc.width = 64; gc.height = 64; const gg = gc.getContext('2d');
     for (let i = 0; i < 40; i++) { gg.strokeStyle = `rgb(${78 + Math.random() * 30 | 0},${80 + Math.random() * 25 | 0},${48 + Math.random() * 15 | 0})`; gg.lineWidth = 2; gg.beginPath(); const x = 8 + Math.random() * 48; gg.moveTo(x, 64); gg.quadraticCurveTo(x + (Math.random() - 0.5) * 10, 40, x + (Math.random() - 0.5) * 22, 10 + Math.random() * 30); gg.stroke(); }
@@ -714,6 +789,7 @@ BV.Map = (function () {
     const rock = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.12, 0), BV.mat({ color: 0x6f6a60, roughness: 0.95 }), 260);
     for (let i = 0; i < 260; i++) { const p = spots[i % spots.length]; q.setFromEuler(new THREE.Euler(r() * 3, r() * 3, r() * 3)); const k = 0.4 + r() * 1.3; sc.set(k, k * 0.6, k); ps.set(p[0] + (r() - 0.5) * 1.2, 0.03, p[1] + (r() - 0.5) * 1.2); mtx.compose(ps, q, sc); rock.setMatrixAt(i, mtx); }
     rock.castShadow = true; rock.receiveShadow = true; scene.add(rock);
+    if (BV.MAP_ID === 'sector17') {
     // skylight panels + volumetric light shafts in the B hall
     const shaftC = document.createElement('canvas'); shaftC.width = 32; shaftC.height = 128; const sg = shaftC.getContext('2d');
     const lg = sg.createLinearGradient(0, 0, 0, 128); lg.addColorStop(0, 'rgba(255,240,215,0.9)'); lg.addColorStop(1, 'rgba(255,240,215,0)');
@@ -730,6 +806,7 @@ BV.Map = (function () {
         sh.position.set(x + 1.1, 2.6, z + 0.6); sh.rotation.set(0.0, k * Math.PI / 3, -0.32);
         scene.add(sh);
       }
+    }
     }
   }
   function carModel(color) {
@@ -890,7 +967,7 @@ BV.Map = (function () {
 
   let built = false;
   function build(scene) {
-    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : defineSector17)(); built = true; }
+    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : BV.MAP_ID === 'dustline' ? defineDustline : defineSector17)(); built = true; }
     BV.Physics.setBoxes(boxes);
     const T = (BV.timings = BV.timings || {}); let t0 = performance.now();
     buildGeometry(scene); T.geometry = performance.now() - t0; t0 = performance.now();
