@@ -47,6 +47,14 @@ BV.Menu = (function () {
     }
     window.__buildCharSeg = buildCharSeg; buildCharSeg();
     // map selector: the chosen map is built at start-up, so switching saves the choice and reloads
+    // subtitle, status line and team roles follow the selected map
+    { const M = BV.MAPS.find(m => m.id === BV.MAP_ID) || BV.MAPS[0], hostage = BV.MAP_ID === 'meridian';
+      const WX = { sector17: 'dusk, wind 12 km/h NW', harbor9: 'night, light sea breeze', dustline: 'midday, dry and hot', meridian: 'daylight, building locked down' };
+      const sub = document.querySelector('.brand-sub'); if (sub) sub.textContent = 'Vanguard versus Raven · ' + M.name + ' — ' + M.desc.toLowerCase();
+      const st = document.getElementById('status-line'); if (st) st.textContent = 'Uplink established · ' + M.name + ' · ' + (WX[M.id] || '');
+      document.querySelectorAll('[data-key=team] button').forEach(b => {
+        if (b.dataset.v === 'VANGUARD') b.textContent = hostage ? 'Vanguard · rescue' : 'Vanguard · defend';
+        if (b.dataset.v === 'RAVEN') b.textContent = hostage ? 'Raven · guard' : 'Raven · attack'; }); }
     const mapSeg = document.getElementById('map-seg');
     if (mapSeg) {
       // one button per map in BV.MAPS (new maps appear here on their own)
