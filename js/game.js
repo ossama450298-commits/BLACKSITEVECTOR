@@ -249,6 +249,7 @@ BV.Game = class {
       const sniperTaken = this.ents.some(e => e !== b && e.team === b.team && e.inv[1] && e.inv[1].def.id === 'lynx7');
       if (m >= 5400 && r < 0.2 && !sniperTaken) buy('lynx7');
       else if (m >= 5200 && r < 0.32) buy('bastion60');
+      else if (m >= 7400 && Math.random() < 0.12) buy('titan50');   // the .50 cal, now and then
       else if (m >= 3650 && b.team === 'VANGUARD' && Math.random() < 0.4) buy('shade4');   // police: the AR-15
       else if (m >= 3650) buy(Math.random() < 0.2 ? 'kestrel5' : (b.team === 'RAVEN' ? 'arx17' : 'halberd4'));   // terrorists: the AK
       else if (m >= 3350) buy(b.team === 'RAVEN' ? 'arx17' : 'halberd4');

@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.1.3';
+BV.VERSION = '5.2.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -93,6 +93,10 @@ BV.WEAPONS = {
               airSpread: 0.2, shotSpread: 0.012, kick: 0.02, drop: 0.985, price: 3400, speed: 0.88, model: 'dmr', zoom: 2,
               snd: { f: 1400, l: 0.30, t: 100, v: 1.1 }, reward: 300 },
 
+  titan50:  { id: 'titan50', name: 'Titan-50', slot: 1, cls: 'sniper', auto: false, damage: 300, head: 1.0, armorPen: 1.0,
+              rate: 2.0, mag: 5, reserve: 15, reload: 4.0, spread: 0.09, scopedSpread: 0.0004, moveSpread: 0.16,
+              airSpread: 0.35, shotSpread: 0, kick: 0.09, drop: 1.0, price: 6500, speed: 0.72, model: 'sniper', zoom: 6,
+              snd: { f: 640, l: 0.75, t: 50, v: 1.9 }, reward: 100 },   // .50 cal: one shot kills at any range, anywhere
   lynx7:    { id: 'lynx7', name: 'Lynx-7', slot: 1, cls: 'sniper', auto: false, damage: 118, head: 2.5, armorPen: 0.97,
               rate: 1.45, mag: 5, reserve: 20, reload: 3.6, spread: 0.07, scopedSpread: 0.0008, moveSpread: 0.12,
               airSpread: 0.3, shotSpread: 0, kick: 0.06, drop: 0.99, price: 4750, speed: 0.8, model: 'sniper', zoom: 4,
@@ -112,7 +116,7 @@ BV.SHOP = [
   { name: 'SMGs',      items: ['specter9', 'vectormp'] },
   { name: 'Shotgun',   items: ['hammer12'] },
   { name: 'Rifles',    items: ['arx17', 'halberd4', 'shade4', 'kestrel5', 'bastion60'] },
-  { name: 'Precision', items: ['lynx7'] },
+  { name: 'Precision', items: ['lynx7', 'titan50'] },
   { name: 'Gear',      items: ['armor', 'helmet', 'kit', 'shard', 'flash', 'smoke'] }
 ];
 BV.ARMOR_PRICE = 650;

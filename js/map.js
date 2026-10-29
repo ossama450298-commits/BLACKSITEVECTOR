@@ -336,8 +336,11 @@ BV.Map = (function () {
     const furn = (k, x, z, r, w, d, h) => { office.push({ k, x, z, r: r || 0 }); if (w) { const c = Math.abs(Math.cos(r || 0)) > 0.5, hw = (c ? w : d) / 2, hd = (c ? d : w) / 2; B(x - hw, z - hd, x + hw, z + hd, 0, h, 'crate', { solid: true, faces: [] }); } };
     const light = (x, z, i) => lamp(x, 3.35, z, 9, i || 1.0, 'white');
     // ground: street / parking / alley asphalt, back yard concrete
-    floor(-50, -36, 48, 34, 'asphalt');
-    floor(-50, -36, -36, 34, 'concrete');
+    // ground in strips around the building (no surface under the office floor: they sat at the same height and z-fought)
+    floor(-50, -36, -36.3, 34, 'concrete');            // back yard
+    floor(-36.3, -36, 48, -22.3, 'asphalt');           // parking (north)
+    floor(-36.3, 22.3, 48, 34, 'asphalt');             // alley (south)
+    floor(24.3, -22.3, 48, 22.3, 'asphalt');           // street (east)
     // perimeter (neighbouring buildings / fences)
     B(-52, -38, 50, -36, 0, 7, 'brick'); B(-52, 34, 50, 36, 0, 7, 'brick'); B(-52, -38, -50, 36, 0, 7, 'concreteDark'); B(48, -38, 50, 36, 0, 7, 'brick2');
     // building shell: concrete facade, plaster lining inside, ceiling and roof
