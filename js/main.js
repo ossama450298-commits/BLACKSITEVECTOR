@@ -457,6 +457,7 @@
       E.outpostPieces = BV.Real.placeOutpost(scene);
       BV.Real.placeWarehouse(scene);
       E.kitProps = BV.Real.dressMap(scene);
+      if (BV.Real.placeOffice) E.officeProps = BV.Real.placeOffice(scene);
     } catch (err) { console.warn('scenery dressing failed', err); }
     // shader warm-up: compile operator, weapon and arm programs now instead of on first sight
     try {

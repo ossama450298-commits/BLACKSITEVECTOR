@@ -236,7 +236,7 @@ BV.Textures = (function () {
     concrete: [0.40, 0.090, 0.06], concreteDark: [0.30, 0.080, 0.05], brick: [0.42, 0.130, 0.18], brick2: [0.40, 0.130, 0.17],
     plaster: [0.46, 0.107, 0.16], metal: [0.36, 0.150, 0.16], roof: [0.28, 0.120, 0.10], container: [0.32, 0.140, 0.22],
     crate: [0.30, 0.113, 0.17], crateMil: [0.30, 0.110, 0.16], tile: [0.42, 0.118, 0.08], plate: [0.38, 0.140, 0.06],
-    asphalt: [0.26, 0.100, 0.03], asphaltCracked: [0.28, 0.100, 0.04], sand: [0.52, 0.120, 0.20], adobe: [0.50, 0.115, 0.22], dirt: [0.38, 0.120, 0.18], door: [0.28, 0.136, 0.20], paintLow: [0.34, 0.110, 0.18]
+    asphalt: [0.26, 0.100, 0.03], asphaltCracked: [0.28, 0.100, 0.04], sand: [0.52, 0.120, 0.20], adobe: [0.50, 0.115, 0.22], officewall: [0.62, 0.050, 0.08], carpet: [0.30, 0.070, 0.10], ceiling: [0.62, 0.060, 0.03], officetile: [0.50, 0.090, 0.04], dirt: [0.38, 0.120, 0.18], door: [0.28, 0.136, 0.20], paintLow: [0.34, 0.110, 0.18]
   };
   const TEXEL_PER_M = 64;
   function texPx(name) {        // power-of-two size giving ~64 texels per metre (128..256)
@@ -283,10 +283,11 @@ BV.Textures = (function () {
     g.putImageData(id, 0, 0);
   }
   const PHOTO_MIX = { concrete: 0.85, concreteDark: 0.85, plaster: 0.8, tile: 0.35, plate: 0.25, asphalt: 0.9, crate: 0.6 };
-  const PHOTO_DIRECT = { brick: 1, brick2: 1, asphaltCracked: 1, sand: 1, adobe: 1 };   // photo used as-is (+ light weathering)
+  const PHOTO_DIRECT = { brick: 1, brick2: 1, asphaltCracked: 1, sand: 1, adobe: 1, carpet: 1, ceiling: 1, officetile: 1, officewall: 1 };   // photo used as-is (+ light weathering)
+  const CLEAN = { officewall: 1, carpet: 1, ceiling: 1, officetile: 1 };   // indoor office surfaces: photo only, no weathering
   function photoTex(name, kind) {
     const key = 'photo_' + name + kind; if (cache[key]) return cache[key];
-    const D = BV.TEX_DATA && BV.TEX_DATA[name]; if (!D || !D[kind]) return null;
+    const D = BV.TEX_DATA && BV.TEX_DATA[name === 'officewall' ? 'plaster' : name]; if (!D || !D[kind]) return null;   // office walls: the plaster photo, clean
     const px = kind === 'color' ? (BV.classic ? texPx(name) : 512) : 256, k4 = px / 128;
     const c = canvas(px), g = c.getContext('2d', { willReadFrequently: true });
     g.fillStyle = kind === 'normal' ? 'rgb(128,128,255)' : '#777'; g.fillRect(0, 0, c.width, c.height);
@@ -305,7 +306,7 @@ BV.Textures = (function () {
           g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = PHOTO_MIX[name] || 0.7; g.drawImage(img, 0, 0, c.width, c.height); g.restore();
         } else {
           g.drawImage(img, 0, 0, c.width, c.height);
-          if (kind === 'color') { g.save(); g.globalAlpha = 0.45; weather(g, c.width, c.height, name === 'asphaltCracked' ? 'asphalt' : 'brick', k4); g.restore(); }
+          if (kind === 'color' && !CLEAN[name]) { g.save(); g.globalAlpha = 0.45; weather(g, c.width, c.height, name === 'asphaltCracked' ? 'asphalt' : 'brick', k4); g.restore(); }
         }
         if (kind === 'color' && BV.classic) retroFinish(g, c.width, c.height, name);
         t.needsUpdate = true; res(true);

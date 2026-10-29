@@ -175,7 +175,7 @@ BV.mat = function (o) {
   return new THREE.MeshLambertMaterial(q);
 };
 /* maps: the chosen one is built at start-up (switching reloads the page so only one map is ever in memory) */
-BV.MAPS = [{ id: 'sector17', name: 'SECTOR-17', desc: 'Freight compound at dusk' }, { id: 'harbor9', name: 'HARBOR-9', desc: 'Container port at night' }, { id: 'dustline', name: 'DUSTLINE', desc: 'Desert town at midday' }];
+BV.MAPS = [{ id: 'sector17', name: 'SECTOR-17', desc: 'Freight compound at dusk' }, { id: 'harbor9', name: 'HARBOR-9', desc: 'Container port at night' }, { id: 'dustline', name: 'DUSTLINE', desc: 'Desert town at midday' }, { id: 'meridian', name: 'MERIDIAN', desc: 'Office floor · hostage rescue' }];
 BV.MAP_ID = (BV.settings && BV.MAPS.some(m => m.id === BV.settings.map)) ? BV.settings.map : 'sector17';
 /* playable characters per team (same order as BV.Real.characters) */
 BV.CHARACTERS = { VANGUARD: [{ id: 'operator', name: 'Operator' }, { id: 'char_swat', name: 'SWAT' }],

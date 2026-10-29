@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -144,6 +144,9 @@ BV.Real = (function () {
     if (BV.REAL.nade_flash) jobs.push(parse(BV.REAL.nade_flash).then(g => { styleMaterials(g.scene); flashN = buildNade(g.scene, 0.135, /^(Pin|Split|PinConnect)_low/); }));
     if (BV.REAL.nade_smoke) jobs.push(parse(BV.REAL.nade_smoke).then(g => { styleMaterials(g.scene); smokeN = buildNade(g.scene, 0.145, null); }));
     if (BV.REAL.cutter) jobs.push(parse(BV.REAL.cutter).then(g => { styleMaterials(g.scene); cutter = g.scene; }));
+    if (BV.REAL.office_props) jobs.push(parse(BV.REAL.office_props).then(g => { styleMaterials(g.scene); officeKit = buildOfficeKit(g.scene); }));
+    if (BV.REAL.office_chair) jobs.push(parse(BV.REAL.office_chair).then(g => { styleMaterials(g.scene); officeChair = bakeUpright(g.scene, 1.05); }));
+    for (const k of ['hostage_business', 'hostage_worker']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); hostages[k] = g.scene; }));
     if (BV.REAL.ar15) jobs.push(parse(BV.REAL.ar15).then(g => { styleMaterials(g.scene); ar15 = g.scene; }));
     if (BV.REAL.colt) jobs.push(parse(BV.REAL.colt).then(g => { styleMaterials(g.scene); colt = g.scene; }));
     for (const k of ['char_swat', 'char_merc']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
@@ -442,6 +445,42 @@ BV.Real = (function () {
       const m = new THREE.Mesh(g, o.material); m.castShadow = true; (/_Up_/.test(o.name) ? up : down).add(m); }
     return { group, setOpen(a) { up.rotation.z = a; down.rotation.z = -a; } };
   }
+  /* office props (Paolo Mercogliano, CC BY): split into desk / bookcase / cabinet / chair / lamp, in metres,
+     centred on x/z with the feet at y = 0 */
+  function buildOfficeKit(scene) {
+    scene.updateMatrixWorld(true);
+    const parts = { desk: [], bookcase: [], cabinet: [], chairS: [], lamp: [] };
+    scene.traverse(o => { if (!o.isMesh) return; const n = o.name;
+      const k = /bookcase/.test(n) ? 'bookcase' : /archivio/.test(n) ? 'cabinet' : /sedia/.test(n) ? 'chairS' : /lamp/.test(n) ? 'lamp' : /desk/.test(n) ? 'desk' : null; if (k) parts[k].push(o); });
+    const out = {};
+    for (const k in parts) {
+      if (!parts[k].length) continue; const g = new THREE.Group(), box = new THREE.Box3();
+      for (const o of parts[k]) { const geo = o.geometry.clone(); geo.applyMatrix4(o.matrixWorld); geo.scale(0.1, 0.1, 0.1); const m = new THREE.Mesh(geo, o.material); m.castShadow = true; m.receiveShadow = true; g.add(m); box.expandByObject(m); }
+      const c = box.getCenter(new THREE.Vector3()); g.children.forEach(m => m.geometry.translate(-c.x, -box.min.y, -c.z)); out[k] = g;
+    }
+    return out;
+  }
+  // a (possibly skinned) model baked to static geometry, turned upright (its height is along -Z) and scaled to a height
+  function bakeUpright(scene, height) {
+    scene.updateMatrixWorld(true); const g = new THREE.Group(), box = new THREE.Box3(), v = new THREE.Vector3(), R = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+    scene.traverse(o => { if (!o.isMesh) return; const geo = o.geometry.clone(); for (const k of ['skinIndex', 'skinWeight']) if (geo.attributes[k]) geo.deleteAttribute(k);
+      const P = geo.attributes.position;
+      if (o.isSkinnedMesh) { o.skeleton.update(); for (let i = 0; i < P.count; i++) { v.fromBufferAttribute(o.geometry.attributes.position, i); o.boneTransform(i, v); v.applyMatrix4(o.matrixWorld); P.setXYZ(i, v.x, v.y, v.z); } }
+      else geo.applyMatrix4(o.matrixWorld);
+      geo.applyMatrix4(R); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, o.material); m.castShadow = true; g.add(m); box.expandByObject(m); });
+    const s = height / (box.max.y - box.min.y), c = box.getCenter(new THREE.Vector3());
+    g.children.forEach(m => { m.geometry.translate(-c.x, -box.min.y, -c.z); m.geometry.scale(s, s, s); });
+    return g;
+  }
+  function placeOffice(scene) {
+    const L = BV.Map && BV.Map.data && BV.Map.data.office; if (!L || !officeKit) return 0;
+    let n = 0;
+    for (const it of L) {
+      const tpl = it.k === 'chair' ? (officeChair || officeKit.chairS) : officeKit[it.k]; if (!tpl) continue;
+      const o = tpl.clone(); o.position.set(it.x, 0, it.z); o.rotation.y = (it.r || 0) + (it.k === 'chair' ? 0 : Math.PI); scene.add(o); n++;   // the kit's fronts face -Z
+    }
+    return n;
+  }
   /* thrown grenade: the body only (the pin has been pulled) */
   function thrownGrenade(model) { const N = nadeOf(model); if (!N) return null; const g = new THREE.Group(); g.add(N.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
   function thrownGrenade_old() { if (!frag) return null; const g = new THREE.Group(); g.add(frag.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
@@ -570,7 +609,7 @@ BV.Real = (function () {
   }
   /* kit props along the foot of walls (decorative only: no collision, never in walkways) */
   function dressMap(scene) {
-    if (!Object.keys(kit).length || !BV.Map || !BV.Map.data) return 0;
+    if (!Object.keys(kit).length || !BV.Map || !BV.Map.data || BV.Map.data.noIndustrial) return 0;
     const D = BV.Map.data, boxes = D.boxes || [], r = BV.U.rng(1717);
     const pieces = [['pallet_broken', 1.6], ['barrel3', 1.9], ['pipe_support', 2.4], ['box', 1.7], ['pallet16', 1.6], ['gas_tank1', 0.75], ['debris', 1.5], ['plank1', 1.6]];
     const blocked = (x, z, rad) => boxes.some(b => b.solid && x > b.min[0] - rad && x < b.max[0] + rad && z > b.min[2] - rad && z < b.max[2] + rad && b.max[1] > 0.2 && b.min[1] < 1.6);
@@ -593,7 +632,7 @@ BV.Real = (function () {
   }
   /* outpost cover at both spawns: real colliders, placed only where they cannot block bot routes */
   function placeOutpost(scene) {
-    if (!Object.keys(outpost).length || !BV.Map || !BV.Map.data) return 0;
+    if (!Object.keys(outpost).length || !BV.Map || !BV.Map.data || BV.Map.data.noIndustrial) return 0;
     const D = BV.Map.data, solids = (D.boxes || []).filter(b => b.solid), nodes = D.nodes || [], r = BV.U.rng(4242), placed = [];
     const spawns = [].concat(D.spawns.attack || [], D.spawns.defend || []);
     const edges = []; nodes.forEach(n => (n.nb || []).forEach(j => { const m = nodes[typeof j === 'number' ? j : j.id]; if (m && m.id > n.id) edges.push([n.x, n.z, m.x, m.z]); }));
@@ -644,5 +683,5 @@ BV.Real = (function () {
     const extra = team === 'VANGUARD' ? ['char_swat'] : ['char_merc'];   // stalker held back until its boots skin cleanly
     return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
   }
-  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, placeOffice, hostageScene: (k) => hostages[k] || null, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

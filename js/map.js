@@ -322,6 +322,138 @@ BV.Map = (function () {
     data.waypoints = wp;
   }
   /* ================= DUSTLINE: desert town at midday ================= */
+  /* ---------------- MERIDIAN: office tower floor (hostage rescue) ----------------
+     Building x -36..24, z -22..22, ceiling at 3.6 m. Vanguard arrive from the east street (rescue zone);
+     Raven hold the hostages in the conference room (A, north-west) and the executive suite (B, south-west). */
+  function defineMeridian() {
+    const H = 3.6, T = 0.15, office = [];
+    // axis-aligned wall with door gaps ([from, to] along its length); lintel above each door
+    const wallX = (x, z0, z1, gaps, mat) => { let a = z0; for (const [g0, g1] of (gaps || []).concat([[z1, z1]])) {
+        if (g0 > a) B(x - T, a, x + T, g0, 0, H, mat || 'officewall'); if (g1 > g0) B(x - T, g0, x + T, g1, 2.4, H, mat || 'officewall', { solid: false }); a = g1; } };
+    const wallZ = (z, x0, x1, gaps, mat) => { let a = x0; for (const [g0, g1] of (gaps || []).concat([[x1, x1]])) {
+        if (g0 > a) B(a, z - T, g0, z + T, 0, H, mat || 'officewall'); if (g1 > g0) B(g0, z - T, g1, z + T, 2.4, H, mat || 'officewall', { solid: false }); a = g1; } };
+    const room = (x0, z0, x1, z1, mat) => mat === 'officetile' ? floor(x0, z0, x1, z1, mat) : B(x0, z0, x1, z1, -0.19, 0.012, mat, { solid: false, faces: ['py'] });   // carpets sit 1 cm above the tiles (no z-fighting)
+    const furn = (k, x, z, r, w, d, h) => { office.push({ k, x, z, r: r || 0 }); if (w) { const c = Math.abs(Math.cos(r || 0)) > 0.5, hw = (c ? w : d) / 2, hd = (c ? d : w) / 2; B(x - hw, z - hd, x + hw, z + hd, 0, h, 'crate', { solid: true, faces: [] }); } };
+    const light = (x, z, i) => lamp(x, 3.35, z, 9, i || 1.0, 'white');
+    // ground: street / parking / alley asphalt, back yard concrete
+    floor(-50, -36, 48, 34, 'asphalt');
+    floor(-50, -36, -36, 34, 'concrete');
+    // perimeter (neighbouring buildings / fences)
+    B(-52, -38, 50, -36, 0, 7, 'brick'); B(-52, 34, 50, 36, 0, 7, 'brick'); B(-52, -38, -50, 36, 0, 7, 'concreteDark'); B(48, -38, 50, 36, 0, 7, 'brick2');
+    // building shell: concrete facade, plaster lining inside, ceiling and roof
+    const shellX = (x, gaps) => { wallX(x, -22, 22, gaps, 'concrete'); };
+    const shellZ = (z, gaps) => { wallZ(z, -36, 24, gaps, 'concrete'); };
+    shellZ(-22, [[2, 4.5]]); shellZ(22, [[-6, -2.5]]); shellX(-36, [[-1.5, 1.5]]); shellX(24, [[-3, 3]]);
+    B(-36.3, -22.3, 24.3, 22.3, H, H + 0.25, 'ceiling', { solid: true, faces: ['ny'] });
+    B(-36.3, -22.3, 24.3, 22.3, H + 0.25, H + 0.6, 'roof', { solid: true, faces: ['py', 'px', 'nx', 'pz', 'nz'] });
+    B(-36.5, -22.5, 24.5, 22.5, H + 0.6, H + 1.1, 'concrete', { solid: false, faces: ['px', 'nx', 'pz', 'nz'] });   // parapet
+    // floors
+    room(-36, -22, 24, 22, 'officetile');             // corridors, lobby, service areas
+    room(-12, -22, 12, -2, 'carpet');                 // open-plan office
+    room(-28, -22, -12, -9, 'carpet');                // A: conference room
+    room(-28, 8, -10, 22, 'carpet');                  // B: executive suite
+    room(-10, 2, 12, 12, 'carpet');                   // break room
+    room(0, 12, 24, 22, 'carpet'); room(12, 9, 24, 12, 'carpet');   // south cubicles
+    // main corridor (z -2..2) walls with doors
+    wallZ(-2, -28, 12, [[-24, -22], [-6, -4], [6, 8]]);
+    wallZ(2, -28, 12, [[-20, -18], [-3, -1], [7, 9]]);
+    // lobby (x 12..24, z -9..9): reception
+    wallX(12, -9, -2); wallX(12, 2, 9);
+    wallZ(-9, 12, 24, [[17, 19]]); wallZ(9, 12, 24, [[17, 19]]);
+    B(18.5, -6, 21.5, -4.6, 0, 1.1, 'crate'); B(18.5, -6, 19.1, -2.5, 0, 1.1, 'crate');   // reception counter
+    // north wing: kitchen | open office | storage + conference (A)
+    wallX(12, -22, -9, [[-14, -12]]);                 // kitchen / open office
+    wallX(-12, -22, -2, [[-16, -13]]);                // open office / conference
+    wallZ(-9, -28, -12, [[-16, -14]]);                // conference / storage
+    // west hall (x -36..-28): Raven side
+    wallX(-28, -22, 22, [[-18, -16], [-6, -4], [-2, 2], [12, 14]]);
+    // south wing: server room | executive suite (B) | service | break room | cubicles
+    wallZ(8, -28, -10, [[-14, -12]]);                 // server room / suite
+    wallX(-10, 8, 22, [[16, 18]]);                    // suite / service
+    wallX(-10, 2, 8);                                 // server room / break room
+    wallZ(12, -10, 0, [[-6, -4]]);                    // break room / service
+    wallZ(12, 0, 12, [[5, 7]]);                       // break room / cubicles
+    wallX(0, 12, 22, [[15, 17]]);                     // service / cubicles
+    // furniture (visual models placed by BV.Real.placeOffice; invisible solid boxes here)
+    for (const x of [-8, -3, 2, 7]) for (const z of [-18.5, -13, -7.5]) { if (x === 2 && z === -18.5) continue; furn('desk', x, z, 0, 1.45, 0.9, 0.85); furn('chair', x, z + 0.9, Math.PI); }
+    furn('bookcase', -2, -21.4, 0, 2.4, 0.45, 1.6); furn('bookcase', 8, -21.4, 0, 2.4, 0.45, 1.6);
+    // A: conference table (three desks in a row) with chairs, cabinets
+    for (const x of [-23.4, -20, -16.6]) { furn('desk', x, -15.5, 0, 1.45, 0.9, 0.85); furn('chair', x, -14.4, Math.PI); furn('chair', x, -16.6, 0); }
+    furn('cabinet', -26.8, -11.5, Math.PI / 2, 2.2, 0.55, 1.6); furn('bookcase', -14, -21.4, 0, 2.4, 0.45, 1.6);
+    // storage: cabinets and boxes
+    furn('cabinet', -20, -8.5, Math.PI, 2.2, 0.55, 1.6); crate(-14.5, -5, 1.2, 1.2); crate(-14.5, -6.2, 1.0, 1.0, 'crate', 1.2); crate(-26, -4, 1.2, 1.2);
+    // B: executive suite: big desk, bookcases, cabinet, sofa-like crates
+    furn('desk', -19, 19.5, Math.PI, 1.45, 0.9, 0.85); furn('desk', -17.5, 19.5, Math.PI, 1.45, 0.9, 0.85); furn('chair', -18.3, 20.6, 0);
+    furn('bookcase', -24, 21.4, Math.PI, 2.4, 0.45, 1.6); furn('bookcase', -13, 21.4, Math.PI, 2.4, 0.45, 1.6); furn('cabinet', -27.4, 14, -Math.PI / 2, 2.2, 0.55, 1.6);
+    furn('chair', -22, 11, 0.4); furn('chair', -15, 11.5, -0.5);
+    // server room: racks (metal boxes)
+    for (const x of [-26, -23, -16, -13]) B(x - 0.5, 4.2, x + 0.5, 5.4, 0, 2.2, 'metal');
+    // break room: tables, cabinets
+    furn('desk', -6, 7, 0, 1.45, 0.9, 0.85); furn('desk', 4, 7, Math.PI / 2, 1.45, 0.9, 0.85); furn('chair', -6, 8, Math.PI); furn('chair', 3, 7, Math.PI / 2);
+    furn('cabinet', 10.8, 6, -Math.PI / 2, 2.2, 0.55, 1.6);
+    // south cubicles
+    for (const x of [4, 9, 15, 20]) for (const z of [15, 19.5]) { furn('desk', x, z, Math.PI, 1.45, 0.9, 0.85); furn('chair', x, z - 0.9, 0); }
+    // kitchen: counters
+    B(13, -21.6, 23.6, -20.9, 0, 0.95, 'tile'); B(22.9, -20.9, 23.6, -14, 0, 0.95, 'tile'); crate(17, -15, 1.4, 0.9, 'crate');
+    // service area: lockers
+    for (const z of [13.2, 14.6]) B(-9.6, z - 0.6, -8.9, z + 0.6, 0, 2.0, 'metal');
+    // ceiling lights
+    for (const x of [-8, -2, 4, 10]) for (const z of [-18, -11, -5]) light(x, z, 0.95);
+    for (const x of [-24, -16]) { light(x, -18); light(x, -12.5); light(x, 12); light(x, 18.5); light(x, 5); light(x, -5.5); }
+    for (const x of [-32]) for (const z of [-16, -6, 4, 14]) light(x, z, 0.9);
+    for (const x of [-20, -8, 4]) light(x, 0, 0.85);
+    for (const [x, z] of [[18, -4], [18, 4], [18, -16], [18, 16], [6, 16], [-4, 7], [5, 7], [-5, 17], [12, 18.5]]) light(x, z);
+    // outside: parked cars (crates as cover), barriers, bins
+    crate(10, -30, 4.2, 1.5, 'container'); crate(-6, -30, 4.2, 1.5, 'container'); crate(-22, -30, 1.6, 1.6); barrel(-14, -26); barrel(-13.2, -26.6);
+    B(30, -16, 31.2, -9, 0, 1.0, 'concreteDark'); B(30, 9, 31.2, 16, 0, 1.0, 'concreteDark');   // street barriers
+    crate(38, -24, 1.6, 1.6); crate(39.6, -24, 1.6, 1.6); crate(38.8, -24, 1.5, 1.5, 'crate', 1.6); crate(40, 25, 4.2, 1.5, 'container');
+    crate(-4, 28, 1.6, 1.6); barrel(2, 26); barrel(2.8, 26.8); crate(-20, 29, 4.2, 1.5, 'container');
+    crate(-44, -12, 1.6, 1.6); crate(-44, 10, 1.6, 1.6, 'crateMil'); barrel(-41, -20); barrel(-41, 20);
+    // navigation grid (2 m) over every free cell
+    const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.45 && x < b.max[0] + 0.45 && z > b.min[2] - 0.45 && z < b.max[2] + 0.45 && b.min[1] < 1.8 && b.max[1] > 0.2);
+    const wp = []; for (let x = -48; x <= 46; x += 2) for (let z = -34; z <= 32; z += 2) if (free(x, z)) wp.push([x, z]);
+    Object.assign(data, MERIDIAN); data.waypoints = wp; data.office = office;
+  }
+  const MERIDIAN = {
+    name: 'MERIDIAN', mode: 'hostage', linkDist: 2.95, noCity: true, noWarehouse: true, noIndustrial: true,
+    env: { sky: null, fog: 0xb9c2cc, hemiSky: 0xdce6f0, hemiGround: 0x8a8578, hemi: 0.95, sun: 0xfff1de, sunI: 2.4, exposure: 1.1 },
+    spawns: {   // attack = the rescuers (Vanguard, east street), defend = the captors (Raven, west hall / yard)
+      attack: [[38, -3], [38, 3], [41, 0], [35, 0], [41, -5], [41, 5], [35, -5]],
+      defend: [[-32, -8], [-32, 8], [-32, 0], [-43, -4], [-43, 4], [-32, -14], [-32, 16]]
+    },
+    spawnCenter: { attack: [38, 0], defend: [-34, 0] },
+    sites: [
+      { name: 'A', min: [-28, -22], max: [-12, -9], center: [-20, -15.5], plant: [[-20, -12, 0]],
+        defend: [[-13.5, -10.5, 0, -Math.PI * 0.75], [-26.5, -20.5, 0, Math.PI * 0.25], [-26.5, -10.5, 0, -Math.PI * 0.4], [-13.5, -20.5, 0, Math.PI * 0.6]] },
+      { name: 'B', min: [-28, 8], max: [-10, 22], center: [-19, 15], plant: [[-19, 14, 0]],
+        defend: [[-11.5, 9.5, 0, -Math.PI * 0.6], [-26.5, 20.5, 0, Math.PI * 0.75], [-26.5, 9.5, 0, -Math.PI * 0.3], [-11.5, 20.5, 0, Math.PI * 0.8]] }
+    ],
+    hostages: [[-23.5, -19.5, 0.3], [-16.5, -12, -2.6], [-22.5, 16.5, 2.2], [-14.5, 13.5, -0.8]],
+    rescue: { min: [28, -12], max: [47, 12] },
+    routes: {
+      A: [{ name: 'north', stage: [3, -27] }, { name: 'main', stage: [8, 0] }],
+      B: [{ name: 'south', stage: [-4, 27] }, { name: 'main', stage: [8, 0] }]
+    },
+    midPatrol: [[0, 0], [-8, -12], [6, 16], [-24, 0], [16, 0]],
+    links: [],
+    zoneFn: (x, z) => {
+      if (x > 24) return 'Street';
+      if (x < -36) return 'Back Yard';
+      if (z < -22) return 'Parking';
+      if (z > 22) return 'Alley';
+      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Conference (A)' : 'Executive Suite (B)';
+      if (x < -28) return 'West Hall';
+      if (Math.abs(z) < 2) return 'Main Corridor';
+      if (x > 12 && Math.abs(z) < 9) return 'Lobby';
+      if (z < -9 && x > 12) return 'Kitchen';
+      if (z < -2 && x > -12) return 'Open Office';
+      if (z < -2) return 'Storage';
+      if (z < 8 && x < -10) return 'Server Room';
+      if (z < 12 && x < 12) return 'Break Room';
+      if (x < 0) return 'Service';
+      return 'Cubicles';
+    }
+  };
   function defineDustline() {
     const house = (x0, z0, x1, z1, h) => { B(x0, z0, x1, z1, 0, h, 'adobe'); B(x0 - 0.15, z0 - 0.15, x1 + 0.15, z1 + 0.15, h, h + 0.35, 'adobe', { solid: false }); };   // flat roof with parapet lip
     const arch = (x, z0, z1) => { B(x - 0.6, z0, x + 0.6, z0 + 1.2, 0, 4.4, 'adobe'); B(x - 0.6, z1 - 1.2, x + 0.6, z1, 0, 4.4, 'adobe'); B(x - 0.6, z0, x + 0.6, z1, 3.5, 4.4, 'adobe', { solid: false }); };
@@ -547,12 +679,12 @@ BV.Map = (function () {
   }
 
   /* ---------------- geometry building ---------------- */
-  const TEX_SCALE = BV.TEX_SCALE = { sand: 4, adobe: 2.6, brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
+  const TEX_SCALE = BV.TEX_SCALE = { officewall: 2.2, carpet: 2.5, ceiling: 1.2, officetile: 1.6, sand: 4, adobe: 2.6, brick2: 2.4, asphaltCracked: 3, plate: 1.2, paintLow: 1.5, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, concrete: 4, concreteDark: 4, brick: 1.6, plaster: 3, metal: 3, roof: 4, crate: 1.4, crateMil: 1.6, container: 3,
     asphalt: 2.6, tile: 3, dirt: 5, hazard: 1.2, window: 1, door: 1, car: 2, car2: 2, glass: 2, trim: 2, barrel: 1 };
 
   const ROUGH = { metal: 0.5, roof: 0.6, container: 0.55, hazard: 0.7, trim: 0.6, glass: 0.08, window: 0.15, door: 0.6, tile: 0.7, crateMil: 0.75 };
   const METAL = { metal: 0.45, roof: 0.35, container: 0.3, trim: 0.35, glass: 0.2, window: 0.3, door: 0.3 };
-  const NORMAL_STR = { sand: 1.3, adobe: 1.0, brick2: 2.6, asphaltCracked: 1.0, brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
+  const NORMAL_STR = { officewall: 0.7, carpet: 0.8, ceiling: 1.0, officetile: 1.2, sand: 1.3, adobe: 1.0, brick2: 2.6, asphaltCracked: 1.0, brick: 2.6, concrete: 1.0, concreteDark: 1.0, metal: 3, roof: 3, container: 4, crate: 2.6, crateMil: 1.4, asphalt: 0.9, tile: 1.8, dirt: 1.3, plaster: 1.1, door: 2 };
 
   const NO_RMAP = { window: 1, glass: 1, hazard: 1, door: 0, roadLine: 1, siteLine: 1, manhole: 1, drain: 1, paintLow: 0, plate: 0 };
 
@@ -646,7 +778,8 @@ BV.Map = (function () {
     let t1 = performance.now();
     buildProps(scene); BV.timings.props1 = performance.now() - t1; t1 = performance.now();
     buildAtmosphere(scene); BV.timings.atmos = performance.now() - t1; t1 = performance.now();
-    BV.Props.build(scene, boxes, isIndoor); BV.timings.props2 = performance.now() - t1; data.boxes = boxes;
+    // industrial wall dressing (not in the office)
+    if (!data.noIndustrial) BV.Props.build(scene, boxes, isIndoor); BV.timings.props2 = performance.now() - t1; data.boxes = boxes;
     // lamp fixtures + glow sprites
     const glowMat = new THREE.SpriteMaterial({ map: BV.Textures.glow(), color: 0xffc070, transparent: true, opacity: 0.45, toneMapped: false, depthWrite: false, blending: THREE.AdditiveBlending, fog: true });
     const glowMatCool = glowMat.clone(); glowMatCool.color = new THREE.Color(0x9cc4ff);
@@ -967,7 +1100,7 @@ BV.Map = (function () {
 
   let built = false;
   function build(scene) {
-    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : BV.MAP_ID === 'dustline' ? defineDustline : defineSector17)(); built = true; }
+    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : BV.MAP_ID === 'dustline' ? defineDustline : BV.MAP_ID === 'meridian' ? defineMeridian : defineSector17)(); built = true; }
     BV.Physics.setBoxes(boxes);
     const T = (BV.timings = BV.timings || {}); let t0 = performance.now();
     buildGeometry(scene); T.geometry = performance.now() - t0; t0 = performance.now();
