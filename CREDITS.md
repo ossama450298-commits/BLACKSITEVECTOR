@@ -32,6 +32,9 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | animated pistol · heavy pistol animated · fps animated smg · shotgun animated · fps animated carbine · sniper animated · knife animated · lmg animated | DJMaesen | CC BY 4.0 | Brazos y armas en primera persona con animaciones hechas a mano para la Viper-9, Falcon .45, Specter-9, Vector-MP, Hammer-12, Halberd-4, Kestrel-5, Lynx-7, Blade-X y Bastion-60 |
 | [Realistic Swat police officer](https://sketchfab.com/3d-models/realistic-swat-police-officer-3d-model-1d942be40a0d431789387524e8d62272) | Blender Studio | CC BY 4.0 | Personaje SWAT de Vanguard (con el esqueleto del operador) |
 | [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
+| [M84 Stun Grenade "Flashbang"](https://sketchfab.com/3d-models/m84-stun-grenade-flashbang-3dbda8fe68ff4efdbf59f7d414c5619c) | Vanillatography | CC BY 4.0 | Granada cegadora Glare-F |
+| [M18 Smoke Grenade](https://sketchfab.com/3d-models/m18-smoke-grenade-46343925ad0e47cf927e66da7953c372) | Vanillatography | CC BY 4.0 | Granada de humo Veil-S |
+| [Wire cutter](https://sketchfab.com/3d-models/wire-cutter-794aac0807da41bf8ec6eb3ee23f4a0f) | Thomas Vansteelandt | CC BY 4.0 | Kit de desactivación |
 | [AR-15](https://sketchfab.com/3d-models/ar-15-33e225811b404192b89dcd4096603fbe) | wafla | CC BY 4.0 | Fusil Shade-4 SD y su silenciador |
 | [Colt M1911 & Silencer](https://sketchfab.com/3d-models/colt-m1911-silencer-066b5650970e4d01b721fd4d19ab8065) | FJH | CC BY 4.0 | Pistola Warden .45 SD y su silenciador |
 | [Time bomb](https://sketchfab.com/3d-models/time-bomb-2191e5560de242a290c5de41e5052c74) | Shailesh gowda | CC BY 4.0 | La carga explosiva (con la cuenta atrás del juego en su pantalla) |

@@ -161,6 +161,12 @@ BV.Viewmodel = class {
     }
     lPole = new THREE.Vector3(-0.6, -0.55, 0.0); rPole = new THREE.Vector3(0.6, -0.55, 0.0);
     if (R.rig) this.poseArms(R, lT, rT, lPole, rPole, def, rIndex, hold);
+    // defuse kit: wire cutter in the right hand, jaws towards the charge, snipping
+    if (def && st.kit && BV.Real && BV.Real.cutterModel) {
+      if (!R.cutter) { R.cutter = BV.Real.cutterModel(); if (R.cutter) { R.cutter.group.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; } }); R.g.add(R.cutter.group); } }
+      if (R.cutter) { const c = R.cutter.group; c.visible = true; c.position.set(rT.x - 0.01, rT.y + 0.015, rT.z - 0.045);
+        c.rotation.set(-0.75, -Math.PI / 2 + 0.25, 0.15); R.cutter.setOpen(0.05 + 0.2 * (0.5 + 0.5 * Math.sin(t * 6))); }
+    } else if (R.cutter) R.cutter.group.visible = false;
     else { R.arms.left.position.copy(lT); R.arms.left.rotation.set(0.55, -0.35, 1.35); R.arms.right.position.copy(rT); R.arms.right.rotation.set(1.0, 0.25, -1.25); }
   }
   // two-bone IK for both arms of the realistic rig (targets/poles in the use-rig's space)

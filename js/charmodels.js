@@ -50,6 +50,11 @@ BV.CharModels = (function () {
     model.rotation.y = Math.PI;
     bodyG.add(model);
     const bones = {}; model.traverse(o => { if (o.isBone) bones[o.name.replace(/^mixamorig/, '').replace(/_\d+$/, '')] = o; });
+    // defuse kit: wire cutter hanging at the right hip (shown while the soldier carries a kit)
+    let kitObj = null;
+    if (BV.Real.cutterModel && bones.Hips) { const C = BV.Real.cutterModel(); if (C) { kitObj = C.group;
+      kitObj.scale.setScalar(1.15); kitObj.rotation.set(0, 0, Math.PI / 2 + 0.25); kitObj.visible = false; root.add(kitObj);
+      kitObj.userData.hip = bones.Hips; } }   // placed every frame at the right hip (root space: x = right, y = up)
     const mats = [];
     // per-instance materials; Raven gets a darker, earthier uniform tint
     const tint = V || !isBase ? null : new THREE.Color(0x8c7b66);   // new characters keep their own colours
@@ -95,7 +100,7 @@ BV.CharModels = (function () {
     let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle', lodAcc = 0, lodN = 0;
     const api = {
       root, body: bodyG, torso: bodyG, head: bodyG, gunHolder, shadow, flashAnchor: null, ejectAnchor: null, state: null, shade: 1, skinned: true,
-      setWeapon(def) {
+      kitObj, setWeapon(def) {
         if (currentGun) gunHolder.remove(currentGun.group);
         currentGun = M.gun(def.model);
         this.silObj = currentGun.group.userData.silencer || null;   // suppressor shown only while fitted

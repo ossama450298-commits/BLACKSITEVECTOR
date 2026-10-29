@@ -62,7 +62,7 @@ BV.Player = (function () {
     // ---------- weapons ----------
     const w = p.weapon;
     for (let i = 1; i <= 5; i++) if (inp.pressed('Digit' + i)) {
-      if (i === 4 && p.slot === 4 && p.cycleNade()) { game.engine.viewmodel.equip(p.weapon.def); BV.HUD.notice(p.weapon.def.name, '', 0.8); continue; }   // 4 again: next grenade type
+      if (i === 4 && p.slot === 4 && p.cycleNade()) { game.engine.viewmodel.equip(p.weapon.def, p.team); BV.HUD.notice(p.weapon.def.name, '', 0.8); continue; }   // 4 again: next grenade type
       game.switchSlot(p, i);
     }
     if (inp.pressed('KeyQ')) game.switchSlot(p, p.prevSlot);

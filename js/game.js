@@ -494,7 +494,7 @@ BV.Game = class {
     const inv = c.inv[4]; if (!inv || inv.count <= 0) return false;
     c.nades[inv.def.id] = (c.nades[inv.def.id] || 1) - 1; c.syncNades(); c.nextFire = this.time + 0.9;
     const eye = c.eye(this.T1), fwd = c.dir(this.T2);
-    const mesh = (BV.Real && BV.Real.thrownGrenade && BV.Real.thrownGrenade()) || new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), BV.Models.mat(0x4c5236));
+    const mesh = (BV.Real && BV.Real.thrownGrenade && BV.Real.thrownGrenade(inv.def.model)) || new THREE.Mesh(new THREE.IcosahedronGeometry(0.07, 0), BV.Models.mat(0x4c5236));
     mesh.rotation.set(Math.random() * 6, Math.random() * 6, 0);
     const pos = eye.clone().addScaledVector(fwd, 0.5);
     mesh.position.copy(pos); this.scene.add(mesh);
@@ -977,6 +977,9 @@ BV.Game = class {
         e.walkPhase += sp * dt * 2.1;
         m.state = m.state || {}; m.state.kneel = (this.planter === e && this.phase === 'live') || this.defuser === e; m.state.sprint = e.sprint && sp > 4; m.state.reloading = e.reloading; m.state.back = sp > 0.5 && (-Math.sin(e.yaw) * e.vel.x - Math.cos(e.yaw) * e.vel.z) < -0.4 * sp;
         m.animate(dt, sp, e.crouch, e.pitch, e.walkPhase, this.time - e.lastShot < 0.08);
+        if (m.kitObj) { m.kitObj.visible = !!e.hasKit;   // wire cutter on the belt, following the hip height
+          if (m.kitObj.visible) { const hp = m.kitObj.userData.hip.getWorldPosition(this.T5 || (this.T5 = new THREE.Vector3())); m.root.worldToLocal(hp);
+            m.kitObj.position.set(-0.19, hp.y - 0.1, hp.z + 0.02); } }
         if (m.silObj) m.silObj.visible = !!(e.weapon && e.weapon.def.silencer && e.weapon.silenced !== false);
         m.root.visible = !e.isPlayer || (this.engine.thirdPerson === true);
       } else {

@@ -411,7 +411,7 @@
       E.viewmodel.update(dt, {
         speed: Math.hypot(p.vel.x, p.vel.z), onGround: p.onGround, crouch: p.crouch > 0.5, sprint: p.sprint,
         mdx, mdy,
-        silT: p.silT || 0, silOn: !!p.silOn, silenced: !!(p.weapon && p.weapon.def.silencer && p.weapon.silenced !== false),
+        kit: !!p.hasKit, silT: p.silT || 0, silOn: !!p.silOn, silenced: !!(p.weapon && p.weapon.def.silencer && p.weapon.silenced !== false),
         busy: p.planting || p.defusing, planting: !!p.planting, defusing: !!p.defusing, visible: p.alive && !E.thirdPerson && !(p.zoom && p.weapon && p.weapon.def.zoom), strafe: E.strafe || 0
       });
       BV.HUD.update(dt);

@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.9.1';
+BV.VERSION = '4.10.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -101,9 +101,9 @@ BV.WEAPONS = {
   shard:    { id: 'shard', name: 'Shard-G', slot: 4, cls: 'grenade', damage: 98, radius: 6.5, rate: 1.0, max: 1,
               price: 300, speed: 1.0, model: 'grenade', reward: 300 },
   flash:    { id: 'flash', name: 'Glare-F', slot: 4, cls: 'grenade', kind: 'flash', damage: 0, radius: 24, rate: 1.0, max: 2, fuse: 1.45,
-              price: 200, speed: 1.0, model: 'grenade', reward: 0 },
+              price: 200, speed: 1.0, model: 'flashbang', reward: 0 },
   smoke:    { id: 'smoke', name: 'Veil-S', slot: 4, cls: 'grenade', kind: 'smoke', damage: 0, radius: 4.3, rate: 1.0, max: 1, fuse: 1.8,
-              price: 300, speed: 1.0, model: 'grenade', reward: 0 }
+              price: 300, speed: 1.0, model: 'smokegren', reward: 0 }
 };
 
 /* Buy menu layout (category -> items). 'armor' is special. */

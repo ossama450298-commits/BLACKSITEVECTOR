@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let colt = null, ar15 = null; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -141,6 +141,9 @@ BV.Real = (function () {
     if (BV.REAL.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
     if (BV.REAL.ak74fp) jobs.push(parse(BV.REAL.ak74fp).then(g => { styleMaterials(g.scene); ak74 = prepAk74(g); }));
+    if (BV.REAL.nade_flash) jobs.push(parse(BV.REAL.nade_flash).then(g => { styleMaterials(g.scene); flashN = buildNade(g.scene, 0.135, /^(Pin|Split|PinConnect)_low/); }));
+    if (BV.REAL.nade_smoke) jobs.push(parse(BV.REAL.nade_smoke).then(g => { styleMaterials(g.scene); smokeN = buildNade(g.scene, 0.145, null); }));
+    if (BV.REAL.cutter) jobs.push(parse(BV.REAL.cutter).then(g => { styleMaterials(g.scene); cutter = g.scene; }));
     if (BV.REAL.ar15) jobs.push(parse(BV.REAL.ar15).then(g => { styleMaterials(g.scene); ar15 = g.scene; }));
     if (BV.REAL.colt) jobs.push(parse(BV.REAL.colt).then(g => { styleMaterials(g.scene); colt = g.scene; }));
     for (const k of ['char_swat', 'char_merc']) if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); chars[k] = g.scene; }));
@@ -417,8 +420,31 @@ BV.Real = (function () {
     const c = b2.getCenter(new THREE.Vector3()); root.position.set(-c.x, -b2.min.y, -c.z);
     return { group: g, display, leds };
   }
+  /* flashbang / smoke grenade (Vanillatography, CC BY): body + pull ring, centred, scaled to real height */
+  function buildNade(scene, height, pinRe) {
+    scene.updateMatrixWorld(true);
+    const box = new THREE.Box3(); scene.traverse(o => { if (o.isMesh) box.expandByObject(o); });
+    const C = box.getCenter(new THREE.Vector3()), s = height / (box.max.y - box.min.y), body = new THREE.Group(), pin = new THREE.Group();
+    scene.traverse(o => { if (!o.isMesh) return;
+      const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.translate(-C.x, -C.y, -C.z); g.scale(s, s, s); g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, o.material); m.castShadow = true; (pinRe && pinRe.test(o.name) ? pin : body).add(m); });
+    return { body, pin };
+  }
+  const nadeOf = (model) => model === 'flashbang' ? (flashN || frag) : model === 'smokegren' ? (smokeN || frag) : frag;
+  /* wire cutter (Thomas Vansteelandt, CC BY) for the defuse kit: upper and lower halves pivot on the bolt */
+  function cutterModel() {
+    if (!cutter) return null;
+    const src = cutter.clone(true); src.updateMatrixWorld(true);
+    const group = new THREE.Group(), up = new THREE.Group(), down = new THREE.Group(), pivot = new THREE.Vector3(0.01, 0, 0);
+    up.position.copy(pivot); down.position.copy(pivot); group.add(up, down);
+    const list = []; src.traverse(o => { if (o.isMesh) list.push(o); });
+    for (const o of list) { const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.translate(-pivot.x, -pivot.y, -pivot.z);
+      const m = new THREE.Mesh(g, o.material); m.castShadow = true; (/_Up_/.test(o.name) ? up : down).add(m); }
+    return { group, setOpen(a) { up.rotation.z = a; down.rotation.z = -a; } };
+  }
   /* thrown grenade: the body only (the pin has been pulled) */
-  function thrownGrenade() { if (!frag) return null; const g = new THREE.Group(); g.add(frag.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
+  function thrownGrenade(model) { const N = nadeOf(model); if (!N) return null; const g = new THREE.Group(); g.add(N.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
+  function thrownGrenade_old() { if (!frag) return null; const g = new THREE.Group(); g.add(frag.body.clone()); g.traverse(o => { if (o.isMesh) o.castShadow = true; }); return g; }
   /* Makarov (CC0): real separate parts. Body/barrel/trigger fixed, slide (+hammer, safety) moves on
      each shot, magazine seated in the grip (the source shows it beside the pistol, exploded) */
   function buildMakarov(scene) {
@@ -500,8 +526,8 @@ BV.Real = (function () {
       const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.12); group.add(eject);
       return { group, muzzle, mag: null, magHome: null, eject, imported: true, real: true };
     } }
-    if (ready && frag && model === 'grenade') {
-      const group = new THREE.Group(), pin = frag.pin.clone(); group.add(frag.body.clone()); group.add(pin);
+    if (ready && frag && (model === 'grenade' || model === 'flashbang' || model === 'smokegren')) {
+      const N = nadeOf(model), group = new THREE.Group(), pin = N.pin.clone(); group.add(N.body.clone()); group.add(pin);
       const muzzle = new THREE.Object3D(); muzzle.position.set(0, 0.05, -0.03); group.add(muzzle);
       return { group, muzzle, mag: null, magHome: null, pin, pinHome: pin.position.clone(), eject: muzzle, imported: true, real: true };
     }
@@ -618,5 +644,5 @@ BV.Real = (function () {
     const extra = team === 'VANGUARD' ? ['char_swat'] : ['char_merc'];   // stalker held back until its boots skin cleanly
     return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
   }
-  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();
