@@ -139,6 +139,7 @@ BV.Game = class {
     this.roundsToWin = BV.RULES.winRounds || 16; this.maxRounds = BV.RULES.maxRounds || 30;   // every match: first to 16 of 30
     this.score = { VANGUARD: 0, RAVEN: 0 }; this.lossStreak = { VANGUARD: 0, RAVEN: 0 };
     this.mode = (this.map.data && this.map.data.mode) || 'bomb';
+    this.tiebreak = false; this.tiebreakNext = false;
     this.round = 0; this.attackTeam = this.mode === 'hostage' ? 'VANGUARD' : 'RAVEN'; this.halftimeDone = false; this.halftimePending = false;   // hostage: Vanguard rescue, Raven hold
     this.stats = { shots: 0, hits: 0, heads: 0, kills: 0 };
     this.time = 0; this.killfeedClear = true;
@@ -962,8 +963,9 @@ BV.Game = class {
       e.money = Math.min(R.maxMoney, e.money + add);
       if (e.planting || e.defusing) this.cancelObjective(e);
     }
-    const draw = this.round >= this.maxRounds && this.score.VANGUARD === this.score.RAVEN;
-    const matchOver = this.score[winner] >= this.roundsToWin || this.round >= this.maxRounds;
+    // 15-15 after round 30: one tiebreaker round, whose winner reaches 16 (so a match never ends in a draw)
+    const draw = false, matchOver = this.score[winner] >= this.roundsToWin;
+    this.tiebreakNext = !matchOver && this.round >= this.maxRounds && this.score.VANGUARD === this.score.RAVEN;
     this.halftimePending = false;   // sides never switch
     this.lastResult = { winner: draw ? null : (this.score[winner] >= this.score[BV.otherTeam(winner)] ? winner : BV.otherTeam(winner)), reason, matchOver, draw };
     BV.HUD.roundEnd(this, winner, reason, matchOver, this.halftimePending);
@@ -974,6 +976,11 @@ BV.Game = class {
       this.phase = 'over';
       this.engine.onMatchOver(this.lastResult.winner);
       return;
+    }
+    if (this.tiebreakNext) {
+      this.tiebreakNext = false; this.tiebreak = true;
+      for (const e of this.ents) e.money = Math.max(e.money, 10000);
+      BV.HUD.notice('TIEBREAKER — 15-15: the next round decides the match', 'alert', 5);
     }
     if (this.halftimePending) {
       this.halftimePending = false; this.halftimeDone = true;
