@@ -280,9 +280,12 @@
   };
   E.closeBuy = () => { if (E.state !== 'buy') return; BV.HUD.buyMenu(false); lockAndPlay(); };
 
-  BV.Input.listeners.key.push((code, down) => {
+  BV.Input.listeners.key.push((code, down, ev) => {
     if (code === 'Tab' && (E.state === 'play' || E.state === 'buy')) BV.HUD.scoreboard(down);
     if (!down) return;
+    // toggles (buy menu, camera) ignore the keyboard's auto-repeat: holding B used to open/close the menu ~30 times a second
+    if (ev && ev.repeat && (code === 'KeyB' || code === 'KeyV')) return;
+    if (code === 'KeyB') { const now = performance.now(); if (now - (E._buyToggleT || 0) < 300) return; E._buyToggleT = now; }
     if (code === 'KeyF' && E.state === 'play' && game.player && game.player.alive) E.viewmodel.inspect();
     if (code === 'KeyV' && E.state === 'play') { E.thirdPerson = !E.thirdPerson; BV.HUD.notice(E.thirdPerson ? 'Third-person view (V)' : 'First-person view (V)', '', 1.2); }
     if (code === 'KeyB') { if (E.state === 'play') E.openBuy(); else if (E.state === 'buy') E.closeBuy(); }
