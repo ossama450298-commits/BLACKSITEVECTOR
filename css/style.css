@@ -259,3 +259,7 @@ body.classic #center-big { font-family: var(--hud-font); font-weight: bold; font
 body.classic #scoreboard, body.classic #buymenu { background: rgba(24,26,22,0.93); border: 1px solid #5d6052; border-top: 1px solid #8a8c7c; }
 body.classic .buy-item { background: #34372f; border-color: #5f6255; }
 body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
+
+/* rifles locked to the other team */
+.buy-item.team-lock { opacity: 0.35; filter: grayscale(0.8); }
+.buy-item.team-lock .p { text-decoration: line-through; }

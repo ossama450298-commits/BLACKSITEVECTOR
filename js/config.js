@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.9.0';
+BV.VERSION = '4.9.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -69,7 +69,7 @@ BV.WEAPONS = {
               shotSpread: 0, kick: 0.05, drop: 0.6, price: 1900, speed: 0.92, model: 'shotgun',
               snd: { f: 900, l: 0.35, t: 80, v: 1.2 }, reward: 900 },
 
-  arx17:    { id: 'arx17', name: 'ARX-17', slot: 1, cls: 'rifle', auto: true, damage: 35, head: 4.0, armorPen: 0.78,
+  arx17:    { id: 'arx17', name: 'ARX-17', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 35, head: 4.0, armorPen: 0.78,
               rate: 0.10, mag: 30, reserve: 90, reload: 2.5, spread: 0.0035, moveSpread: 0.05, airSpread: 0.2,
               shotSpread: 0.0065, kick: 0.0115, drop: 0.97, price: 2700, speed: 0.9, model: 'rifle',
               snd: { f: 1700, l: 0.22, t: 120, v: 1.0 }, reward: 300 },
@@ -80,7 +80,7 @@ BV.WEAPONS = {
   charge:    { id: 'charge', name: 'Demo Charge', slot: 5, cls: 'charge', auto: false, damage: 0, head: 0, armorPen: 0,
               rate: 1, mag: 1, reserve: 0, reload: 1, spread: 0, moveSpread: 0, airSpread: 0, shotSpread: 0, kick: 0, drop: 1,
               price: 0, speed: 1, model: 'charge', snd: { f: 800, l: 0.05, t: 40, v: 0.2 }, reward: 0 },
-  shade4:   { id: 'shade4', name: 'Shade-4 SD', slot: 1, cls: 'rifle', auto: true, damage: 30, head: 4.0, armorPen: 0.7,
+  shade4:   { id: 'shade4', name: 'Shade-4 SD', team: 'VANGUARD', slot: 1, cls: 'rifle', auto: true, damage: 30, head: 4.0, armorPen: 0.7,
               rate: 0.095, mag: 25, reserve: 75, reload: 2.4, spread: 0.0026, moveSpread: 0.04, airSpread: 0.18,
               shotSpread: 0.0048, kick: 0.0088, drop: 0.97, price: 3100, speed: 0.92, model: 'm4sd', silencer: true,
               snd: { f: 1900, l: 0.18, t: 120, v: 0.9 }, reward: 300 },

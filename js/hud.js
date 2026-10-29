@@ -260,6 +260,7 @@ BV.HUD = (function () {
     if (d.kind === 'flash') return `Blinds whoever looks at it · max ${d.max}`;
     if (d.kind === 'smoke') return `Smoke screen · 15 s · blocks sight`;
     if (d.cls === 'grenade') return `Fragmentation · ${d.radius} m radius`;
+    if (d.team) return `${d.team === 'VANGUARD' ? 'Vanguard' : 'Raven'} only · ${d.damage} dmg · ${Math.round(60 / d.rate)} rpm · ${d.mag}/${d.reserve}${d.silencer ? ' · suppressor' : ''}`;
     if (d.silencer) return `${d.damage} dmg · ${Math.round(60 / d.rate)} rpm · ${d.mag}/${d.reserve} · suppressor (right click)`;
     const rpm = Math.round(60 / d.rate);
     return `${d.damage}${d.pellets ? '×' + d.pellets : ''} dmg · ${rpm} rpm · ${d.mag}/${d.reserve}${d.zoom ? ' · scope' : ''}`;
@@ -278,7 +279,7 @@ BV.HUD = (function () {
     el['buy-grid'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-buy]'); if (!b) return;
       const r = game.buy(b.dataset.buy);
-      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead', team: 'Vanguard only' }[r] || '';
+      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead', team: 'Not available for your team' }[r] || '';
       el['buy-status'].textContent = msg;
       BV.Audio.ui(r === 'bought' ? 'buy' : 'deny');
       refreshBuy(true);
@@ -291,7 +292,8 @@ BV.HUD = (function () {
     el['buy-money'].textContent = '$' + p.money;
     el['buy-grid'].querySelectorAll('[data-buy]').forEach(b => {
       const id = b.dataset.buy, price = id === 'armor' ? BV.ARMOR_PRICE : BV.GEAR[id] ? BV.GEAR[id].price : BV.WEAPONS[id].price;
-      b.classList.toggle('cant', price > p.money || (id === 'kit' && p.team !== game.defendTeam()));
+      const W0 = BV.WEAPONS[id], wrongTeam = (id === 'kit' && p.team !== game.defendTeam()) || (W0 && W0.team && W0.team !== p.team);
+      b.classList.toggle('cant', price > p.money || wrongTeam); b.classList.toggle('team-lock', !!wrongTeam);
       const W = BV.WEAPONS[id], owned = id === 'armor' ? p.armor >= 100 : id === 'helmet' ? p.helmet : id === 'kit' ? p.hasKit : (W.slot === 4 ? (p.nades && (p.nades[id] || 0) >= (W.max || 1)) : p.inv[W.slot] && p.inv[W.slot].def.id === id);
       b.classList.toggle('owned', !!owned);
     });

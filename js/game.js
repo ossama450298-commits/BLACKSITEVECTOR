@@ -240,15 +240,15 @@ BV.Game = class {
 
   botBuy(b) {
     const W = BV.WEAPONS; let m = b.money;
-    const buy = (id) => { const d = W[id]; if (m >= d.price) { m -= d.price; b.giveWeapon(id); return true; } return false; };
+    const buy = (id) => { const d = W[id]; if (d.team && d.team !== b.team) return false; if (m >= d.price) { m -= d.price; b.giveWeapon(id); return true; } return false; };
     if (!b.inv[1]) {
       const r = Math.random();
       const sniperTaken = this.ents.some(e => e !== b && e.team === b.team && e.inv[1] && e.inv[1].def.id === 'lynx7');
       if (m >= 5400 && r < 0.2 && !sniperTaken) buy('lynx7');
       else if (m >= 5200 && r < 0.32) buy('bastion60');
-      else if (m >= 3650 && r < 0.12) buy('shade4');
-      else if (m >= 3650) buy(r < 0.25 ? 'kestrel5' : (b.team === 'RAVEN' ? (r < 0.75 ? 'arx17' : 'halberd4') : (r < 0.75 ? 'halberd4' : 'arx17')));
-      else if (m >= 3350) buy('arx17');
+      else if (m >= 3650 && b.team === 'VANGUARD' && Math.random() < 0.4) buy('shade4');   // police: the AR-15
+      else if (m >= 3650) buy(Math.random() < 0.2 ? 'kestrel5' : (b.team === 'RAVEN' ? 'arx17' : 'halberd4'));   // terrorists: the AK
+      else if (m >= 3350) buy(b.team === 'RAVEN' ? 'arx17' : 'halberd4');
       else if (m >= 2550 && r < 0.35) buy('hammer12');
       else if (m >= 1950) buy(r < 0.5 ? 'specter9' : 'vectormp');
       else if (m >= 1300 && this.round > 1 && r < 0.4) buy('specter9');
@@ -292,6 +292,7 @@ BV.Game = class {
       p.money -= BV.GEAR.kit.price; p.hasKit = true; return 'bought';
     }
     const d = BV.WEAPONS[id];
+    if (d.team && d.team !== p.team) return 'team';   // team-exclusive (AK: Raven, AR-15: Vanguard)
     if (p.money < d.price) return 'money';
     if (d.slot === 4 && p.nades && (p.nades[id] || 0) >= (d.max || 1)) return 'have';
     if (d.slot !== 4 && p.inv[d.slot] && p.inv[d.slot].def.id === id) { p.inv[d.slot].reserve = d.reserve; p.inv[d.slot].mag = d.mag; return 'have'; }

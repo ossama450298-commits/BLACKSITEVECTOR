@@ -272,6 +272,10 @@ body.classic #scoreboard, body.classic #buymenu { background: rgba(24,26,22,0.93
 body.classic .buy-item { background: #34372f; border-color: #5f6255; }
 body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 
+/* rifles locked to the other team */
+.buy-item.team-lock { opacity: 0.35; filter: grayscale(0.8); }
+.buy-item.team-lock .p { text-decoration: line-through; }
+
 </style>
 </head>
 <body>
@@ -4803,7 +4807,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '4.9.0';
+BV.VERSION = '4.9.1';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -4866,7 +4870,7 @@ BV.WEAPONS = {
               shotSpread: 0, kick: 0.05, drop: 0.6, price: 1900, speed: 0.92, model: 'shotgun',
               snd: { f: 900, l: 0.35, t: 80, v: 1.2 }, reward: 900 },
 
-  arx17:    { id: 'arx17', name: 'ARX-17', slot: 1, cls: 'rifle', auto: true, damage: 35, head: 4.0, armorPen: 0.78,
+  arx17:    { id: 'arx17', name: 'ARX-17', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 35, head: 4.0, armorPen: 0.78,
               rate: 0.10, mag: 30, reserve: 90, reload: 2.5, spread: 0.0035, moveSpread: 0.05, airSpread: 0.2,
               shotSpread: 0.0065, kick: 0.0115, drop: 0.97, price: 2700, speed: 0.9, model: 'rifle',
               snd: { f: 1700, l: 0.22, t: 120, v: 1.0 }, reward: 300 },
@@ -4877,7 +4881,7 @@ BV.WEAPONS = {
   charge:    { id: 'charge', name: 'Demo Charge', slot: 5, cls: 'charge', auto: false, damage: 0, head: 0, armorPen: 0,
               rate: 1, mag: 1, reserve: 0, reload: 1, spread: 0, moveSpread: 0, airSpread: 0, shotSpread: 0, kick: 0, drop: 1,
               price: 0, speed: 1, model: 'charge', snd: { f: 800, l: 0.05, t: 40, v: 0.2 }, reward: 0 },
-  shade4:   { id: 'shade4', name: 'Shade-4 SD', slot: 1, cls: 'rifle', auto: true, damage: 30, head: 4.0, armorPen: 0.7,
+  shade4:   { id: 'shade4', name: 'Shade-4 SD', team: 'VANGUARD', slot: 1, cls: 'rifle', auto: true, damage: 30, head: 4.0, armorPen: 0.7,
               rate: 0.095, mag: 25, reserve: 75, reload: 2.4, spread: 0.0026, moveSpread: 0.04, airSpread: 0.18,
               shotSpread: 0.0048, kick: 0.0088, drop: 0.97, price: 3100, speed: 0.92, model: 'm4sd', silencer: true,
               snd: { f: 1900, l: 0.18, t: 120, v: 0.9 }, reward: 300 },
@@ -10100,15 +10104,15 @@ BV.Game = class {
 
   botBuy(b) {
     const W = BV.WEAPONS; let m = b.money;
-    const buy = (id) => { const d = W[id]; if (m >= d.price) { m -= d.price; b.giveWeapon(id); return true; } return false; };
+    const buy = (id) => { const d = W[id]; if (d.team && d.team !== b.team) return false; if (m >= d.price) { m -= d.price; b.giveWeapon(id); return true; } return false; };
     if (!b.inv[1]) {
       const r = Math.random();
       const sniperTaken = this.ents.some(e => e !== b && e.team === b.team && e.inv[1] && e.inv[1].def.id === 'lynx7');
       if (m >= 5400 && r < 0.2 && !sniperTaken) buy('lynx7');
       else if (m >= 5200 && r < 0.32) buy('bastion60');
-      else if (m >= 3650 && r < 0.12) buy('shade4');
-      else if (m >= 3650) buy(r < 0.25 ? 'kestrel5' : (b.team === 'RAVEN' ? (r < 0.75 ? 'arx17' : 'halberd4') : (r < 0.75 ? 'halberd4' : 'arx17')));
-      else if (m >= 3350) buy('arx17');
+      else if (m >= 3650 && b.team === 'VANGUARD' && Math.random() < 0.4) buy('shade4');   // police: the AR-15
+      else if (m >= 3650) buy(Math.random() < 0.2 ? 'kestrel5' : (b.team === 'RAVEN' ? 'arx17' : 'halberd4'));   // terrorists: the AK
+      else if (m >= 3350) buy(b.team === 'RAVEN' ? 'arx17' : 'halberd4');
       else if (m >= 2550 && r < 0.35) buy('hammer12');
       else if (m >= 1950) buy(r < 0.5 ? 'specter9' : 'vectormp');
       else if (m >= 1300 && this.round > 1 && r < 0.4) buy('specter9');
@@ -10152,6 +10156,7 @@ BV.Game = class {
       p.money -= BV.GEAR.kit.price; p.hasKit = true; return 'bought';
     }
     const d = BV.WEAPONS[id];
+    if (d.team && d.team !== p.team) return 'team';   // team-exclusive (AK: Raven, AR-15: Vanguard)
     if (p.money < d.price) return 'money';
     if (d.slot === 4 && p.nades && (p.nades[id] || 0) >= (d.max || 1)) return 'have';
     if (d.slot !== 4 && p.inv[d.slot] && p.inv[d.slot].def.id === id) { p.inv[d.slot].reserve = d.reserve; p.inv[d.slot].mag = d.mag; return 'have'; }
@@ -11823,6 +11828,7 @@ BV.HUD = (function () {
     if (d.kind === 'flash') return `Blinds whoever looks at it · max ${d.max}`;
     if (d.kind === 'smoke') return `Smoke screen · 15 s · blocks sight`;
     if (d.cls === 'grenade') return `Fragmentation · ${d.radius} m radius`;
+    if (d.team) return `${d.team === 'VANGUARD' ? 'Vanguard' : 'Raven'} only · ${d.damage} dmg · ${Math.round(60 / d.rate)} rpm · ${d.mag}/${d.reserve}${d.silencer ? ' · suppressor' : ''}`;
     if (d.silencer) return `${d.damage} dmg · ${Math.round(60 / d.rate)} rpm · ${d.mag}/${d.reserve} · suppressor (right click)`;
     const rpm = Math.round(60 / d.rate);
     return `${d.damage}${d.pellets ? '×' + d.pellets : ''} dmg · ${rpm} rpm · ${d.mag}/${d.reserve}${d.zoom ? ' · scope' : ''}`;
@@ -11841,7 +11847,7 @@ BV.HUD = (function () {
     el['buy-grid'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-buy]'); if (!b) return;
       const r = game.buy(b.dataset.buy);
-      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead', team: 'Vanguard only' }[r] || '';
+      const msg = { bought: 'Purchased', money: 'Not enough cash', time: 'Buy time is over', zone: 'Return to your spawn zone to buy', have: 'Already equipped — ammo refilled', dead: 'You are dead', team: 'Not available for your team' }[r] || '';
       el['buy-status'].textContent = msg;
       BV.Audio.ui(r === 'bought' ? 'buy' : 'deny');
       refreshBuy(true);
@@ -11854,7 +11860,8 @@ BV.HUD = (function () {
     el['buy-money'].textContent = '$' + p.money;
     el['buy-grid'].querySelectorAll('[data-buy]').forEach(b => {
       const id = b.dataset.buy, price = id === 'armor' ? BV.ARMOR_PRICE : BV.GEAR[id] ? BV.GEAR[id].price : BV.WEAPONS[id].price;
-      b.classList.toggle('cant', price > p.money || (id === 'kit' && p.team !== game.defendTeam()));
+      const W0 = BV.WEAPONS[id], wrongTeam = (id === 'kit' && p.team !== game.defendTeam()) || (W0 && W0.team && W0.team !== p.team);
+      b.classList.toggle('cant', price > p.money || wrongTeam); b.classList.toggle('team-lock', !!wrongTeam);
       const W = BV.WEAPONS[id], owned = id === 'armor' ? p.armor >= 100 : id === 'helmet' ? p.helmet : id === 'kit' ? p.hasKit : (W.slot === 4 ? (p.nades && (p.nades[id] || 0) >= (W.max || 1)) : p.inv[W.slot] && p.inv[W.slot].def.id === id);
       b.classList.toggle('owned', !!owned);
     });
