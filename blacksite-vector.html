@@ -216,7 +216,7 @@ body.classic #charge-icon.insite { color: rgba(110,255,110,0.95); }
 .sb-team tr.me td { color: var(--amber); } .sb-team tr.dead td { opacity: 0.45; }
 
 /* buy menu */
-#buymenu { position: absolute; left: 50%; top: 50%; transform: translate3d(-50%,-50%,0); width: min(980px, 96vw); background: rgba(16,18,14,0.94); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto;
+#buymenu { position: absolute; left: 50%; top: 50%; transform: translate3d(-50%,-50%,0); width: min(980px, 96vw); background: rgb(16,18,14); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto;
   isolation: isolate; will-change: transform; backface-visibility: hidden; contain: paint; }
 /* while buying, the HUD under the menu drops its backdrop blur (blur over the live 3D view + the menu layer flickered on some GPUs) */
 body.buying .tm, body.buying .tm-mid, body.buying .kf, body.buying #hud-ammo, body.buying #radar { backdrop-filter: none !important; }
@@ -4820,7 +4820,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.1.2';
+BV.VERSION = '5.1.3';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -12948,6 +12948,9 @@ BV.PostFX = class {
       renderer.shadowMap.autoUpdate = false;
       if (E.shadowFrame % every === 0) { followShadow(); renderer.shadowMap.needsUpdate = true; }
     }
+    // buy menu open: draw one frame, then keep it (no 3D redraw under the panel; the match keeps running).
+    // Continuous canvas updates under the menu made it flicker on integrated GPUs.
+    if (E.state === 'buy') { if (E._buyDrawn) return; E._buyDrawn = true; } else E._buyDrawn = false;
     const vm = playing && game.player && game.player.alive;
     if (post.enabled) {
       post.begin();

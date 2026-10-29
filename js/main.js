@@ -441,6 +441,9 @@
       renderer.shadowMap.autoUpdate = false;
       if (E.shadowFrame % every === 0) { followShadow(); renderer.shadowMap.needsUpdate = true; }
     }
+    // buy menu open: draw one frame, then keep it (no 3D redraw under the panel; the match keeps running).
+    // Continuous canvas updates under the menu made it flicker on integrated GPUs.
+    if (E.state === 'buy') { if (E._buyDrawn) return; E._buyDrawn = true; } else E._buyDrawn = false;
     const vm = playing && game.player && game.player.alive;
     if (post.enabled) {
       post.begin();

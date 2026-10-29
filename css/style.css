@@ -204,7 +204,7 @@ body.classic #charge-icon.insite { color: rgba(110,255,110,0.95); }
 .sb-team tr.me td { color: var(--amber); } .sb-team tr.dead td { opacity: 0.45; }
 
 /* buy menu */
-#buymenu { position: absolute; left: 50%; top: 50%; transform: translate3d(-50%,-50%,0); width: min(980px, 96vw); background: rgba(16,18,14,0.94); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto;
+#buymenu { position: absolute; left: 50%; top: 50%; transform: translate3d(-50%,-50%,0); width: min(980px, 96vw); background: rgb(16,18,14); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto;
   isolation: isolate; will-change: transform; backface-visibility: hidden; contain: paint; }
 /* while buying, the HUD under the menu drops its backdrop blur (blur over the live 3D view + the menu layer flickered on some GPUs) */
 body.buying .tm, body.buying .tm-mid, body.buying .kf, body.buying #hud-ammo, body.buying #radar { backdrop-filter: none !important; }
