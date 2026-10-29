@@ -49,6 +49,8 @@ BV.Menu = (function () {
     // map selector: the chosen map is built at start-up, so switching saves the choice and reloads
     const mapSeg = document.getElementById('map-seg');
     if (mapSeg) {
+      // one button per map in BV.MAPS (new maps appear here on their own)
+      mapSeg.innerHTML = BV.MAPS.map(m => `<button data-map="${m.id}" title="${m.desc}">${m.name.charAt(0) + m.name.slice(1).toLowerCase()}</button>`).join('');
       mapSeg.querySelectorAll('button').forEach(b => {
         b.classList.toggle('on', b.dataset.map === BV.MAP_ID);
         b.addEventListener('click', () => {
