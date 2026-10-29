@@ -220,15 +220,25 @@
     E.viewmodel.equip(p.weapon.def, p.team); E.deathCam = 0; E.punch = 0;
   };
   E.onPlayerDeath = (att, def, head) => { BV.HUD.deathMessage(att, def, head); E.deathCam = 0; E.deathPos = game.player.pos.clone(); E.deathYaw = game.player.yaw; };
+  // next map in the rotation (the map is built on load, so switching means a reload with auto-start)
+  E.nextMapId = () => { const L = BV.MAPS, i = L.findIndex(m => m.id === BV.MAP_ID); return L[(i + 1) % L.length]; };
+  E.goNextMap = () => {
+    const nx = E.nextMapId(); BV.settings.map = nx.id; BV.saveSettings();
+    try { sessionStorage.setItem('bv-autostart', JSON.stringify(E.lastOpts || BV.Menu.opts)); } catch (e) {}
+    const ld = document.getElementById('loading'), lt = document.getElementById('load-text');
+    if (ld) ld.classList.remove('hidden'); if (lt) lt.textContent = 'Loading ' + nx.name + '…';
+    setTimeout(() => location.reload(), 60);
+  };
   E.onMatchOver = (winner) => {
     E.state = 'over'; BV.Input.unlock();
-    const p = game.player, won = winner === p.team;
+    const p = game.player, draw = !winner, won = winner === p.team;
     const t = document.getElementById('mo-title');
-    t.textContent = won ? 'VICTORY' : 'DEFEAT'; t.classList.toggle('lose', !won);
+    t.textContent = draw ? 'DRAW' : won ? 'VICTORY' : 'DEFEAT'; t.classList.toggle('lose', !won && !draw);
+    { const nx = E.nextMapId(); const n = document.getElementById('mo-next'); if (n) n.textContent = 'Next map: ' + nx.name + ' — ' + nx.desc; }
     document.getElementById('mo-score').innerHTML = `<span style="color:${BV.TEAMS.VANGUARD.css}">VANGUARD ${game.score.VANGUARD}</span> — <span style="color:${BV.TEAMS.RAVEN.css}">${game.score.RAVEN} RAVEN</span>`;
     const s = game.stats, acc = s.shots ? Math.round(s.hits / s.shots * 100) : 0;
     document.getElementById('mo-stats').textContent = `Your record: ${p.kills} kills · ${p.deaths} deaths · ${s.heads} headshot hits · ${acc}% accuracy`;
-    document.getElementById('matchover').classList.remove('hidden');
+    document.getElementById('matchover').classList.remove('hidden'); document.getElementById('clickcatch').classList.add('hidden');
     BV.HUD.scoreboard(false); BV.HUD.buyMenu(false);
     BV.Audio.roundStinger(won);
   };
@@ -467,6 +477,9 @@
       tmp.position.set(0, -50, 0); renderer.compile(scene, camera); scene.remove(tmp);
     } catch (err) { console.warn('shader warm-up skipped', err); }
     document.getElementById('loading').classList.add('hidden');
+    // 'Keep playing' from the previous match: start straight away on this (new) map with the same settings
+    let auto = null; try { auto = JSON.parse(sessionStorage.getItem('bv-autostart') || 'null'); sessionStorage.removeItem('bv-autostart'); } catch (e) {}
+    if (auto) { E.startMatch(auto); return; }
     BV.Menu.showMenu('p-main');
   });
 

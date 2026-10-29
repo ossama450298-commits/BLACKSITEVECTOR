@@ -280,6 +280,10 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 .buy-item.team-lock .n { color: var(--ink-dim); }
 .buy-item.team-lock .p { text-decoration: line-through; }
 
+/* match format line in the setup, and the keep-playing prompt */
+.match-fmt { color: var(--ink); font-weight: 600; padding: 6px 0; }
+#mo-ask { margin-top: 18px; font-size: 22px; font-weight: 700; color: var(--ink); }
+#mo-next { margin: 4px 0 14px; color: var(--ink-dim); font-size: 14px; }
 /* hostage rescue counter */
 #hostage-hud { position: absolute; left: 14px; top: 222px; padding: 3px 12px; font: 600 12px/1.4 var(--hud-font, sans-serif); letter-spacing: 0.08em; color: #e9e2cf; background: rgba(12,14,11,0.6); border-bottom: 2px solid #5aa0e0; white-space: nowrap; }
 
@@ -377,7 +381,7 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
       <div class="opt"><label>Map</label><div class="seg" id="map-seg"><button data-map="sector17">Sector-17</button><button data-map="harbor9">Harbor-9</button><button data-map="dustline">Dustline</button></div></div>
       <div class="opt"><label>Bot difficulty</label><div class="seg" data-key="difficulty"><button data-v="VERY_EASY">Very easy</button><button data-v="EASY">Easy</button><button data-v="NORMAL">Normal</button><button data-v="HARD">Hard</button></div></div>
       <div class="opt"><label>Team size</label><div class="seg" data-key="teamSize"><button data-v="3">3 v 3</button><button data-v="4">4 v 4</button><button data-v="5">5 v 5</button></div></div>
-      <div class="opt"><label>Rounds to win</label><div class="seg" data-key="roundsToWin"><button data-v="3">3</button><button data-v="5">5</button><button data-v="8">8</button></div></div>
+      <div class="opt"><label>Match</label><div class="match-fmt">30 rounds · first to 16 wins</div></div>
       <p class="note">Raven attacks first and must arm the Vector Charge at site A or B. Vanguard defends. Sides switch at halftime.</p>
       <div class="row"><button class="btn ghost" data-go="p-main">Back</button><button class="btn primary" data-act="start">Deploy</button></div>
     </section>
@@ -451,8 +455,10 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
     <div id="mo-title">VICTORY</div>
     <div id="mo-score"></div>
     <div id="mo-stats"></div>
-    <button class="btn primary" data-act="restart">Play again</button>
-    <button class="btn ghost" data-act="to-menu">Main menu</button>
+    <div id="mo-ask">Keep playing?</div>
+    <div id="mo-next"></div>
+    <button class="btn primary" data-act="next-map">Yes — next map</button>
+    <button class="btn ghost" data-act="to-menu">No — main menu</button>
   </div>
 </div>
 
@@ -4814,7 +4820,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.0.0';
+BV.VERSION = '5.1.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -4936,6 +4942,7 @@ BV.DIFFICULTY = {
 
 /* ---------- Rules & economy ---------------------------------------- */
 BV.RULES = {
+  winRounds: 16, maxRounds: 30,   // a match: first to 16, 30 rounds at most (15-15 is a draw); no side switch
   freezeTime: 5, roundTime: 115, buyTime: 20, chargeTime: 40, plantTime: 3.2, defuseTime: 6.5,
   endTime: 5.5, startMoney: 800, maxMoney: 16000, winReward: 3250, lossBase: 1400, lossStep: 500,
   plantBonus: 800
@@ -10260,7 +10267,7 @@ BV.Game = class {
     this.clearEntities();
     this.opts = opts; this.diffName = opts.difficulty || 'NORMAL';
     this.training = !!opts.training;
-    this.roundsToWin = opts.roundsToWin || 8;
+    this.roundsToWin = BV.RULES.winRounds || 16; this.maxRounds = BV.RULES.maxRounds || 30;   // every match: first to 16 of 30
     this.score = { VANGUARD: 0, RAVEN: 0 }; this.lossStreak = { VANGUARD: 0, RAVEN: 0 };
     this.mode = (this.map.data && this.map.data.mode) || 'bomb';
     this.round = 0; this.attackTeam = this.mode === 'hostage' ? 'VANGUARD' : 'RAVEN'; this.halftimeDone = false; this.halftimePending = false;   // hostage: Vanguard rescue, Raven hold
@@ -11086,9 +11093,10 @@ BV.Game = class {
       e.money = Math.min(R.maxMoney, e.money + add);
       if (e.planting || e.defusing) this.cancelObjective(e);
     }
-    const matchOver = this.score[winner] >= this.roundsToWin;
-    if (!matchOver && !this.halftimeDone && this.mode !== 'hostage' && this.round === this.roundsToWin - 1) this.halftimePending = true;   // fixed roles in hostage rescue
-    this.lastResult = { winner, reason, matchOver };
+    const draw = this.round >= this.maxRounds && this.score.VANGUARD === this.score.RAVEN;
+    const matchOver = this.score[winner] >= this.roundsToWin || this.round >= this.maxRounds;
+    this.halftimePending = false;   // sides never switch
+    this.lastResult = { winner: draw ? null : (this.score[winner] >= this.score[BV.otherTeam(winner)] ? winner : BV.otherTeam(winner)), reason, matchOver, draw };
     BV.HUD.roundEnd(this, winner, reason, matchOver, this.halftimePending);
     BV.Audio.roundStinger(this.player && winner === this.player.team);
   }
@@ -12061,7 +12069,7 @@ BV.HUD = (function () {
     else if (g.phase === 'end' || g.phase === 'over') tstr = '—';
     else { tstr = BV.U.fmtTime(g.timer); if (g.timer < 15) tcls = 'urgent'; }
     set('timer', el['hud-timer'], tstr); if (cache.tcls !== tcls) { cache.tcls = tcls; el['hud-timer'].className = tcls; }
-    set('round', el['hud-round'], g.training ? 'TRAINING' : (g.phase === 'freeze' ? 'BUY PHASE · ' : '') + 'ROUND ' + g.round + ' · FIRST TO ' + g.roundsToWin);
+    set('round', el['hud-round'], g.training ? 'TRAINING' : (g.phase === 'freeze' ? 'BUY PHASE · ' : '') + 'ROUND ' + g.round + '/' + (g.maxRounds || 30) + ' · FIRST TO ' + g.roundsToWin);
     // objective line
     let obj = '';
     const atk = g.isAttacker(p);
@@ -12259,7 +12267,7 @@ BV.CHAR_THUMBS = {"VANGUARD": ["data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABA
 BV.Menu = (function () {
   const $ = (id) => document.getElementById(id);
   let engine = null, returnTo = 'menu';
-  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 5 };   // Very easy selected by default
+  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 16 };   // every match: first to 16 of 30   // Very easy selected by default
 
   function panel(id) {
     document.querySelectorAll('#menu .panel').forEach(p => p.classList.toggle('hidden', p.id !== id));
@@ -12359,6 +12367,7 @@ BV.Menu = (function () {
       case 'quit': BV.Audio.ui('back'); panel('p-quit'); try { window.close(); } catch (e) { } break;
       case 'resume': engine.resume(); break;
       case 'restart': engine.restart(); break;
+      case 'next-map': engine.goNextMap(); break;
       case 'to-menu': engine.toMenu(); break;
       case 'pause-settings': returnTo = 'pause'; $('pause').classList.add('hidden'); showMenu('p-settings'); break;
       case 'settings-back':
@@ -12701,15 +12710,25 @@ BV.PostFX = class {
     E.viewmodel.equip(p.weapon.def, p.team); E.deathCam = 0; E.punch = 0;
   };
   E.onPlayerDeath = (att, def, head) => { BV.HUD.deathMessage(att, def, head); E.deathCam = 0; E.deathPos = game.player.pos.clone(); E.deathYaw = game.player.yaw; };
+  // next map in the rotation (the map is built on load, so switching means a reload with auto-start)
+  E.nextMapId = () => { const L = BV.MAPS, i = L.findIndex(m => m.id === BV.MAP_ID); return L[(i + 1) % L.length]; };
+  E.goNextMap = () => {
+    const nx = E.nextMapId(); BV.settings.map = nx.id; BV.saveSettings();
+    try { sessionStorage.setItem('bv-autostart', JSON.stringify(E.lastOpts || BV.Menu.opts)); } catch (e) {}
+    const ld = document.getElementById('loading'), lt = document.getElementById('load-text');
+    if (ld) ld.classList.remove('hidden'); if (lt) lt.textContent = 'Loading ' + nx.name + '…';
+    setTimeout(() => location.reload(), 60);
+  };
   E.onMatchOver = (winner) => {
     E.state = 'over'; BV.Input.unlock();
-    const p = game.player, won = winner === p.team;
+    const p = game.player, draw = !winner, won = winner === p.team;
     const t = document.getElementById('mo-title');
-    t.textContent = won ? 'VICTORY' : 'DEFEAT'; t.classList.toggle('lose', !won);
+    t.textContent = draw ? 'DRAW' : won ? 'VICTORY' : 'DEFEAT'; t.classList.toggle('lose', !won && !draw);
+    { const nx = E.nextMapId(); const n = document.getElementById('mo-next'); if (n) n.textContent = 'Next map: ' + nx.name + ' — ' + nx.desc; }
     document.getElementById('mo-score').innerHTML = `<span style="color:${BV.TEAMS.VANGUARD.css}">VANGUARD ${game.score.VANGUARD}</span> — <span style="color:${BV.TEAMS.RAVEN.css}">${game.score.RAVEN} RAVEN</span>`;
     const s = game.stats, acc = s.shots ? Math.round(s.hits / s.shots * 100) : 0;
     document.getElementById('mo-stats').textContent = `Your record: ${p.kills} kills · ${p.deaths} deaths · ${s.heads} headshot hits · ${acc}% accuracy`;
-    document.getElementById('matchover').classList.remove('hidden');
+    document.getElementById('matchover').classList.remove('hidden'); document.getElementById('clickcatch').classList.add('hidden');
     BV.HUD.scoreboard(false); BV.HUD.buyMenu(false);
     BV.Audio.roundStinger(won);
   };
@@ -12948,6 +12967,9 @@ BV.PostFX = class {
       tmp.position.set(0, -50, 0); renderer.compile(scene, camera); scene.remove(tmp);
     } catch (err) { console.warn('shader warm-up skipped', err); }
     document.getElementById('loading').classList.add('hidden');
+    // 'Keep playing' from the previous match: start straight away on this (new) map with the same settings
+    let auto = null; try { auto = JSON.parse(sessionStorage.getItem('bv-autostart') || 'null'); sessionStorage.removeItem('bv-autostart'); } catch (e) {}
+    if (auto) { E.startMatch(auto); return; }
     BV.Menu.showMenu('p-main');
   });
 

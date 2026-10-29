@@ -268,5 +268,9 @@ body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 .buy-item.team-lock .n { color: var(--ink-dim); }
 .buy-item.team-lock .p { text-decoration: line-through; }
 
+/* match format line in the setup, and the keep-playing prompt */
+.match-fmt { color: var(--ink); font-weight: 600; padding: 6px 0; }
+#mo-ask { margin-top: 18px; font-size: 22px; font-weight: 700; color: var(--ink); }
+#mo-next { margin: 4px 0 14px; color: var(--ink-dim); font-size: 14px; }
 /* hostage rescue counter */
 #hostage-hud { position: absolute; left: 14px; top: 222px; padding: 3px 12px; font: 600 12px/1.4 var(--hud-font, sans-serif); letter-spacing: 0.08em; color: #e9e2cf; background: rgba(12,14,11,0.6); border-bottom: 2px solid #5aa0e0; white-space: nowrap; }

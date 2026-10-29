@@ -103,7 +103,7 @@
       <div class="opt"><label>Map</label><div class="seg" id="map-seg"><button data-map="sector17">Sector-17</button><button data-map="harbor9">Harbor-9</button><button data-map="dustline">Dustline</button></div></div>
       <div class="opt"><label>Bot difficulty</label><div class="seg" data-key="difficulty"><button data-v="VERY_EASY">Very easy</button><button data-v="EASY">Easy</button><button data-v="NORMAL">Normal</button><button data-v="HARD">Hard</button></div></div>
       <div class="opt"><label>Team size</label><div class="seg" data-key="teamSize"><button data-v="3">3 v 3</button><button data-v="4">4 v 4</button><button data-v="5">5 v 5</button></div></div>
-      <div class="opt"><label>Rounds to win</label><div class="seg" data-key="roundsToWin"><button data-v="3">3</button><button data-v="5">5</button><button data-v="8">8</button></div></div>
+      <div class="opt"><label>Match</label><div class="match-fmt">30 rounds · first to 16 wins</div></div>
       <p class="note">Raven attacks first and must arm the Vector Charge at site A or B. Vanguard defends. Sides switch at halftime.</p>
       <div class="row"><button class="btn ghost" data-go="p-main">Back</button><button class="btn primary" data-act="start">Deploy</button></div>
     </section>
@@ -177,8 +177,10 @@
     <div id="mo-title">VICTORY</div>
     <div id="mo-score"></div>
     <div id="mo-stats"></div>
-    <button class="btn primary" data-act="restart">Play again</button>
-    <button class="btn ghost" data-act="to-menu">Main menu</button>
+    <div id="mo-ask">Keep playing?</div>
+    <div id="mo-next"></div>
+    <button class="btn primary" data-act="next-map">Yes — next map</button>
+    <button class="btn ghost" data-act="to-menu">No — main menu</button>
   </div>
 </div>
 

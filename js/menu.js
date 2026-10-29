@@ -6,7 +6,7 @@
 BV.Menu = (function () {
   const $ = (id) => document.getElementById(id);
   let engine = null, returnTo = 'menu';
-  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 5 };   // Very easy selected by default
+  const opts = { team: 'RAVEN', difficulty: 'VERY_EASY', teamSize: 5, roundsToWin: 16 };   // every match: first to 16 of 30   // Very easy selected by default
 
   function panel(id) {
     document.querySelectorAll('#menu .panel').forEach(p => p.classList.toggle('hidden', p.id !== id));
@@ -106,6 +106,7 @@ BV.Menu = (function () {
       case 'quit': BV.Audio.ui('back'); panel('p-quit'); try { window.close(); } catch (e) { } break;
       case 'resume': engine.resume(); break;
       case 'restart': engine.restart(); break;
+      case 'next-map': engine.goNextMap(); break;
       case 'to-menu': engine.toMenu(); break;
       case 'pause-settings': returnTo = 'pause'; $('pause').classList.add('hidden'); showMenu('p-settings'); break;
       case 'settings-back':

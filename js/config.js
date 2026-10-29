@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.0.0';
+BV.VERSION = '5.1.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -128,6 +128,7 @@ BV.DIFFICULTY = {
 
 /* ---------- Rules & economy ---------------------------------------- */
 BV.RULES = {
+  winRounds: 16, maxRounds: 30,   // a match: first to 16, 30 rounds at most (15-15 is a draw); no side switch
   freezeTime: 5, roundTime: 115, buyTime: 20, chargeTime: 40, plantTime: 3.2, defuseTime: 6.5,
   endTime: 5.5, startMoney: 800, maxMoney: 16000, winReward: 3250, lossBase: 1400, lossStep: 500,
   plantBonus: 800

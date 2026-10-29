@@ -136,7 +136,7 @@ BV.Game = class {
     this.clearEntities();
     this.opts = opts; this.diffName = opts.difficulty || 'NORMAL';
     this.training = !!opts.training;
-    this.roundsToWin = opts.roundsToWin || 8;
+    this.roundsToWin = BV.RULES.winRounds || 16; this.maxRounds = BV.RULES.maxRounds || 30;   // every match: first to 16 of 30
     this.score = { VANGUARD: 0, RAVEN: 0 }; this.lossStreak = { VANGUARD: 0, RAVEN: 0 };
     this.mode = (this.map.data && this.map.data.mode) || 'bomb';
     this.round = 0; this.attackTeam = this.mode === 'hostage' ? 'VANGUARD' : 'RAVEN'; this.halftimeDone = false; this.halftimePending = false;   // hostage: Vanguard rescue, Raven hold
@@ -962,9 +962,10 @@ BV.Game = class {
       e.money = Math.min(R.maxMoney, e.money + add);
       if (e.planting || e.defusing) this.cancelObjective(e);
     }
-    const matchOver = this.score[winner] >= this.roundsToWin;
-    if (!matchOver && !this.halftimeDone && this.mode !== 'hostage' && this.round === this.roundsToWin - 1) this.halftimePending = true;   // fixed roles in hostage rescue
-    this.lastResult = { winner, reason, matchOver };
+    const draw = this.round >= this.maxRounds && this.score.VANGUARD === this.score.RAVEN;
+    const matchOver = this.score[winner] >= this.roundsToWin || this.round >= this.maxRounds;
+    this.halftimePending = false;   // sides never switch
+    this.lastResult = { winner: draw ? null : (this.score[winner] >= this.score[BV.otherTeam(winner)] ? winner : BV.otherTeam(winner)), reason, matchOver, draw };
     BV.HUD.roundEnd(this, winner, reason, matchOver, this.halftimePending);
     BV.Audio.roundStinger(this.player && winner === this.player.team);
   }

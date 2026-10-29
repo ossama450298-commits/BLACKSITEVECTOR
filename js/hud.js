@@ -136,7 +136,7 @@ BV.HUD = (function () {
     else if (g.phase === 'end' || g.phase === 'over') tstr = '—';
     else { tstr = BV.U.fmtTime(g.timer); if (g.timer < 15) tcls = 'urgent'; }
     set('timer', el['hud-timer'], tstr); if (cache.tcls !== tcls) { cache.tcls = tcls; el['hud-timer'].className = tcls; }
-    set('round', el['hud-round'], g.training ? 'TRAINING' : (g.phase === 'freeze' ? 'BUY PHASE · ' : '') + 'ROUND ' + g.round + ' · FIRST TO ' + g.roundsToWin);
+    set('round', el['hud-round'], g.training ? 'TRAINING' : (g.phase === 'freeze' ? 'BUY PHASE · ' : '') + 'ROUND ' + g.round + '/' + (g.maxRounds || 30) + ' · FIRST TO ' + g.roundsToWin);
     // objective line
     let obj = '';
     const atk = g.isAttacker(p);
