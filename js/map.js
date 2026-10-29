@@ -326,11 +326,11 @@ BV.Map = (function () {
      Building x -36..24, z -22..22, ceiling at 3.6 m. Vanguard arrive from the east street (rescue zone);
      Raven hold the hostages in the conference room (A, north-west) and the executive suite (B, south-west). */
   function defineMeridian() {
-    const H = 3.6, T = 0.15, office = [];
+    const H = 3.6, T = 0.15, office = [], doors = [];   // doors: navigation points through every opening
     // axis-aligned wall with door gaps ([from, to] along its length); lintel above each door
-    const wallX = (x, z0, z1, gaps, mat) => { let a = z0; for (const [g0, g1] of (gaps || []).concat([[z1, z1]])) {
+    const wallX = (x, z0, z1, gaps, mat) => { (gaps || []).forEach(([g0, g1]) => doors.push([x, (g0 + g1) / 2, 1, 0])); let a = z0; for (const [g0, g1] of (gaps || []).concat([[z1, z1]])) {
         if (g0 > a) B(x - T, a, x + T, g0, 0, H, mat || 'officewall'); if (g1 > g0) B(x - T, g0, x + T, g1, 2.4, H, mat || 'officewall', { solid: false }); a = g1; } };
-    const wallZ = (z, x0, x1, gaps, mat) => { let a = x0; for (const [g0, g1] of (gaps || []).concat([[x1, x1]])) {
+    const wallZ = (z, x0, x1, gaps, mat) => { (gaps || []).forEach(([g0, g1]) => doors.push([(g0 + g1) / 2, z, 0, 1])); let a = x0; for (const [g0, g1] of (gaps || []).concat([[x1, x1]])) {
         if (g0 > a) B(a, z - T, g0, z + T, 0, H, mat || 'officewall'); if (g1 > g0) B(g0, z - T, g1, z + T, 2.4, H, mat || 'officewall', { solid: false }); a = g1; } };
     const room = (x0, z0, x1, z1, mat) => mat === 'officetile' ? floor(x0, z0, x1, z1, mat) : B(x0, z0, x1, z1, -0.19, 0.012, mat, { solid: false, faces: ['py'] });   // carpets sit 1 cm above the tiles (no z-fighting)
     const furn = (k, x, z, r, w, d, h) => { office.push({ k, x, z, r: r || 0 }); if (w) { const c = Math.abs(Math.cos(r || 0)) > 0.5, hw = (c ? w : d) / 2, hd = (c ? d : w) / 2; B(x - hw, z - hd, x + hw, z + hd, 0, h, 'crate', { solid: true, faces: [] }); } };
@@ -412,6 +412,8 @@ BV.Map = (function () {
     // navigation grid (2 m) over every free cell
     const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.45 && x < b.max[0] + 0.45 && z > b.min[2] - 0.45 && z < b.max[2] + 0.45 && b.min[1] < 1.8 && b.max[1] > 0.2);
     const wp = []; for (let x = -48; x <= 46; x += 2) for (let z = -34; z <= 32; z += 2) if (free(x, z)) wp.push([x, z]);
+    // a node in each doorway plus one on either side, so the 2 m grid always connects through the openings
+    for (const [x, z, nx, nz] of doors) for (const k of [0, -1.3, 1.3]) { const px = x + nx * k, pz = z + nz * k; if (free(px, pz) || k === 0) wp.push([px, pz]); }
     Object.assign(data, MERIDIAN); data.waypoints = wp; data.office = office;
   }
   const MERIDIAN = {
@@ -428,7 +430,7 @@ BV.Map = (function () {
       { name: 'B', min: [-28, 8], max: [-10, 22], center: [-19, 15], plant: [[-19, 14, 0]],
         defend: [[-11.5, 9.5, 0, -Math.PI * 0.6], [-26.5, 20.5, 0, Math.PI * 0.75], [-26.5, 9.5, 0, -Math.PI * 0.3], [-11.5, 20.5, 0, Math.PI * 0.8]] }
     ],
-    hostages: [[-23.5, -19.5, 0.3], [-16.5, -12, -2.6], [-22.5, 16.5, 2.2], [-14.5, 13.5, -0.8]],
+    hostages: [[-23.5, -19.5, Math.PI * 0.85], [-16.5, -12, 0.15], [-22.5, 16.5, 0.3], [-14.5, 13.5, Math.PI * 0.9]],   // facing into their rooms
     rescue: { min: [28, -12], max: [47, 12] },
     routes: {
       A: [{ name: 'north', stage: [3, -27] }, { name: 'main', stage: [8, 0] }],

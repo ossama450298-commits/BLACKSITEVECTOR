@@ -32,6 +32,11 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | animated pistol · heavy pistol animated · fps animated smg · shotgun animated · fps animated carbine · sniper animated · knife animated · lmg animated | DJMaesen | CC BY 4.0 | Brazos y armas en primera persona con animaciones hechas a mano para la Viper-9, Falcon .45, Specter-9, Vector-MP, Hammer-12, Halberd-4, Kestrel-5, Lynx-7, Blade-X y Bastion-60 |
 | [Realistic Swat police officer](https://sketchfab.com/3d-models/realistic-swat-police-officer-3d-model-1d942be40a0d431789387524e8d62272) | Blender Studio | CC BY 4.0 | Personaje SWAT de Vanguard (con el esqueleto del operador) |
 | [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
+| [Businessman](https://sketchfab.com/3d-models/businessman-a3ae0076849e4eb2afbdea0f8de6ce39) | SPP Animation Studio | CC BY 4.0 | Rehén (hombre de traje) |
+| [The character of an office worker](https://sketchfab.com/3d-models/the-character-of-an-office-worker-64c97dedb5134dfeafcadd91dc317215) | BELAZ | CC BY 4.0 | Rehén (oficinista) |
+| [Low Poly Office](https://sketchfab.com/3d-models/low-poly-office-cc81191e0e90409c94df23ad4045f175) | Paolo Mercogliano | CC BY 4.0 | Mesas, estanterías y archivadores de MERIDIAN |
+| [Low Poly Office Chair](https://sketchfab.com/3d-models/low-poly-office-chair-15b7a4b05f474236a6b10e762e823fc0) | AJVFX | CC BY 4.0 | Sillas de oficina |
+| Carpet016, OfficeCeiling001, Tiles143 | ambientCG | CC0 | Moqueta, techo y baldosas de MERIDIAN |
 | [M84 Stun Grenade "Flashbang"](https://sketchfab.com/3d-models/m84-stun-grenade-flashbang-3dbda8fe68ff4efdbf59f7d414c5619c) | Vanillatography | CC BY 4.0 | Granada cegadora Glare-F |
 | [M18 Smoke Grenade](https://sketchfab.com/3d-models/m18-smoke-grenade-46343925ad0e47cf927e66da7953c372) | Vanillatography | CC BY 4.0 | Granada de humo Veil-S |
 | [Wire cutter](https://sketchfab.com/3d-models/wire-cutter-794aac0807da41bf8ec6eb3ee23f4a0f) | Thomas Vansteelandt | CC BY 4.0 | Kit de desactivación |

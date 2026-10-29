@@ -204,7 +204,10 @@ body.classic #charge-icon.insite { color: rgba(110,255,110,0.95); }
 .sb-team tr.me td { color: var(--amber); } .sb-team tr.dead td { opacity: 0.45; }
 
 /* buy menu */
-#buymenu { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: min(980px, 96vw); background: rgba(16,18,14,0.94); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto; }
+#buymenu { position: absolute; left: 50%; top: 50%; transform: translate3d(-50%,-50%,0); width: min(980px, 96vw); background: rgba(16,18,14,0.94); border-top: 3px solid var(--amber); padding: 14px 18px 18px; pointer-events: auto;
+  isolation: isolate; will-change: transform; backface-visibility: hidden; contain: paint; }
+/* while buying, the HUD under the menu drops its backdrop blur (blur over the live 3D view + the menu layer flickered on some GPUs) */
+body.buying .tm, body.buying .tm-mid, body.buying .kf, body.buying #hud-ammo, body.buying #radar { backdrop-filter: none !important; }
 .buy-head { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
 .buy-head h2 { font-family: var(--title-font); font-weight: normal; margin: 0; font-size: 26px; flex: 0 0 auto; }
 #buy-money { font-size: 22px; font-weight: 700; color: #a9e38d; } #buy-status { flex: 1; color: var(--amber); font-size: 14px; }
@@ -261,5 +264,9 @@ body.classic .buy-item { background: #34372f; border-color: #5f6255; }
 body.classic .buy-item:hover { background: #474b3f; border-color: #a38a46; }
 
 /* rifles locked to the other team */
-.buy-item.team-lock { opacity: 0.35; filter: grayscale(0.8); }
+.buy-item.team-lock { opacity: 0.35; }   /* no CSS filter: it made the buy menu flicker on integrated GPUs */
+.buy-item.team-lock .n { color: var(--ink-dim); }
 .buy-item.team-lock .p { text-decoration: line-through; }
+
+/* hostage rescue counter */
+#hostage-hud { position: absolute; left: 14px; top: 222px; padding: 3px 12px; font: 600 12px/1.4 var(--hud-font, sans-serif); letter-spacing: 0.08em; color: #e9e2cf; background: rgba(12,14,11,0.6); border-bottom: 2px solid #5aa0e0; white-space: nowrap; }

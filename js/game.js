@@ -138,7 +138,8 @@ BV.Game = class {
     this.training = !!opts.training;
     this.roundsToWin = opts.roundsToWin || 8;
     this.score = { VANGUARD: 0, RAVEN: 0 }; this.lossStreak = { VANGUARD: 0, RAVEN: 0 };
-    this.round = 0; this.attackTeam = 'RAVEN'; this.halftimeDone = false; this.halftimePending = false;
+    this.mode = (this.map.data && this.map.data.mode) || 'bomb';
+    this.round = 0; this.attackTeam = this.mode === 'hostage' ? 'VANGUARD' : 'RAVEN'; this.halftimeDone = false; this.halftimePending = false;   // hostage: Vanguard rescue, Raven hold
     this.stats = { shots: 0, hits: 0, heads: 0, kills: 0 };
     this.time = 0; this.killfeedClear = true;
     const pTeam = opts.team === 'AUTO' || !opts.team ? BV.U.pick(['VANGUARD', 'RAVEN']) : opts.team;
@@ -209,7 +210,8 @@ BV.Game = class {
     this.planter = null; this.defuser = null; this.plantProgress = this.defuseProgress = 0; this.chargeFetcher = null;
     this.chargeMesh.visible = false; this.intel = {};
     const attackers = this.ents.filter(e => e.team === atk);
-    if (!this.training && attackers.length) {
+    if (this.mode === 'hostage') { this.charge.state = 'none'; this.spawnHostages(); }
+    else if (!this.training && attackers.length) {
       // the player carries the charge when playing on the attacking side (like the C4 in CS)
       const carrier = (this.player && this.player.alive && this.player.team === this.attackTeam) ? this.player : BV.U.pick(attackers); carrier.hasCharge = true;
       this.charge.state = 'carried'; this.charge.carrier = carrier; this.charge.site = null;
@@ -417,7 +419,15 @@ BV.Game = class {
         if (ht >= 0 && ht < maxT) { maxT = ht; hitE = e; hitPart = hb.part; }
       }
     }
+    let hitH = null;
+    if (this.hostages) for (const h of this.hostages) {
+      if (h.state === 'dead' || h.state === 'rescued') continue;
+      const top = h.state === 'held' ? 1.15 : 1.75;
+      const ht = P.rayBox(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, [h.pos.x - 0.3, 0, h.pos.z - 0.3], [h.pos.x + 0.3, top, h.pos.z + 0.3], maxT, null);
+      if (ht >= 0 && ht < maxT) { maxT = ht; hitH = h; hitE = null; }
+    }
     const end = this.T4.set(eye.x + dir.x * maxT, eye.y + dir.y * maxT, eye.z + dir.z * maxT).clone();
+    if (hitH) { BV.Effects.bloodHit(end, dir, false); if (primary) BV.Audio.impact(end, 'flesh'); this.hurtHostage(hitH, def.damage, c); }
     if (hitE) {
       const mult = hitPart === 'head' ? def.head : hitPart === 'legs' ? 0.75 : 1;
       let dmg = def.damage * Math.pow(def.drop || 1, maxT / 10) * mult * (c.isBot && this.diff && this.diff.dmg ? this.diff.dmg : 1);   // very easy bots hit softer
@@ -580,6 +590,79 @@ BV.Game = class {
       else { e.blindUntil = this.time + dur * 0.9; e.target = null; }
     }
     this.emitNoise(pos, 40, owner);
+  }
+  /* ----------------------------- hostage rescue ----------------------------- */
+  spawnHostages() {
+    (this.hostages || []).forEach(h => this.scene.remove(h.model.root));
+    this.hostages = [];
+    const list = this.map.data.hostages || [], kinds = ['hostage_business', 'hostage_worker'];
+    list.forEach((p, i) => {
+      const sc = BV.Real && BV.Real.hostageScene && BV.Real.hostageScene(kinds[i % 2]); if (!sc || !BV.CharModels) return;
+      const m = BV.CharModels.create('VANGUARD', 0, { scene: sc }); m.root.position.set(p[0], 0, p[1]); m.root.rotation.y = p[2]; this.scene.add(m.root);
+      m.state = { kneel: true }; if (m.setShade) m.setShade(this.map.isIndoor(p[0], 1, p[1]) ? 0.55 : 1);
+      this.hostages.push({ id: i, pos: new THREE.Vector3(p[0], 0, p[1]), yaw: p[2], model: m, state: 'held', follower: null, hp: 100, trail: [], phase: 0, deadT: 0, speed: 0 });
+    });
+  }
+  nearestHostage(pos, maxD, pred) {
+    let best = null, bd = maxD;
+    for (const h of this.hostages || []) { if (h.state === 'dead' || h.state === 'rescued' || (pred && !pred(h))) continue;
+      const d = Math.hypot(h.pos.x - pos.x, h.pos.z - pos.z); if (d < bd) { bd = d; best = h; } }
+    return best;
+  }
+  useHostage(c, h) {   // E on a hostage: follow me / wait here
+    if (!h || c.team !== this.attackTeam || this.phase !== 'live') return false;
+    if (h.state === 'following' && h.follower === c) { h.state = 'waiting'; h.follower = null; if (c.isPlayer) BV.HUD.notice('Hostage: waiting here', '', 1.2); return true; }
+    h.state = 'following'; h.follower = c; h.trail = [c.pos.clone()];
+    if (c.isPlayer) { BV.HUD.notice('Hostage is following you — bring them to the street', 'good', 2); BV.Audio.ui && BV.Audio.ui('click'); }
+    return true;
+  }
+  hurtHostage(h, dmg, by) {
+    if (h.state === 'dead' || h.state === 'rescued') return;
+    h.hp -= dmg; if (h.hp > 0) { h.model.flinch && h.model.flinch(); return; }
+    h.state = 'dead'; h.follower = null; h.deadT = 0;
+    if (by) { by.money = Math.max(0, (by.money || 0) - 1000); if (by.isPlayer) BV.HUD.notice('You killed a hostage — $1000 penalty', 'warn', 2.2); }
+    try { if (by && BV.HUD.killfeed) BV.HUD.killfeed(by, { name: 'Hostage', team: BV.otherTeam(by.team), isPlayer: false }, by.weapon ? by.weapon.def : null, false); } catch (e) {}
+  }
+  updateHostages(dt) {
+    const R = this.map.data.rescue, P = BV.Physics;
+    for (const h of this.hostages || []) {
+      const m = h.model;
+      if (h.state === 'rescued') continue;
+      if (h.state === 'dead') { h.deadT += dt; m.die(h.deadT); m.root.position.copy(h.pos); continue; }
+      let sp = 0;
+      if (h.state === 'following') {
+        const f = h.follower;
+        if (!f || !f.alive || f.team !== this.attackTeam) { h.state = 'waiting'; h.follower = null; }
+        else {
+          // walk the follower's breadcrumb trail (round corners and through doors), keep ~1.6 m behind
+          const last = h.trail[h.trail.length - 1]; if (!last || last.distanceTo(f.pos) > 0.5) { h.trail.push(f.pos.clone()); if (h.trail.length > 80) h.trail.shift(); }
+          const dF = Math.hypot(f.pos.x - h.pos.x, f.pos.z - h.pos.z);
+          while (h.trail.length > 1 && Math.hypot(h.trail[0].x - h.pos.x, h.trail[0].z - h.pos.z) < 0.45) h.trail.shift();
+          const tgt = h.trail[0];
+          if (dF > 1.6 && tgt) {
+            const dx = tgt.x - h.pos.x, dz = tgt.z - h.pos.z, L = Math.hypot(dx, dz) || 1, v = Math.min(dF > 4 ? 4.6 : 3.2, L / dt);
+            const nx = h.pos.x + dx / L * v * dt, nz = h.pos.z + dz / L * v * dt;
+            const ox = h.pos.x, oz = h.pos.z;
+            if (!P.collide(nx, 0.05, h.pos.z, 0.28, 1.6)) h.pos.x = nx; if (!P.collide(h.pos.x, 0.05, nz, 0.28, 1.6)) h.pos.z = nz;
+            // stuck on furniture or a door frame: after a second without progress, hop to the next breadcrumb
+            if (Math.hypot(h.pos.x - ox, h.pos.z - oz) < v * dt * 0.25) h.stuck = (h.stuck || 0) + dt; else h.stuck = 0;
+            if (h.stuck > 1.0 && tgt) { h.pos.set(tgt.x, 0, tgt.z); h.trail.shift(); h.stuck = 0; }
+            sp = v; h.yaw = Math.atan2(-dx, -dz);
+          }
+        }
+      }
+      if (R && h.state !== 'held' && h.pos.x > R.min[0] && h.pos.x < R.max[0] && h.pos.z > R.min[1] && h.pos.z < R.max[1]) {
+        const by = h.follower; h.state = 'rescued'; h.follower = null; this.scene.remove(m.root);
+        if (by) { by.money = Math.min(16000, (by.money || 0) + 1000); by.score = (by.score || 0) + 2; }
+        BV.HUD.notice('Hostage rescued' + (by && by.isPlayer ? ' · +$1000' : ''), 'good', 2); BV.Audio.ui && BV.Audio.ui('buy');
+        continue;
+      }
+      h.phase += sp * dt * 2.1;
+      m.state = { kneel: h.state === 'held' };
+      m.root.position.copy(h.pos); m.root.rotation.y = h.yaw;
+      if (m.setShade) m.setShade(this.map.isIndoor(h.pos.x, 1, h.pos.z) ? 0.55 : 1);   // same lighting hook as the soldiers (its shader expects it)
+      m.animate(dt, sp, 0, 0, h.phase, false);
+    }
   }
   explode(pos, radius, damage, owner, def, needLos) {
     BV.Effects.explosion(pos); BV.Audio.explosion(pos); this.engine.flashLight(new THREE.Vector3(pos.x, pos.y + 1.5, pos.z), 12);
@@ -880,7 +963,7 @@ BV.Game = class {
       if (e.planting || e.defusing) this.cancelObjective(e);
     }
     const matchOver = this.score[winner] >= this.roundsToWin;
-    if (!matchOver && !this.halftimeDone && this.round === this.roundsToWin - 1) this.halftimePending = true;
+    if (!matchOver && !this.halftimeDone && this.mode !== 'hostage' && this.round === this.roundsToWin - 1) this.halftimePending = true;   // fixed roles in hostage rescue
     this.lastResult = { winner, reason, matchOver };
     BV.HUD.roundEnd(this, winner, reason, matchOver, this.halftimePending);
     BV.Audio.roundStinger(this.player && winner === this.player.team);
@@ -907,6 +990,10 @@ BV.Game = class {
     const atk = this.attackTeam, def = this.defendTeam();
     const a = this.aliveCount(atk), d = this.aliveCount(def);
     if (this.phase === 'live') {
+      if (this.mode === 'hostage' && this.hostages && this.hostages.length) {
+        const left = this.hostages.filter(h => h.state !== 'dead' && h.state !== 'rescued').length, saved = this.hostages.filter(h => h.state === 'rescued').length;
+        if (saved > 0 && left === 0) { this.endRound(atk, 'rescued'); return; }
+      }
       if (a === 0) this.endRound(def, 'eliminated');
       else if (d === 0) this.endRound(atk, 'eliminated');
       else if (this.timer <= 0) this.endRound(def, 'time');
@@ -934,7 +1021,7 @@ BV.Game = class {
       if (e.isBot && e.alive) this.movementFx(e, dt);
     }
     this.updateObjective(dt);
-    this.updateGrenades(dt); this.updateSmokes(dt);
+    this.updateGrenades(dt); this.updateSmokes(dt); if (this.mode === 'hostage') this.updateHostages(dt);
     if (this.phase === 'live' || this.phase === 'planted') this.checkWin();
     // player spotting (for the radar), staggered
     if (this.lightStep) return;                  // extra physics sub-step: no spotting / model sync

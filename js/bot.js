@@ -135,6 +135,18 @@ BV.Bot = class extends BV.Combatant {
       }
       if (ch.state === 'dropped' && g.chargeFetcher === this) { this.state = 'OBJECTIVE'; this.setGoal(ch.pos.x, ch.pos.y, ch.pos.z); return; }
       const site = g.plan.site;
+      if (g.mode === 'hostage') {   // rescuers: escort the ones following me to the street, else go and take one
+        if ((g.hostages || []).some(h => h.state === 'following' && h.follower === this)) {
+          const r = map.data.rescue; this.state = 'OBJECTIVE'; this.setGoal((r.min[0] + r.max[0]) / 2, 0, (r.min[1] + r.max[1]) / 2); return;
+        }
+        if (this.stageReached && now >= g.plan.goAt) {
+          const h = g.nearestHostage(this.pos, 60, x => x.state === 'held' || x.state === 'waiting');
+          if (h) { this.state = 'OBJECTIVE';
+            if (Math.hypot(h.pos.x - this.pos.x, h.pos.z - this.pos.z) < 1.8) { this.wantMove = false; g.useHostage(this, h); }
+            else this.setGoal(h.pos.x, 0, h.pos.z);
+            return; }
+        }
+      }
       // staging: gather on the route, then execute together
       if (!this.stageReached) {
         const st = this.route.stage;

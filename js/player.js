@@ -82,7 +82,8 @@ BV.Player = (function () {
     }
     if (inp.pressed('KeyR') && !(p.silT > 0)) game.startReload(p);
     if (inp.pressed('KeyG')) game.dropActive(p);                                     // drop the weapon in hand
-    if (inp.pressed('KeyE') && !p.planting && !p.defusing) game.tryPickupSwap(p);   // swap with a weapon at your feet
+    const hostageUse = game.mode === 'hostage' && inp.pressed('KeyE') && p.alive && p.team === game.attackTeam && game.useHostage(p, game.nearestHostage(p.pos, 2.2));   // E: follow me / wait
+    if (inp.pressed('KeyE') && !hostageUse && !p.planting && !p.defusing) game.tryPickupSwap(p);   // swap with a weapon at your feet
     if (inp.mouse.rightPressed && w && w.def.zoom && !p.reloading && p.switchT <= 0) {
       const max = w.def.cls === 'sniper' ? 2 : 1;
       p.zoom = (p.zoom + 1) % (max + 1); BV.Audio.zoom();
@@ -102,7 +103,7 @@ BV.Player = (function () {
     // ---------- objective ----------
     game.playerUse = inp.down('KeyE') || (holdingCharge && inp.mouse.left);   // hold E, or hold fire with the charge in hand
     // clear feedback when E does nothing (no charge, outside the site, moving, freeze time)
-    if (inp.pressed('KeyE') && p.team === game.attackTeam && game.phase !== 'planted' && !game.drops.some(d => Math.hypot(d.pos.x - p.pos.x, d.pos.z - p.pos.z) < 1.5)) {
+    if (game.mode !== 'hostage' && inp.pressed('KeyE') && p.team === game.attackTeam && game.phase !== 'planted' && !game.drops.some(d => Math.hypot(d.pos.x - p.pos.x, d.pos.z - p.pos.z) < 1.5)) {
       const site = game.map.siteAt(p.pos.x, p.pos.z);
       let msg = null;
       if (!p.hasCharge) { const c = game.charge.carrier; msg = c ? (c.name + ' carries the charge — escort them to site A or B') : 'The charge is on the ground — pick it up'; }

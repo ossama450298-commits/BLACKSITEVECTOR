@@ -37,7 +37,7 @@ BV.HUD = (function () {
   function onRoundStart(g) {
     el['death-msg'].classList.add('hidden');
     if (g.training) { center('Training', 'Shoot the targets · buy anything with B · Esc for menu', 3.5); return; }
-    const role = g.isAttacker(g.player) ? 'Arm the Vector Charge at site A or B' : 'Defend sites A and B';
+    const role = g.mode === 'hostage' ? (g.isAttacker(g.player) ? 'Rescue the hostages — bring them to the street' : 'Guard the hostages') : g.isAttacker(g.player) ? 'Arm the Vector Charge at site A or B' : 'Defend sites A and B';
     center('Round ' + g.round, role, 3);
   }
   function center(big, sub, dur) { el['center-big'].textContent = big; el['center-sub'].textContent = sub || ''; centerT = dur || 2.5; el['hud-center'] && (el['hud-center'].style.opacity = 1); }
@@ -45,8 +45,9 @@ BV.HUD = (function () {
     const n = el['hud-notice']; n.textContent = text; n.className = 'show ' + (kind || ''); noticeT = dur || 2.5;
   }
   const REASONS = {
+    rescued: () => 'All the hostages were rescued',
     eliminated: (w, g) => (w === g.attackTeam ? 'Defenders eliminated' : 'Attackers eliminated'),
-    time: () => 'Time expired — the sites held',
+    time: (w, g) => g && g.mode === 'hostage' ? 'Time expired — the hostages stay' : 'Time expired — the sites held',
     exploded: () => 'The Vector Charge detonated',
     defused: () => 'The Vector Charge was disarmed'
   };
@@ -93,6 +94,13 @@ BV.HUD = (function () {
   /* ---------- per-frame refresh ---------- */
   function update(dt) {
     { const k = document.getElementById('kit-icon'), p = game && game.player; if (k && p) k.classList.toggle('hidden', !(p.alive && p.hasKit)); }
+    { // hostage rescue: counter under the scores
+      let hh = document.getElementById('hostage-hud'); const H = game && game.mode === 'hostage' ? (game.hostages || []) : null;
+      if (H && !hh) { hh = document.createElement('div'); hh.id = 'hostage-hud'; document.getElementById('hud').appendChild(hh); }
+      if (hh) { hh.classList.toggle('hidden', !H); if (H) { const c = (s) => H.filter(h => h.state === s).length;
+        const txt = `HOSTAGES · ${c('held') + c('waiting')} held · ${c('following')} following · ${c('rescued')} rescued` + (c('dead') ? ` · ${c('dead')} lost` : '');
+        if (hh.textContent !== txt) hh.textContent = txt; } }
+    }
     const g = game, p = g.player; if (!p) return;
     const target = p.alive ? p : (g.spectate && g.spectate.target) || p;
     // vitals
@@ -133,6 +141,10 @@ BV.HUD = (function () {
     let obj = '';
     const atk = g.isAttacker(p);
     if (g.training) obj = 'Training range — targets respawn, ammo is unlimited';
+    else if (g.mode === 'hostage') {
+      const H = g.hostages || [], fol = H.filter(h => h.state === 'following' && h.follower === p).length;
+      obj = atk ? (fol ? `${fol} hostage${fol > 1 ? 's' : ''} following you — reach the street` : 'Find the hostages (A: conference, B: executive suite) and press E') : 'Keep the hostages — stop Vanguard reaching them';
+    }
     else if (g.phase === 'planted') obj = atk ? `Charge armed at site ${g.charge.site.name} — protect it` : `Charge armed at site ${g.charge.site.name} — disarm it (hold E)`;
     else if (atk) obj = g.charge.state === 'dropped' ? 'The charge is on the ground — recover it' : (p.hasCharge ? 'You carry the charge — reach site A or B and hold E' : 'Escort the charge carrier to site A or B');
     else obj = 'Hold sites A and B until the timer runs out';
@@ -298,7 +310,7 @@ BV.HUD = (function () {
       b.classList.toggle('owned', !!owned);
     });
   }
-  function buyMenu(v) { el.buymenu.classList.toggle('hidden', !v); if (v) { el['buy-status'].textContent = ''; refreshBuy(true); } }
+  function buyMenu(v) { el.buymenu.classList.toggle('hidden', !v); document.body.classList.toggle('buying', !!v); if (v) { el['buy-status'].textContent = ''; refreshBuy(true); } }
   function fps(v, txt) { el.fps.classList.toggle('hidden', !v); if (v) el.fps.textContent = txt; }
 
   return { flashed, headshot,  init, show, resetMatch, onRoundStart, center, notice, roundEnd, killfeed, hitmarker, damageFrom, deathMessage, update, scoreboard, buyMenu, fps,

@@ -42,11 +42,12 @@ BV.CharModels = (function () {
     rotWorld(upperB, _rq);
   }
 
-  function create(teamId, variant) {
+  function create(teamId, variant, opts) {
+    const hostage = !!(opts && opts.scene);
     const T = BV.TEAMS[teamId], V = teamId === 'VANGUARD', M = BV.Models;
     const root = new THREE.Group(), bodyG = new THREE.Group(); root.add(bodyG);
     const list = BV.Real.characters ? BV.Real.characters(teamId) : [], pick = list.length ? list[(variant || 0) % list.length] : null;
-    const model = THREE.SkeletonUtils.clone(pick ? pick.scene : BV.Real.soldier.scene), isBase = !pick || pick.id === 'operator';
+    const model = THREE.SkeletonUtils.clone(hostage ? opts.scene : pick ? pick.scene : BV.Real.soldier.scene), isBase = !hostage && (!pick || pick.id === 'operator');
     model.rotation.y = Math.PI;
     bodyG.add(model);
     const bones = {}; model.traverse(o => { if (o.isBone) bones[o.name.replace(/^mixamorig/, '').replace(/_\d+$/, '')] = o; });
@@ -57,13 +58,13 @@ BV.CharModels = (function () {
       kitObj.userData.hip = bones.Hips; } }   // placed every frame at the right hip (root space: x = right, y = up)
     const mats = [];
     // per-instance materials; Raven gets a darker, earthier uniform tint
-    const tint = V || !isBase ? null : new THREE.Color(0x8c7b66);   // new characters keep their own colours
+    const tint = V || !isBase || hostage ? null : new THREE.Color(0x8c7b66);   // new characters keep their own colours
     model.traverse(o => {
       if (!o.isMesh) return;
       const hiQ = BV.settings.quality === 'high' || BV.settings.quality === 'ultra';
       o.frustumCulled = false; o.castShadow = hiQ; o.receiveShadow = true;
       const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint);
-        if (V && (isBase ? /Topmat|Bottommat|Hatmat/i : /Body/i).test(n.name || '')) policeBlue(n);   // Vanguard: police-blue uniform
+        if (V && !hostage && (isBase ? /Topmat|Bottommat|Hatmat/i : /Body/i).test(n.name || '')) (isBase ? policeBlue : policeBlueTex)(n);   // hostages keep their own colours   // Vanguard: police-blue uniform (texture tint for imported characters)
         n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
       o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
     });
@@ -76,8 +77,8 @@ BV.CharModels = (function () {
       local.decompose(obj.position, obj.quaternion, obj.scale); bone.add(obj);
     };
     const wp = (b) => b.getWorldPosition(new THREE.Vector3());
-    // team armband (only team marker: the soldier model already carries its own gear)
-    if (bones.LeftArm && bones.LeftForeArm) {
+    // team armband (only team marker: the soldier model already carries its own gear); hostages wear none
+    if (!hostage && bones.LeftArm && bones.LeftForeArm) {
       const a = wp(bones.LeftArm), b = wp(bones.LeftForeArm), dir = b.clone().sub(a).normalize();
       const bm = BV.mat({ color: T.accent, side: THREE.DoubleSide }); bm.userData.base = bm.color.clone(); mats.push(bm);
       const band = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.07, 12, 1, true), bm);
@@ -98,6 +99,17 @@ BV.CharModels = (function () {
     const wL = {}, wU = {}; for (const k in L) wL[k] = 0; for (const k in U) wU[k] = 0;
     const supportLocal = new THREE.Vector3(), _tw = new THREE.Vector3(), _belt = new THREE.Vector3(), _sh = new THREE.Vector3(), _v = new THREE.Vector3();
     let currentGun = null, dying = false, lastDie = 0, kick = 0, relPh = 0, ikW = 0, cls = 'rifle', lodAcc = 0, lodN = 0;
+    // hostage on its knees: torso straightened, hands clasped on the head (IK), over the kneel clip
+    const restQ = {}; for (const n of ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head']) if (bones[n]) restQ[n] = bones[n].quaternion.clone();
+    const _hp = new THREE.Vector3(), _ht = new THREE.Vector3();
+    function hostagePose(w) {
+      for (const n in restQ) bones[n].quaternion.slerp(restQ[n], w * (n === 'Head' || n === 'Neck' ? 0.6 : 0.85));
+      root.updateMatrixWorld(true);
+      if (!bones.Head) return;
+      bones.Head.getWorldPosition(_hp); bodyG.worldToLocal(_hp);
+      if (bones.LeftArm && bones.LeftForeArm && bones.LeftHand) { _ht.copy(_hp).add(_v.set(0.075, 0.09, -0.03)); bodyG.localToWorld(_ht); ik(bones.LeftArm, bones.LeftForeArm, bones.LeftHand, _ht, w); }
+      if (bones.RightArm && bones.RightForeArm && bones.RightHand) { _ht.copy(_hp).add(_v.set(-0.075, 0.09, -0.03)); bodyG.localToWorld(_ht); ik(bones.RightArm, bones.RightForeArm, bones.RightHand, _ht, w); }
+    }
     const api = {
       root, body: bodyG, torso: bodyG, head: bodyG, gunHolder, shadow, flashAnchor: null, ejectAnchor: null, state: null, shade: 1, skinned: true,
       kitObj, setWeapon(def) {
@@ -141,6 +153,7 @@ BV.CharModels = (function () {
         for (const n in U) { if (!U[n]) continue; wU[n] += (tU[n] - wU[n]) * Math.min(1, dt * 14); U[n].setEffectiveWeight(wU[n] * (1 - wK)); }
         mixer.update(dt);
         bodyG.position.y = 0.045;           // mesh sits ~4 cm low in the source rig
+        if (hostage && wK > 0.01) hostagePose(wK);
         api.place(pitch, st);
       },
       place(pitch, st) {
@@ -196,6 +209,23 @@ BV.CharModels = (function () {
     return api;
   }
   /* police blue: keep the fabric's light and detail (luminance) but recolour it navy */
+  // police blue baked into a copy of the texture: no shader change, so the material stays a plain one
+  // (a shared shader key on imported characters left a uniform undefined and aborted the frame's rendering)
+  const blueCache = new Map();
+  function policeBlueTex(m) {
+    const src = m.map; if (!src || !src.image) return;
+    let t = blueCache.get(src.uuid);
+    if (!t) {
+      const img = src.image, w = img.width || 512, h = img.height || 512, c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h), a = d.data;
+      for (let i = 0; i < a.length; i += 4) { const l = (a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114) / 255;
+        a[i] = Math.min(255, l * 0.34 * 255); a[i + 1] = Math.min(255, l * 0.5 * 255); a[i + 2] = Math.min(255, l * 1.05 * 255); }
+      g.putImageData(d, 0, 0);
+      t = new THREE.CanvasTexture(c); t.encoding = src.encoding; t.flipY = src.flipY; t.wrapS = src.wrapS; t.wrapT = src.wrapT; t.anisotropy = src.anisotropy;
+      blueCache.set(src.uuid, t);
+    }
+    m.map = t; if (m.color) m.color.setRGB(1, 1, 1); m.needsUpdate = true;
+  }
   function policeBlue(m) {
     m.onBeforeCompile = (sh) => {
       sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
