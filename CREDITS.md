@@ -1,0 +1,64 @@
+# Créditos de recursos externos
+
+BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias libres: **CC0** (dominio público), **CC BY** (atribución) o **CC BY-SA** (atribución y compartir igual). Las versiones modificadas que se incluyen aquí (texturas reducidas, mallas recortadas, cuantizadas o reorientadas, animaciones adaptadas) se distribuyen bajo la misma licencia que su original.
+
+## Personajes y animación
+| Recurso | Autor | Licencia | Uso |
+|---|---|---|---|
+| [Rigged and Textured Mid-Poly Soldier](https://sketchfab.com/3d-models/rigged-and-textured-mid-poly-soldier-29883983eddd4808a4f90aec5ca57f16) | DenisAlbu | CC BY-SA 4.0 | Operadores Vanguard y Raven (texturas reducidas a 512 px; Raven con tinte propio) |
+| Universal Animation Library [Standard] | Quaternius | CC0 1.0 | 15 animaciones, adaptadas al esqueleto Mixamo del soldado |
+
+## Armas (todas de Sketchfab, CC BY 4.0)
+| Arma del juego | Modelo | Autor |
+|---|---|---|
+| Viper-9, Falcon .45 | [G19 Pistol, Game Ready, Free version](https://sketchfab.com/3d-models/g19-pistol-game-ready-free-version-e3412d9803f04bdaa97ad9b68ed665d7) (pistola montada recortada de la escena de exposición) | Rotuma |
+| Specter-9, Vector-MP | [MP5 Submachine Gun](https://sketchfab.com/3d-models/mp5-submachine-gun-a73b61932a0e4eecb5db5c63c158aa24) | Rotuma |
+| Hammer-12 | [Remington 870 (PBR GR)](https://sketchfab.com/3d-models/remington-870-pbr-and-game-ready-26e37df4c38c4e8a9da8adeb4b66bff6) | tris.blend |
+| ARX-17 | [AK-47 - Game Ready Assault Rifle Weapon](https://sketchfab.com/3d-models/ak-47-game-ready-assault-rifle-weapon-dc58144409534abbb60970638d171f9f) | Billy Jackman |
+| Halberd-4, Kestrel-5 | [M4A1 Assault Rifle Game Ready](https://sketchfab.com/3d-models/m4a1-assault-rifle-game-ready-c2a3c7b3ed4844b895a504f1bbe4f931) | polupan.andrew |
+| Lynx-7 | [Sniper rifle GameReady Free](https://sketchfab.com/3d-models/sniper-rifle-gameready-free-e520b234140049e7890db0b6c29d3925) | pashtetuser |
+
+## Cielo y superficies
+| Recurso | Autor | Licencia | Uso |
+|---|---|---|---|
+| Ground054 | ambientCG | CC0 1.0 | Suelo de arena de DUSTLINE |
+| Sand 01 | Poly Haven | CC0 1.0 | Muros de adobe de DUSTLINE |
+| Blue Lagoon Night · Goegap | Poly Haven | CC0 1.0 | Cielos de HARBOR-9 y DUSTLINE (convertidos de EXR a JPG con mapeo tonal) |
+| Citrus Orchard Road (Pure Sky) | Poly Haven | CC0 1.0 | Cielo panorámico (convertido de HDR a JPG con mapeo tonal) |
+| [City](https://sketchfab.com/3d-models/city-1f50f0d6ec5a493d8e91d7db1106b324) | SpatialNeglect | CC BY 4.0 | Ciudad del horizonte: cuatro copias giradas alrededor del recinto (texturas a 512 px) |
+| [Makarov](https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack) (Free CC0 Guns & Explosives Pack) | 3DModelsCC0 · GLB de BoQsc | CC0 1.0 | Viper-9 y Falcon .45: pistola con corredera móvil y cargador separado |
+| [Frag Grenade](https://3dmodelscc0.itch.io/free-cc0-guns-explosives-pack) (Free CC0 Guns & Explosives Pack) | 3DModelsCC0 · GLB de BoQsc | CC0 1.0 | Shard-G: granada de fragmentación con anilla separada |
+| [fps AK animated](https://sketchfab.com/3d-models/fps-ak-animated-b0b1bae40337449189483f6187cf7af7) | DJMaesen | CC BY 4.0 | ARX-17 en primera persona: brazos y AK74 con animaciones hechas a mano (desenfundar, reposo, disparo, recarga y recarga en vacío) |
+| animated pistol · heavy pistol animated · fps animated smg · shotgun animated · fps animated carbine · sniper animated · knife animated · lmg animated | DJMaesen | CC BY 4.0 | Brazos y armas en primera persona con animaciones hechas a mano para la Viper-9, Falcon .45, Specter-9, Vector-MP, Hammer-12, Halberd-4, Kestrel-5, Lynx-7, Blade-X y Bastion-60 |
+| [Tactical Response Officer](https://sketchfab.com/3d-models/tactical-response-officer-9b918aa9aa4d48dab690e7d5b218a335) | liamoliphant | CC BY 4.0 | Personaje «SWAT» de Vanguard (con el esqueleto del operador) |
+| [S.W.A.T. Operator](https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab) | Mateusz Woliński | CC BY 4.0 | Personaje «Night Ops» de Vanguard (con el esqueleto del operador) |
+| [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
+| [Animated MP5](https://sketchfab.com/3d-models/animated-mp5-19278d5f4a334f4abf320bc303ff9be1) | JUST (modelo del MP5 de tnnv) | CC BY 4.0 | Subfusil MP5 (solo el arma; sus brazos no se usan) |
+| [AK-47S](https://sketchfab.com/3d-models/ak-47s-07065c43bdb2459ca8faf7a99b075b9b) | Frostoise | CC BY 4.0 | Arma especial AK-47S de Raven |
+| [BT SPR 300](https://sketchfab.com/3d-models/bt-spr-300-30d47cacabbe4de7ab7c25bbfef3a41b) | m.daneshyab | CC BY 4.0 | Francotirador Titan-50 |
+| [M16 A2 Assault Rifle - Animated](https://sketchfab.com/3d-models/m16-a2-assault-rifle-animated-bd4ff595b593447f9a7f1d95f501fb6c) | user77 | CC BY 4.0 | M16A2 SD de Vanguard (brazos y animaciones) |
+| [revolver animated](https://sketchfab.com/3d-models/revolver-animated-a34b6d0ddc774744bc3567d6afc0878f) | DJMaesen | CC BY 4.0 | Revólver Talon .44 (brazos y animaciones) |
+| [Riot Shield](https://sketchfab.com/3d-models/riot-shield-6e3d3ea43e6b4f4fbf959607e10f05ca) | Foxx Assets | CC BY 4.0 | Escudo balístico de Vanguard |
+| [Businessman](https://sketchfab.com/3d-models/businessman-a3ae0076849e4eb2afbdea0f8de6ce39) | SPP Animation Studio | CC BY 4.0 | Rehén (hombre de traje) |
+| [The character of an office worker](https://sketchfab.com/3d-models/the-character-of-an-office-worker-64c97dedb5134dfeafcadd91dc317215) | BELAZ | CC BY 4.0 | Rehén (oficinista) |
+| [Low Poly Office](https://sketchfab.com/3d-models/low-poly-office-cc81191e0e90409c94df23ad4045f175) | Paolo Mercogliano | CC BY 4.0 | Mesas, estanterías y archivadores de MERIDIAN |
+| [Low Poly Office Chair](https://sketchfab.com/3d-models/low-poly-office-chair-15b7a4b05f474236a6b10e762e823fc0) | AJVFX | CC BY 4.0 | Sillas de oficina |
+| Carpet016, OfficeCeiling001, Tiles143 | ambientCG | CC0 | Moqueta, techo y baldosas de MERIDIAN |
+| [M84 Stun Grenade "Flashbang"](https://sketchfab.com/3d-models/m84-stun-grenade-flashbang-3dbda8fe68ff4efdbf59f7d414c5619c) | Vanillatography | CC BY 4.0 | Granada cegadora Glare-F |
+| [M18 Smoke Grenade](https://sketchfab.com/3d-models/m18-smoke-grenade-46343925ad0e47cf927e66da7953c372) | Vanillatography | CC BY 4.0 | Granada de humo Veil-S |
+| [Wire cutter](https://sketchfab.com/3d-models/wire-cutter-794aac0807da41bf8ec6eb3ee23f4a0f) | Thomas Vansteelandt | CC BY 4.0 | Kit de desactivación |
+| [Colt M1911 & Silencer](https://sketchfab.com/3d-models/colt-m1911-silencer-066b5650970e4d01b721fd4d19ab8065) | FJH | CC BY 4.0 | Pistola Warden .45 SD y su silenciador |
+| [Time bomb](https://sketchfab.com/3d-models/time-bomb-2191e5560de242a290c5de41e5052c74) | Shailesh gowda | CC BY 4.0 | La carga explosiva (con la cuenta atrás del juego en su pantalla) |
+| [Military Outpost Kit 1.0](https://sketchfab.com/3d-models/military-outpost-kit-10-cc0-010dc4f0a73a48e7a53598c6f24fe9cf) | britdawgmasterfunk | CC0 1.0 | Coberturas en los spawns con colisión real: barreras HESCO, muros de hormigón, sacos terreros y cajas militares (simplificados) |
+| [Abandoned Warehouse](https://sketchfab.com/3d-models/abandoned-warehouse-698a34300af34095ac6593f348585daa) | Arsen Ismailov | CC BY 4.0 | Nave exterior al sur del recinto (simplificada, texturas a 256 px) |
+| [Abandoned Factory Modular Kit](https://sketchfab.com/3d-models/abandoned-factory-modular-kit-ec040b2034e949ffbc106f0784deb3fc) | Andy B | CC BY 4.0 | Atrezo junto a los muros: palés, barriles, soportes de tubería, cajas, bombonas y escombros |
+| Concrete034, PaintedPlaster017, MetalPlates006, Tiles074, Bricks090, Bricks085, Asphalt015, Asphalt026B, Planks019 | ambientCG | CC0 1.0 | Superficies del mapa (`js/tex_data.js`) |
+| Ultimate Guns Pack (Quaternius) | Quaternius | CC0 1.0 | Armas de respaldo si los modelos realistas no cargan (`js/gun_data.js`) |
+
+## Recibidos y descartados
+Soldier low poly mesh game ready 4K PBR rigged (kolopolo, CC BY): su malla y su esqueleto no coinciden en la pose de reposo y se deforma al animarlo. FREE Military Soldier RIGGED (BAMEN, CC BY): no incluye texturas.
+
+Three.js r128, GLTFLoader y SkeletonUtils: licencia MIT, © three.js authors.
+
+## Bibliotecas
+- meshoptimizer (decodificador), Arseny Kapoulkine — MIT. Descomprime los modelos incrustados.
