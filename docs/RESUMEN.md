@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.17.2
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.18.0
 
 ## Enlaces
 
@@ -39,7 +39,7 @@ Rotación: sector17 → harbor9 → dustline → meridian.
 |---|---|
 | Pistolas | Viper-9, Falcon-45, Warden .45 SD (Colt M1911, silenciador desmontable), Talon .44 (revólver DJMaesen) |
 | Subfusiles | Specter-9 (DJMaesen), MP5 (JUST/tnnv, solo el arma) |
-| Escopeta | Hammer-12 |
+| Escopetas | Hammer-12 (corredera, $1900), **Breaker-8** (DJMaesen, más pesada y de más alcance, $2400) |
 | Fusiles | ARX-17 (Raven), **AK-12** (exclusivo Raven, rwroclav), Halberd-4, **M16A2 SD** (exclusivo Vanguard, user77, silenciador), Kestrel-5, Bastion-60 |
 | Precisión | Lynx-7 (DJMaesen original), **Titan-50** (BT SPR 300, mata de un tiro, no sale de la mira) |
 | Equipo | Chaleco, casco, kit de desactivación (Vanguard), escudo balístico (Vanguard), granadas: fragmentación, cegadora, humo |

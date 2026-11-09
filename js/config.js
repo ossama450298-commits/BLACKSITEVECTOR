@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.17.2';
+BV.VERSION = '5.18.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -72,6 +72,10 @@ BV.WEAPONS = {
               shotSpread: 0.005, kick: 0.0055, drop: 0.88, price: 1550, speed: 1.0, model: 'smgCompact',
               snd: { f: 3200, l: 0.10, t: 190, v: 0.65 }, reward: 600 },
 
+  breaker8: { id: 'breaker8', name: 'Breaker-8', slot: 1, cls: 'shotgun', auto: false, damage: 17, pellets: 9, head: 2.0,
+              armorPen: 0.55, rate: 1.05, mag: 6, reserve: 24, reload: 3.4, spread: 0.04, moveSpread: 0.02, airSpread: 0.08,
+              shotSpread: 0, kick: 0.06, drop: 0.7, price: 2400, speed: 0.9, model: 'shotgun2',
+              snd: { f: 760, l: 0.4, t: 70, v: 1.3 }, reward: 900 },   // heavier pump shotgun: tighter pattern, longer reach
   hammer12: { id: 'hammer12', name: 'Hammer-12', slot: 1, cls: 'shotgun', auto: false, damage: 15, pellets: 9, head: 2.0,
               armorPen: 0.5, rate: 0.9, mag: 7, reserve: 28, reload: 3.2, spread: 0.055, moveSpread: 0.02, airSpread: 0.08,
               shotSpread: 0, kick: 0.05, drop: 0.6, price: 1900, speed: 0.92, model: 'shotgun',
@@ -130,7 +134,7 @@ BV.WEAPONS = {
 BV.SHOP = [
   { name: 'Pistols',   items: ['viper9', 'falcon45', 'warden45', 'talon44'] },
   { name: 'SMGs',      items: ['specter9', 'mp5'] },
-  { name: 'Shotgun',   items: ['hammer12'] },
+  { name: 'Shotgun',   items: ['hammer12', 'breaker8'] },
   { name: 'Rifles',    items: ['arx17', 'ak484', 'halberd4', 'shade4', 'kestrel5', 'bastion60'] },
   { name: 'Precision', items: ['lynx7', 'titan50'] },
   { name: 'Gear',      items: ['armor', 'helmet', 'kit', 'shield', 'shard', 'flash', 'smoke'] }

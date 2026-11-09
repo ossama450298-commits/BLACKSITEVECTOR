@@ -257,7 +257,7 @@ BV.Game = class {
       else if (m >= 4500 && b.team === 'RAVEN' && Math.random() < 0.3) buy('ak484');   // terrorists: the special AK-484
       else if (m >= 3650) buy(Math.random() < 0.2 ? 'kestrel5' : (b.team === 'RAVEN' ? 'arx17' : 'halberd4'));   // terrorists: the AK
       else if (m >= 3350) buy(b.team === 'RAVEN' ? 'arx17' : 'halberd4');
-      else if (m >= 2550 && r < 0.35) buy('hammer12');
+      else if (m >= 2550 && r < 0.35) buy(m >= 3000 && r < 0.17 ? 'breaker8' : 'hammer12');
       else if (m >= 1950) buy(r < 0.5 ? 'specter9' : 'mp5');
       else if (m >= 1300 && this.round > 1 && r < 0.4) buy('specter9');
     }

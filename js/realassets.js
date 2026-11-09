@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let sg2 = null, mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -195,6 +195,7 @@ BV.Real = (function () {
         geo.computeBoundingBox(); gaussBox.union(geo.boundingBox); const m = new THREE.Mesh(geo, o.material); m.name = 'gauss'; grp.add(m); });
       gaussTpl = grp; }));
     if (BV.REAL.mp5) jobs.push(parse(BV.REAL.mp5).then(g => { styleMaterials(g.scene); mp5Tpl = g.scene; }));   // gun only (pre-baked: base, mag, trigger)
+    if (BV.REAL.shotgun2) jobs.push(parse(BV.REAL.shotgun2).then(g => { styleMaterials(g.scene); sg2 = g.scene; }));
     if (BV.REAL.spr) jobs.push(parse(BV.REAL.spr).then(g => { styleMaterials(g.scene); spr = g.scene; }));
     if (BV.REAL.ak12) jobs.push(parse(BV.REAL.ak12).then(g => { styleMaterials(g.scene); ak12 = g.scene; }));
     if (BV.REAL.awm) jobs.push(parse(BV.REAL.awm).then(g => { styleMaterials(g.scene); awm = g.scene; }));
@@ -224,6 +225,7 @@ BV.Real = (function () {
     mp5:      { data: 'fp_smg', swap: 'mp5', len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     vectormp: { data: 'fp_smg',     len: 0.58, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
+    breaker8: { data: 'fp_shotgun', swap: 'shotgun2', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
     hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
     shade4:   { data: 'fp_m16', world: 'm16', yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  sd: true, clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
@@ -416,6 +418,8 @@ BV.Real = (function () {
     const dksMuzzle = c.swap === 'dks' && dks ? swapDKS(inner)
       : c.swap === 'mp5' && mp5Tpl ? swapOnto(inner, mp5Tpl, { s: 75.4 / mp5Len, basis: [1, 0, 0, 0,  0, 0, 1, 0,  0, -1, 0, 0],   // muzzle at -Y, top +Z -> muzzle +Z, top +Y
           src: [-150.68, -16575.6, 70360.57], dst: [0.193, 9.764, 11.884], muzzle: [-150.68, -31266, 72000], rules: [[/mag/, 'clip'], [/trigger/, 'trigger']] })   // body on the SMG's body
+      : c.swap === 'shotgun2' && sg2 ? swapOnto(inner, sg2, { s: 0.76, src: [0, 4.861, 7.715], dst: [0, -2.59, 3.732], muzzle: [0, 12, 128.8],   // same axes as the pack; grips aligned
+          rules: [[/pump/, 'pump'], [/slug/, 'slug'], [/trigger/, 'trigger'], [/loader/, 'lid']] })
       : c.swap === 'spr' && spr ? swapOnto(inner, spr, Object.assign({}, { s: 50, rot: Math.PI, src: [0, -0.009, 0.041], dst: [0, 5.778, 18.468], muzzle: [0, -0.02, -0.998],
           rules: [[/bolt/, 'bolt'], [/\|mag|follower/, 'clip'], [/bullet/, 'bullet']],
           tweak: [{ re: /stuck/, pivot: [0, -0.02, 0.36], scale: [1, 0.6, 0.85] }] }))   // lower, shorter stock: its cheek riser blocked the view
@@ -671,6 +675,13 @@ BV.Real = (function () {
       inner.quaternion.setFromRotationMatrix(M); const tf = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M).multiplyScalar(k);
       inner.position.copy(tf(-863, -26054, 70000)).negate(); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
       const muzzle = new THREE.Object3D(); muzzle.position.copy(tf(-150.68, -31266, 72000)).add(inner.position); group.add(muzzle);
+      const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
+      return { group, muzzle, mag: null, magHome: null, eject, real: true, imported: true };
+    }
+    if (model === 'shotgun2' && sg2) {   // third person: ~1 m, muzzle turned to -Z, grip near the origin
+      const k = 0.0072, group = new THREE.Group(), inner = sg2.clone(true); inner.scale.setScalar(k); inner.rotation.y = Math.PI;
+      inner.position.set(0, -4.86 * k, 7.7 * k); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      const muzzle = new THREE.Object3D(); muzzle.position.set(0, (12 - 4.86) * k, (-128.8 + 7.7) * k); group.add(muzzle);
       const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
       return { group, muzzle, mag: null, magHome: null, eject, real: true, imported: true };
     }

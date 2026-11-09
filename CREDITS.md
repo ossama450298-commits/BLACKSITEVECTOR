@@ -33,6 +33,7 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | [FREE Military Soldier RIGGED](https://sketchfab.com/3d-models/free-military-soldier-rigged-e9c56308a67d4a3db62e914fafa4d198) | BAMEN | CC BY 4.0 | Personaje «SWAT» de Vanguard (con el esqueleto del operador) |
 | [S.W.A.T. Operator](https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab) | Mateusz Woliński | CC BY 4.0 | Personaje «Night Ops» de Vanguard (con el esqueleto del operador) |
 | [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
+| [Shotgun](https://sketchfab.com/3d-models/shotgun-2f5b48d9904145a39c1c2fcc6e5579b7) | DJMaesen | CC BY 4.0 | Escopeta Breaker-8 (montada sobre el paquete animado de escopeta) |
 | [Animated MP5](https://sketchfab.com/3d-models/animated-mp5-19278d5f4a334f4abf320bc303ff9be1) | JUST (modelo del MP5 de tnnv) | CC BY 4.0 | Subfusil MP5 (solo el arma; sus brazos no se usan) |
 | [AK-12](https://sketchfab.com/3d-models/ak-12-f78ad7ae10ad4335b3ad81be3ec15bb0) | rwroclav | CC BY 4.0 | Arma exclusiva AK-12 de Raven |
 | [BT SPR 300](https://sketchfab.com/3d-models/bt-spr-300-30d47cacabbe4de7ab7c25bbfef3a41b) | m.daneshyab | CC BY 4.0 | Francotirador Titan-50 |
