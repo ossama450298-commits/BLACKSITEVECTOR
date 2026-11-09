@@ -107,7 +107,7 @@ BV.Map = (function () {
     /* ---- north street ---- */
     B(-28, -41, -24, -39, 0, 1.25, 'car', { faces: [] }); B(-27.3, -40.8, -25, -39.2, 1.25, 1.75, 'car', { faces: [] });
     B(2, -33, 6, -31, 0, 1.25, 'car2', { faces: [] }); B(2.8, -32.8, 5, -31.2, 1.25, 1.75, 'car2', { faces: [] });
-    props.push({ type: 'car', x: -26, z: -40, rot: 0, color: 0x6e2a22 }, { type: 'car', x: 4, z: -32, rot: Math.PI, color: 0x3f5566 });
+    props.push({ type: 'car', x: -26, z: -40, rot: 0, color: 0x6e2a22, model: 'car_audi', len: 4.4 }, { type: 'car', x: 4, z: -32, rot: Math.PI, color: 0x3f5566, model: 'car_vaz', len: 4.16 });
     B(-18, -37, -14, -36.4, 0, 1.1, 'concrete');
     B(10, -42, 10.6, -38, 0, 1.1, 'concrete');
     B(-36, -30, -33.5, -28.5, 0, 1.5, 'container');
@@ -407,7 +407,11 @@ BV.Map = (function () {
     for (const x of [-20, -8, 4]) light(x, 0, 0.85);
     for (const [x, z] of [[18, -4], [18, 4], [18, -16], [18, 16], [6, 16], [-4, 7], [5, 7], [-5, 17], [12, 18.5]]) light(x, z);
     // outside: parked cars (crates as cover), barriers, bins
-    crate(10, -30, 4.2, 1.5, 'container'); crate(-6, -30, 4.2, 1.5, 'container'); crate(-22, -30, 1.6, 1.6); barrel(-14, -26); barrel(-13.2, -26.6);
+    // parked cars in the car park (old rusty cars; collision like the street cars of SECTOR-17)
+    for (const [x, z, rot, model] of [[10, -30, 0.08, 'car_rusty1'], [-6, -30, Math.PI - 0.12, 'car_rusty2']]) {
+      B(x - 2, z - 1, x + 2, z + 1, 0, 1.1, 'car', { faces: [] });
+      props.push({ type: 'car', x, z, rot, color: 0x5a4632, model, len: 4.1 });
+    } crate(-22, -30, 1.6, 1.6); barrel(-14, -26); barrel(-13.2, -26.6);
     B(30, -16, 31.2, -9, 0, 1.0, 'concreteDark'); B(30, 9, 31.2, 16, 0, 1.0, 'concreteDark');   // street barriers
     crate(38, -24, 1.6, 1.6); crate(39.6, -24, 1.6, 1.6); crate(38.8, -24, 1.5, 1.5, 'crate', 1.6); crate(40, 25, 4.2, 1.5, 'container');
     crate(-4, 28, 1.6, 1.6); barrel(2, 26); barrel(2.8, 26.8); crate(-20, 29, 4.2, 1.5, 'container');
@@ -840,6 +844,7 @@ BV.Map = (function () {
         BV.Models.mergeTree(g); scene.add(g);
       } else if (p.type === 'car') {
         const g = carModel(p.color); g.position.set(p.x, 0, p.z); g.rotation.y = p.rot; BV.Models.mergeTree(g); scene.add(g);
+        if (p.model) (data.cars = data.cars || []).push({ g, p });   // swapped for the real model once it is loaded
       } else if (p.type === 'puddle') {
         const m = new THREE.Mesh(new THREE.CircleGeometry(0.5, 20), S({ color: 0x16181a, roughness: 0.08, metalness: 0.0, transparent: true, opacity: 0.7, envMapIntensity: 0.7, polygonOffset: true, polygonOffsetFactor: -1 }));
         m.scale.set(p.w, p.d, 1); m.rotation.x = -Math.PI / 2; m.position.set(p.x, 0.012, p.z); m.receiveShadow = true; scene.add(m);

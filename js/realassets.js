@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let sg2 = null, mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; const carTpl = {}; let sg2 = null, mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -195,6 +195,9 @@ BV.Real = (function () {
         geo.computeBoundingBox(); gaussBox.union(geo.boundingBox); const m = new THREE.Mesh(geo, o.material); m.name = 'gauss'; grp.add(m); });
       gaussTpl = grp; }));
     if (BV.REAL.mp5) jobs.push(parse(BV.REAL.mp5).then(g => { styleMaterials(g.scene); mp5Tpl = g.scene; }));   // gun only (pre-baked: base, mag, trigger)
+    // cars: only the map that parks them loads them
+    for (const k of (MID === 'sector17' ? ['car_audi', 'car_vaz'] : MID === 'meridian' ? ['car_rusty1', 'car_rusty2'] : []))
+      if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); carTpl[k] = g.scene; }));
     if (BV.REAL.shotgun2) jobs.push(parse(BV.REAL.shotgun2).then(g => { styleMaterials(g.scene); sg2 = g.scene; }));
     if (BV.REAL.spr) jobs.push(parse(BV.REAL.spr).then(g => { styleMaterials(g.scene); spr = g.scene; }));
     if (BV.REAL.ak12) jobs.push(parse(BV.REAL.ak12).then(g => { styleMaterials(g.scene); ak12 = g.scene; }));
@@ -869,6 +872,22 @@ BV.Real = (function () {
     return n;
   }
   /* the abandoned warehouse as a landmark south of the compound, outside the play area */
+  // swap the simple street cars for the real models: drop ground planes, scale to the car's length, wheels on the ground,
+  // length turned onto the X axis (the simple car's long side)
+  function placeCars(scene) {
+    const list = (BV.Map.data && BV.Map.data.cars) || []; let n = 0;
+    for (const { g, p } of list) {
+      const tpl = carTpl[p.model]; if (!tpl) continue;
+      const inner = tpl.clone(true), rm = []; inner.traverse(o => { if (o.isMesh && /plane/i.test((o.parent && o.parent.name || '') + o.name)) rm.push(o); }); rm.forEach(o => o.parent.remove(o));
+      inner.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(inner), sz = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+      const k = (p.len || 4.2) / Math.max(sz.x, sz.z), wrap = new THREE.Group(), spin = new THREE.Group();
+      inner.position.set(-c.x, -bb.min.y, -c.z); spin.add(inner); spin.scale.setScalar(k); spin.rotation.y = sz.z > sz.x ? Math.PI / 2 : 0;
+      wrap.add(spin); wrap.position.set(p.x, 0, p.z); wrap.rotation.y = p.rot;
+      wrap.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      scene.add(wrap); g.visible = false; p.real = wrap; n++;
+    }
+    return n;
+  }
   function placeWarehouse(scene) {
     if (!warehouse || (BV.Map.data && BV.Map.data.noWarehouse)) return false;
     const box = new THREE.Box3().setFromObject(warehouse), c = box.getCenter(new THREE.Vector3());
@@ -882,5 +901,5 @@ BV.Real = (function () {
     const extra = team === 'VANGUARD' ? ['char_swat', 'char_swat2'] : ['char_merc'];   // stalker held back until its boots skin cleanly
     return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
   }
-  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, shieldModel: () => shieldTpl ? shieldTpl.clone() : null, placeOffice, hostageScene: (k) => hostages[k] || null, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, placeCars, shieldModel: () => shieldTpl ? shieldTpl.clone() : null, placeOffice, hostageScene: (k) => hostages[k] || null, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

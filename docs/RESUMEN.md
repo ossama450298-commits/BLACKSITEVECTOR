@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.20.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.21.0
 
 ## Enlaces
 
@@ -46,6 +46,12 @@ Rotación: sector17 → harbor9 → dustline → meridian.
 | Equipo | Chaleco, casco, kit de desactivación (Vanguard), escudo balístico (Vanguard), granadas: fragmentación, cegadora, humo |
 
 Retiradas (v5.20.0, se veían peor por ir montadas sobre animaciones de otra arma): AK-12, MP5, Breaker-8 y BT SPR 300. Antes: Gauss M13 (arma especial futurista; el código del rayo y la perforación se conserva), Vector-MP (duplicaba al Specter-9), AK-47S, M4 SOPMOD, AK-484, AWM, DKS-501, AR-15.
+
+## Coches
+
+- **SECTOR-17** (calle norte): Audi 80 (l.corijn, CC BY) y VAZ 2107 (Arkady Gribachev, CC BY).
+- **MERIDIAN** (aparcamiento): dos coches oxidados (Renafox, CC BY-NC), en lugar de dos contenedores.
+- Sistema: el mapa crea coches simples (`props` tipo `car` con `model` y `len`) y `BV.Real.placeCars` los cambia por el modelo real al terminar la carga (quita planos de suelo, escala al largo, ruedas al suelo).
 
 ## Personajes
 

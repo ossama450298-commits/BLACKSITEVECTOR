@@ -495,6 +495,7 @@
       if (BV.Real.placeCity(scene) && BV.Map.data.skyline) BV.Map.data.skyline.visible = false;
       E.outpostPieces = BV.Real.placeOutpost(scene);
       BV.Real.placeWarehouse(scene);
+      if (BV.Real.placeCars) BV.Real.placeCars(scene);
       E.kitProps = BV.Real.dressMap(scene);
       if (BV.Real.placeOffice) E.officeProps = BV.Real.placeOffice(scene);
     } catch (err) { console.warn('scenery dressing failed', err); }
