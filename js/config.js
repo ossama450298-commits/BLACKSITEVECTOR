@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.15.0';
+BV.VERSION = '5.16.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -101,9 +101,9 @@ BV.WEAPONS = {
               airSpread: 0.2, shotSpread: 0.012, kick: 0.02, drop: 0.985, price: 3400, speed: 0.88, model: 'dmr', zoom: 2,
               snd: { f: 1400, l: 0.30, t: 100, v: 1.1 }, reward: 300 },
 
-  ak484:    { id: 'ak484', name: 'AK-47S', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 38, head: 4.0, armorPen: 0.82,
+  ak484:    { id: 'ak484', name: 'AK-12', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 38, head: 4.0, armorPen: 0.82,
               rate: 0.09, mag: 30, reserve: 90, reload: 2.5, spread: 0.0022, moveSpread: 0.045, airSpread: 0.2,
-              shotSpread: 0.005, kick: 0.0085, drop: 0.97, price: 4500, speed: 0.9, model: 'ak47s',
+              shotSpread: 0.005, kick: 0.0085, drop: 0.97, price: 4500, speed: 0.9, model: 'ak12',
               snd: { f: 1500, l: 0.2, t: 110, v: 1.1 }, reward: 300 },   // special, Raven only: orange energy tracers
   gauss:    { id: 'gauss', name: 'Gauss M13', slot: 1, cls: 'rifle', auto: false, damage: 140, head: 3, armorPen: 1.0,
               rate: 1.1, mag: 5, reserve: 15, reload: 3.2, spread: 0.004, moveSpread: 0.06, airSpread: 0.2,

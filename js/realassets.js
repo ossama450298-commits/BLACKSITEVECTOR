@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let mp5Tpl = null, mp5Len = 29381, spr = null, ak47s = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; let mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -196,7 +196,7 @@ BV.Real = (function () {
       gaussTpl = grp; }));
     if (BV.REAL.mp5) jobs.push(parse(BV.REAL.mp5).then(g => { styleMaterials(g.scene); mp5Tpl = g.scene; }));   // gun only (pre-baked: base, mag, trigger)
     if (BV.REAL.spr) jobs.push(parse(BV.REAL.spr).then(g => { styleMaterials(g.scene); spr = g.scene; }));
-    if (BV.REAL.ak47s) jobs.push(parse(BV.REAL.ak47s).then(g => { styleMaterials(g.scene); ak47s = g.scene; }));
+    if (BV.REAL.ak12) jobs.push(parse(BV.REAL.ak12).then(g => { styleMaterials(g.scene); ak12 = g.scene; }));
     if (BV.REAL.awm) jobs.push(parse(BV.REAL.awm).then(g => { styleMaterials(g.scene); awm = g.scene; }));
     if (BV.REAL.dks) jobs.push(parse(BV.REAL.dks).then(g => { styleMaterials(g.scene); dks = g.scene; }));
     if (BV.REAL.ar15) jobs.push(parse(BV.REAL.ar15).then(g => { styleMaterials(g.scene); ar15 = g.scene; }));
@@ -228,7 +228,7 @@ BV.Real = (function () {
     shade4:   { data: 'fp_m16', world: 'm16', yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  sd: true, clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
-    ak484:    { data: 'fp_carbine', swap: 'ak47s', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
+    ak484:    { data: 'fp_carbine', swap: 'ak12', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     gauss:    { data: 'fp_carbine', swap: 'gauss', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     titan50:  { data: 'fp_sniper',  swap: 'spr', len: 1.34, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },   // bigger: .50 cal
     lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },
@@ -419,7 +419,10 @@ BV.Real = (function () {
       : c.swap === 'spr' && spr ? swapOnto(inner, spr, Object.assign({}, { s: 50, rot: Math.PI, src: [0, -0.009, 0.041], dst: [0, 5.778, 18.468], muzzle: [0, -0.02, -0.998],
           rules: [[/bolt/, 'bolt'], [/\|mag|follower/, 'clip'], [/bullet/, 'bullet']],
           tweak: [{ re: /stuck/, pivot: [0, -0.02, 0.36], scale: [1, 0.6, 0.85] }] }))   // lower, shorter stock: its cheek riser blocked the view
-      : c.swap === 'ak47s' && ak47s ? swapOnto(inner, ak47s, { s: 0.2, src: [0, -1.0, 0.4], dst: [0, 0.064, 0.329], muzzle: [0, 0.45, 4.81], split: [{ min: [-9, -9, -0.6], max: [9, -0.3, 1.5], bone: 'clip' }] })
+      : c.swap === 'ak12' && ak12 ? swapOnto(inner, ak12, { s: 1.72, rot: -Math.PI / 2, rotZ: -0.2133,   // along +X, tilted 12 deg -> level, along +Z
+          src: [0.251, -0.055, -0.023], dst: [0, 0.064, 0.329], muzzle: [0.842, 0.205, -0.01],
+          rules: [[/object2$/, 'handle']],                                                          // bolt carrier + charging handle: racks with the hand
+          split: [{ min: [0.13, -9, -9], max: [0.36, 0.025, 9], bone: 'clip' }] })
       : c.swap === 'gauss' && gaussTpl ? (() => { const b = gaussBox, L = b.max.z - b.min.z, cx = (b.min.x + b.max.x) / 2, cy = (b.min.y + b.max.y) / 2, H = b.max.y - b.min.y;
           return swapOnto(inner, gaussTpl, { s: 2.0 / L, src: [cx, cy - 0.12 * H, b.min.z + 0.5 * L], dst: [0, 0.12, 0.33], muzzle: [cx, cy + 0.02 * H, b.max.z] }); })()
       : c.swap === 'awm' && awm ? swapOnto(inner, awm, { s: 76, src: [0, -0.037, 0.135], dst: [0, 5.778, 18.468], muzzle: [0, 0.052, 0.992],
@@ -681,10 +684,12 @@ BV.Real = (function () {
       const s = suppressorMesh(0.19, 0.019); g.group.add(s); s.position.copy(g.muzzle.position).add(new THREE.Vector3(0, 0, -0.095));
       g.muzzle.position.z -= 0.19; g.group.userData.silencer = s; return g;
     }
-    if (model === 'ak47s' && ak47s) {   // third person: ~0.88 m, muzzle turned to -Z, pistol grip near the origin
-      const k = 0.09, group = new THREE.Group(), inner = ak47s.clone(true); inner.scale.setScalar(k); inner.rotation.y = Math.PI;
-      inner.position.set(0, 0.8 * k, -1.0 * k); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
-      const muzzle = new THREE.Object3D(); muzzle.position.set(0, (0.8 + 0.45) * k, (-1.0 - 4.81) * k); group.add(muzzle);
+    if (model === 'ak12' && ak12) {   // third person: ~0.94 m, levelled, muzzle to -Z, pistol grip near the origin
+      const k = 0.835, group = new THREE.Group(), inner = ak12.clone(true); inner.scale.setScalar(k);
+      inner.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.2133));
+      const tf = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(inner.quaternion).multiplyScalar(k);
+      inner.position.copy(tf(0.0, -0.09, -0.02)).negate(); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      const muzzle = new THREE.Object3D(); muzzle.position.copy(tf(0.842, 0.205, -0.01)).add(inner.position); group.add(muzzle);
       const eject = new THREE.Object3D(); eject.position.set(0.03, 0.08, -0.12); group.add(eject);
       return { group, muzzle, mag: null, magHome: null, eject, real: true, imported: true };
     }
