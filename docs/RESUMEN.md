@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.18.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.19.0
 
 ## Enlaces
 
@@ -30,6 +30,7 @@ Rotación: sector17 → harbor9 → dustline → meridian.
 - **Modo bomba (v5.17.0):** eliminar a todos los policías NO da la victoria. Los terroristas deben plantar antes de que acabe el tiempo; si no, ganan los policías aunque estén muertos. Plantada y sin policías vivos → ganan los terroristas al momento.
 - **Explosión (v5.9.0):** muerte segura a menos de 20 m (con o sin chaleco, aunque haya paredes); daño decreciente hasta 32 m. En los últimos 8 s los terroristas bots huyen a más de 30 m; los policías bots también si ya no les da tiempo a desactivar.
 - **Turno de la bomba (v5.11.0):** se reparte entre todos los terroristas (jugador incluido) en turno barajado sin repetir hasta que la han llevado todos. Aviso al empezar la ronda.
+- **Portador de la bomba (v5.19.0):** va directo a plantar disparando sin pararse (estado RUSH en `bot.js`, función `carrierGo`); el equipo sale con él. Planta en su punto o, si no lo alcanza en 2 s dentro del sitio, donde esté (un punto del sitio A de SECTOR-17 está elevado). Sigue siendo mortal.
 - **Tienda por equipo (v5.5.0):** cada equipo solo ve lo que puede comprar.
 - **Espectador (v5.7.0):** al morir se ve a todos los vivos, primero compañeros y luego enemigos.
 

@@ -104,6 +104,7 @@ BV.Bot = class extends BV.Combatant {
   decide() {
     const g = this.game, now = g.time;
     if (this.fleeCharge()) return;
+    if (this.hasCharge && g.charge.state === 'carried' && g.mode !== 'hostage' && g.phase === 'live' && !this.planting) { this.carrierGo(); return; }
     const critical = this.planting || this.defusing;
     if (this.visible) {
       if (critical && (this.planting ? g.plantProgress > 0.55 : g.defuseProgress > 0.6)) return; // commit to the objective
@@ -140,6 +141,23 @@ BV.Bot = class extends BV.Combatant {
     return false;
   }
 
+  /* the bomb carrier: straight to the plant spot, shooting whoever is in view on the way (state RUSH) without stopping
+     to duel or chase; the team leaves with it. Inside the site it plants on its spot, or where it stands if the spot
+     cannot be reached within 2 s (a spot on top of something). With an enemy in view inside the site it holds and fights. */
+  carrierGo() {
+    const g = this.game, now = g.time, map = g.map, ps = g.plan.plantSpot;
+    if (now < g.plan.goAt) g.plan.goAt = now;                     // no waiting at the staging point: everyone goes
+    this.state = this.visible ? 'RUSH' : 'OBJECTIVE';
+    const inSite = !!map.siteAt(this.pos.x, this.pos.z);
+    if (inSite) { if (!this._siteSince) this._siteSince = now; } else this._siteSince = 0;
+    const near = Math.hypot(this.pos.x - ps[0], this.pos.z - ps[1]) < 1.0, long = inSite && now - this._siteSince > 2;
+    if (inSite && this.onGround && (near || long)) {
+      this.wantMove = false;
+      if (!this.visible) g.beginPlant(this);
+      return;
+    }
+    this.setGoal(ps[0], ps[2] || 0, ps[1]);
+  }
   roleBehaviour() {
     const g = this.game, now = g.time, ch = g.charge, map = g.map;
     const attacking = this.team === g.attackTeam;
@@ -310,7 +328,7 @@ BV.Bot = class extends BV.Combatant {
     // ---------- aim ----------
     let tYaw = this.yaw, tPitch = 0;
     const tgt = this.visible;
-    if (tgt && (this.state === 'ATTACK' || this.state === 'RETREAT')) {
+    if (tgt && (this.state === 'ATTACK' || this.state === 'RETREAT' || this.state === 'RUSH')) {
       this.aimOffT -= dt; if (this.aimOffT <= 0) this.rollAimOffset(1);
       const eye = this.eye(this._e);
       const tp = this.aimPart === 'head' ? tgt.headPos(this._t) : tgt.chest(this._t);
@@ -347,7 +365,7 @@ BV.Bot = class extends BV.Combatant {
     if (!tgt && this.slot !== 4 && this.slot !== this.bestSlot() && !this.reloading && (this.inv[this.bestSlot()].mag > 0 || this.inv[this.bestSlot()].reserve > 0)) g.switchSlot(this, this.bestSlot());
 
     let firing = false;
-    if (tgt && this.state === 'ATTACK' && g.time >= this.reactAt && W && W.def.cls !== 'grenade') {
+    if (tgt && (this.state === 'ATTACK' || this.state === 'RUSH') && g.time >= this.reactAt && W && W.def.cls !== 'grenade') {
       const dist = this.pos.distanceTo(tgt.pos);
       const tol = (W.def.cls === 'sniper' ? 0.015 : 0.05) + 0.6 / Math.max(2, dist);
       if (Math.abs(dyaw) < tol && Math.abs(dpitch) < tol * 1.2) {
