@@ -235,7 +235,7 @@ BV.CharModels = (function () {
       const img = src.image, w = img.width || 512, h = img.height || 512, c = document.createElement('canvas'); c.width = w; c.height = h;
       const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h); const d = g.getImageData(0, 0, w, h), a = d.data;
       for (let i = 0; i < a.length; i += 4) { const l = (a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114) / 255;
-        a[i] = Math.min(255, l * 0.34 * 255); a[i + 1] = Math.min(255, l * 0.5 * 255); a[i + 2] = Math.min(255, l * 1.05 * 255); }
+        a[i] = Math.min(255, (0.04 + l * 0.30) * 255); a[i + 1] = Math.min(255, (0.05 + l * 0.38) * 255); a[i + 2] = Math.min(255, (0.09 + l * 0.62) * 255); }   // dark police navy, keeps the texture's detail
       g.putImageData(d, 0, 0);
       t = new THREE.CanvasTexture(c); t.encoding = src.encoding; t.flipY = src.flipY; t.wrapS = src.wrapS; t.wrapT = src.wrapT; t.anisotropy = src.anisotropy;
       blueCache.set(src.uuid, t);
@@ -245,7 +245,7 @@ BV.CharModels = (function () {
   function policeBlue(m) {
     m.onBeforeCompile = (sh) => {
       sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>',
-        '#include <map_fragment>\n  { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = vec3(l) * vec3(0.34, 0.5, 1.05); }');
+        '#include <map_fragment>\n  { float l = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114)); diffuseColor.rgb = vec3(0.04, 0.05, 0.09) + vec3(l) * vec3(0.30, 0.38, 0.62); }');
     };
     m.customProgramCacheKey = () => 'police-blue';
     if (m.color) m.color.setRGB(1, 1, 1);

@@ -182,6 +182,7 @@ BV.Game = class {
   }
 
   startRound() {
+    this._plantNow = false;
     this.round++;
     const R = BV.RULES;
     BV.Effects.clear();
@@ -1054,8 +1055,12 @@ BV.Game = class {
         if (saved > 0 && left === 0) { this.endRound(atk, 'rescued'); return; }
       }
       if (a === 0) this.endRound(def, 'eliminated');
-      else if (d === 0) this.endRound(atk, 'eliminated');
-      else if (this.timer <= 0) this.endRound(def, 'time');
+      else if (d === 0 && this.mode === 'hostage') this.endRound(atk, 'eliminated');
+      else if (this.timer <= 0) this.endRound(def, 'time');   // bomb mode: no charge planted in time -> the defenders win, even if all of them are down
+      else if (d === 0 && !this._plantNow) {                   // bomb mode: killing every defender is not enough, the charge must be planted
+        this._plantNow = true;
+        if (BV.HUD && BV.HUD.notice) BV.HUD.notice(this.player && this.player.team === atk ? 'All defenders down — plant the charge before time runs out' : 'All defenders down — the enemy must still plant', '', 4);
+      }
     } else if (this.phase === 'planted') {
       if (d === 0) this.endRound(atk, 'eliminated');
     }
