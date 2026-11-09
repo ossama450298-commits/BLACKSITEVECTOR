@@ -6,7 +6,7 @@
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '5.19.0';
+BV.VERSION = '5.20.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -59,9 +59,9 @@ BV.WEAPONS = {
               shotSpread: 0.03, kick: 0.028, drop: 0.9, price: 650, speed: 0.98, model: 'pistolHeavy',
               snd: { f: 1500, l: 0.24, t: 110, v: 1.0 }, reward: 300 },
 
-  mp5:      { id: 'mp5', name: 'MP5', slot: 1, cls: 'smg', auto: true, damage: 26, head: 3.5, armorPen: 0.62,
-              rate: 0.075, mag: 30, reserve: 120, reload: 2.6, spread: 0.0035, moveSpread: 0.03, airSpread: 0.16,
-              shotSpread: 0.0035, kick: 0.006, drop: 0.95, price: 1500, speed: 0.96, model: 'mp5',
+  mp5:      { id: 'mp5', name: 'Twin MAC-10', slot: 1, cls: 'smg', auto: true, damage: 21, head: 3.5, armorPen: 0.55,
+              rate: 0.05, mag: 60, reserve: 120, reload: 3.0, spread: 0.0035, moveSpread: 0.03, airSpread: 0.16,
+              shotSpread: 0.0035, kick: 0.006, drop: 0.95, price: 1600, speed: 0.96, model: 'mac10',
               snd: { f: 1250, l: 0.16, t: 120, v: 0.95 }, reward: 600 },
   specter9: { id: 'specter9', name: 'Specter-9', slot: 1, cls: 'smg', auto: true, damage: 23, head: 3.5, armorPen: 0.6,
               rate: 0.078, mag: 32, reserve: 128, reload: 2.4, spread: 0.012, moveSpread: 0.02, airSpread: 0.12,
@@ -72,9 +72,9 @@ BV.WEAPONS = {
               shotSpread: 0.005, kick: 0.0055, drop: 0.88, price: 1550, speed: 1.0, model: 'smgCompact',
               snd: { f: 3200, l: 0.10, t: 190, v: 0.65 }, reward: 600 },
 
-  breaker8: { id: 'breaker8', name: 'Breaker-8', slot: 1, cls: 'shotgun', auto: false, damage: 17, pellets: 9, head: 2.0,
+  breaker8: { id: 'breaker8', name: 'R870', slot: 1, cls: 'shotgun', auto: false, damage: 17, pellets: 9, head: 2.0,
               armorPen: 0.55, rate: 1.05, mag: 6, reserve: 24, reload: 3.4, spread: 0.04, moveSpread: 0.02, airSpread: 0.08,
-              shotSpread: 0, kick: 0.06, drop: 0.7, price: 2400, speed: 0.9, model: 'shotgun2',
+              shotSpread: 0, kick: 0.06, drop: 0.7, price: 2400, speed: 0.9, model: 'r870',
               snd: { f: 760, l: 0.4, t: 70, v: 1.3 }, reward: 900 },   // heavier pump shotgun: tighter pattern, longer reach
   hammer12: { id: 'hammer12', name: 'Hammer-12', slot: 1, cls: 'shotgun', auto: false, damage: 15, pellets: 9, head: 2.0,
               armorPen: 0.5, rate: 0.9, mag: 7, reserve: 28, reload: 3.2, spread: 0.055, moveSpread: 0.02, airSpread: 0.08,
@@ -105,17 +105,17 @@ BV.WEAPONS = {
               airSpread: 0.2, shotSpread: 0.012, kick: 0.02, drop: 0.985, price: 3400, speed: 0.88, model: 'dmr', zoom: 2,
               snd: { f: 1400, l: 0.30, t: 100, v: 1.1 }, reward: 300 },
 
-  ak484:    { id: 'ak484', name: 'AK-12', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 38, head: 4.0, armorPen: 0.82,
+  ak484:    { id: 'ak484', name: 'AKM', team: 'RAVEN', slot: 1, cls: 'rifle', auto: true, damage: 38, head: 4.0, armorPen: 0.82,
               rate: 0.09, mag: 30, reserve: 90, reload: 2.5, spread: 0.0022, moveSpread: 0.045, airSpread: 0.2,
-              shotSpread: 0.005, kick: 0.0085, drop: 0.97, price: 4500, speed: 0.9, model: 'ak12',
+              shotSpread: 0.005, kick: 0.0085, drop: 0.97, price: 4500, speed: 0.9, model: 'akm',
               snd: { f: 1500, l: 0.2, t: 110, v: 1.1 }, reward: 300 },   // special, Raven only: orange energy tracers
   gauss:    { id: 'gauss', name: 'Gauss M13', slot: 1, cls: 'rifle', auto: false, damage: 140, head: 3, armorPen: 1.0,
               rate: 1.1, mag: 5, reserve: 15, reload: 3.2, spread: 0.004, moveSpread: 0.06, airSpread: 0.2,
               shotSpread: 0.02, kick: 0.07, drop: 1.0, price: 7000, speed: 0.85, model: 'gauss',
               pierce: 3, beam: 0x55c8ff, snd: { f: 300, l: 0.6, t: 60, v: 1.5 }, reward: 100 },   // special: charged beam, pierces
-  titan50:  { id: 'titan50', name: 'Titan-50', slot: 1, cls: 'sniper', auto: false, damage: 300, head: 1.0, armorPen: 1.0,
+  titan50:  { id: 'titan50', name: 'L96A1', slot: 1, cls: 'sniper', auto: false, damage: 300, head: 1.0, armorPen: 1.0,
               rate: 2.0, mag: 5, reserve: 15, reload: 4.0, spread: 0.003, scopedSpread: 0.0004, moveSpread: 0.03, keepScope: true,
-              airSpread: 0.12, shotSpread: 0, kick: 0.09, drop: 1.0, price: 6500, speed: 0.72, model: 'spr', zoom: 6,
+              airSpread: 0.12, shotSpread: 0, kick: 0.09, drop: 1.0, price: 6500, speed: 0.72, model: 'l96', zoom: 6,
               snd: { f: 640, l: 0.75, t: 50, v: 1.9 }, reward: 100 },   // .50 cal: one shot kills at any range, anywhere
   lynx7:    { id: 'lynx7', name: 'Lynx-7', slot: 1, cls: 'sniper', auto: false, damage: 118, head: 2.5, armorPen: 0.97,
               rate: 1.45, mag: 5, reserve: 20, reload: 3.6, spread: 0.07, scopedSpread: 0.0008, moveSpread: 0.12,

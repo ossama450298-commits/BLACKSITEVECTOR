@@ -222,17 +222,17 @@ BV.Real = (function () {
     warden45: { data: 'fp_pistol',  len: 0.21, gy: 0.62, gz: 0.22, swap: 'colt', clips: { fire: [0, 11], reload: [12, 82], reloadEmpty: [95, 175], draw: [187, 233], idle: [234, 264] } },
     viper9:   { data: 'fp_pistol',  len: 0.21, gy: 0.62, gz: 0.22, clips: { fire: [0, 11], reload: [12, 82], reloadEmpty: [95, 175], draw: [187, 233], idle: [234, 264] } },
     falcon45: { data: 'fp_heavy',   len: 0.23, gy: 0.62, gz: 0.22, clips: { fire: [0, 9], reloadEmpty: [9, 84], reload: [87, 147], idle: [195, 219], draw: [222, 248] } },
-    mp5:      { data: 'fp_smg', swap: 'mp5', len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
+    mp5:      { data: 'fp_mac10',   world: 'mac10', yaw: Math.PI, len: 0.5,  gy: 0.5,  gz: 0.3,  clips: { fire: [0, 9], reloadEmpty: [9, 54], reload: [9, 54], idle: [78, 102], draw: [105, 124] } },     // user77 dual MAC-10
     specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     vectormp: { data: 'fp_smg',     len: 0.58, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
-    breaker8: { data: 'fp_shotgun', swap: 'shotgun2', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
+    breaker8: { data: 'fp_r870',    world: 'r870',  yaw: Math.PI, len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },                  // user77 Remington 870
     hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
     shade4:   { data: 'fp_m16', world: 'm16', yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  sd: true, clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
-    ak484:    { data: 'fp_carbine', swap: 'ak12', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
+    ak484:    { data: 'fp_akm',     world: 'akm',   yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 9], reloadEmpty: [9, 99], reload: [99, 153], idle: [198, 222], draw: [222, 249] } },   // user77 AKM (DJMaesen arms)
     gauss:    { data: 'fp_carbine', swap: 'gauss', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
-    titan50:  { data: 'fp_sniper',  swap: 'spr', len: 1.34, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },   // bigger: .50 cal
+    titan50:  { data: 'fp_l96',     world: 'l96',   yaw: Math.PI, len: 1.3,  gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },   // user77 L96A1
     lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },
     bastion60: { data: 'fp_lmg',    len: 1.05, gy: 0.5,  gz: 0.3,  world: 'lmg', clips: { fire: [0, 9], reload: [27, 168], idle: [216, 249], draw: [252, 276], reloadEmpty: [294, 432] } },
     // knife: same convention as the AK pack (centimetres, +Z forward, right hand at about x -21, shoulders ~60 cm behind)
@@ -246,7 +246,7 @@ BV.Real = (function () {
     g.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
     // rest pose (start of idle): measure the weapon body to get scale, grip and muzzle
     const mix = new THREE.AnimationMixer(g.scene); mix.clipAction(clips.idle).play(); mix.update(0); g.scene.updateMatrixWorld(true);
-    let base = null; g.scene.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife' || /^[a-z0-9]+_base$/.test(o.name))) base = o; });
+    let base = null; g.scene.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife' || /^[a-z0-9]+_base$/i.test(o.name))) base = o; });
     const box = new THREE.Box3(), v = new THREE.Vector3(), pts = [];
     (base || g.scene).traverse(o => { if (!o.isMesh || o.isSkinnedMesh) return; const P = o.geometry.attributes.position; for (let i = 0; i < P.count; i += 2) { v.fromBufferAttribute(P, i).applyMatrix4(o.matrixWorld); box.expandByPoint(v); pts.push(v.clone()); } });
     mix.stopAllAction(); mix.uncacheRoot(g.scene);
@@ -435,7 +435,7 @@ BV.Real = (function () {
     const mixer = new THREE.AnimationMixer(inner), actions = {};
     for (const k in D.clips) actions[k] = mixer.clipAction(D.clips[k]);
     actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
-    let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife' || /^[a-z0-9]+_base$/.test(o.name))) base = o; });
+    let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || o.name === 'knife' || /^[a-z0-9]+_base$/i.test(o.name))) base = o; });
     if (D.knife && base) base.scale.multiplyScalar(0.75);   // the source blade is long: bring it to a combat-knife size
     const muzzle = new THREE.Object3D();
     if (base) { const tip = inner.localToWorld(D.tip.clone()); muzzle.position.copy(base.worldToLocal(tip)); const ws = base.getWorldScale(new THREE.Vector3()); muzzle.scale.setScalar(1 / ws.x); base.add(muzzle); }
@@ -502,7 +502,7 @@ BV.Real = (function () {
     for (const k in ak74.clips) actions[k] = mixer.clipAction(ak74.clips[k]);
     // idle pose, then hang the muzzle on the receiver node at the barrel tip
     actions.idle.play(); mixer.update(0); group.updateMatrixWorld(true);
-    let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || /^[a-z0-9]+_base$/.test(o.name))) base = o; });
+    let base = null; inner.traverse(o => { if (!base && (o.name === 'base' || /^[a-z0-9]+_base$/i.test(o.name))) base = o; });
     const muzzle = new THREE.Object3D();
     if (base) {
       const tip = inner.localToWorld(new THREE.Vector3(-0.01, 14.54, 74.77));

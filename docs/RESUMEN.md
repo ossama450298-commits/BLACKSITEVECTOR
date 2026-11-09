@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.19.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.20.0
 
 ## Enlaces
 
@@ -39,13 +39,13 @@ Rotación: sector17 → harbor9 → dustline → meridian.
 | Categoría | Armas |
 |---|---|
 | Pistolas | Viper-9, Falcon-45, Warden .45 SD (Colt M1911, silenciador desmontable), Talon .44 (revólver DJMaesen) |
-| Subfusiles | Specter-9 (DJMaesen), MP5 (JUST/tnnv, solo el arma) |
-| Escopetas | Hammer-12 (corredera, $1900), **Breaker-8** (DJMaesen, más pesada y de más alcance, $2400) |
-| Fusiles | ARX-17 (Raven), **AK-12** (exclusivo Raven, rwroclav), Halberd-4, **M16A2 SD** (exclusivo Vanguard, user77, silenciador), Kestrel-5, Bastion-60 |
-| Precisión | Lynx-7 (DJMaesen original), **Titan-50** (BT SPR 300, mata de un tiro, no sale de la mira) |
+| Subfusiles | Specter-9 (DJMaesen), **Twin MAC-10** (user77, dos MAC-10) |
+| Escopetas | Hammer-12 (corredera, $1900), **R870** (user77, más pesada y de más alcance, $2400) |
+| Fusiles | ARX-17 (Raven), **AKM** (exclusivo Raven, user77), Halberd-4, **M16A2 SD** (exclusivo Vanguard, user77, silenciador), Kestrel-5, Bastion-60 |
+| Precisión | Lynx-7 (DJMaesen original), **Titan-50** (L96A1 de user77, CC BY-NC; mata de un tiro, no sale de la mira) |
 | Equipo | Chaleco, casco, kit de desactivación (Vanguard), escudo balístico (Vanguard), granadas: fragmentación, cegadora, humo |
 
-Retiradas: Gauss M13 (arma especial futurista; el código del rayo y la perforación se conserva), Vector-MP (duplicaba al Specter-9), AK-47S, M4 SOPMOD, AK-484, AWM, DKS-501, AR-15.
+Retiradas (v5.20.0, se veían peor por ir montadas sobre animaciones de otra arma): AK-12, MP5, Breaker-8 y BT SPR 300. Antes: Gauss M13 (arma especial futurista; el código del rayo y la perforación se conserva), Vector-MP (duplicaba al Specter-9), AK-47S, M4 SOPMOD, AK-484, AWM, DKS-501, AR-15.
 
 ## Personajes
 
@@ -88,6 +88,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **Preferir armas que vengan animadas con los brazos de DJMaesen (DJMaesen o user77)**: las montadas con `swapOnto` sobre la animación de otra arma nunca encajan del todo (manos, tamaño, acabado).
 
 - Comprobar la orientación de un modelo con un **render lateral**, no deducirla de medidas (fallo del MP5).
 - Probar los controles reales (ratón) y no solo llamadas internas (fallo del Gauss y del Titan-50).

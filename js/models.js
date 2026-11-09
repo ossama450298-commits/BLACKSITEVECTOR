@@ -952,6 +952,6 @@ BV.Models = (function () {
     return { group: g, right, left };
   }
 
-  const nadeAlias = (m) => (m === 'flashbang' || m === 'smokegren') ? 'grenade' : (m === 'dks' || m === 'awm' || m === 'spr') ? 'sniper' : (m === 'gauss' || m === 'ak12' || m === 'm16sd') ? 'rifleCarbine' : m === 'mp5' ? 'smg' : m === 'shotgun2' ? 'shotgun' : m;   // fallbacks while real models load
+  const nadeAlias = (m) => (m === 'akm') ? 'rifleCarbine' : (m === 'mac10') ? 'smg' : (m === 'r870') ? 'shotgun' : (m === 'l96') ? 'sniper' : (m === 'flashbang' || m === 'smokegren') ? 'grenade' : (m === 'dks' || m === 'awm' || m === 'spr') ? 'sniper' : (m === 'gauss' || m === 'ak12' || m === 'm16sd') ? 'rifleCarbine' : m === 'mp5' ? 'smg' : m === 'shotgun2' ? 'shotgun' : m;   // fallbacks while real models load
   return { gun: (m) => (BV.Real && BV.Real.gun(m)) || importedGun(nadeAlias(m)) || detailGun(nadeAlias(m), gun(nadeAlias(m))), soldier, viewArms, mat, mergeTree, uniformSkinFor, ravenHead, rbox, vestSkin, operatorFabric, gearTex, flatten };
 })();

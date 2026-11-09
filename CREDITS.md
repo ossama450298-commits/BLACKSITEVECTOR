@@ -33,10 +33,10 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | [FREE Military Soldier RIGGED](https://sketchfab.com/3d-models/free-military-soldier-rigged-e9c56308a67d4a3db62e914fafa4d198) | BAMEN | CC BY 4.0 | Personaje «SWAT» de Vanguard (con el esqueleto del operador) |
 | [S.W.A.T. Operator](https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab) | Mateusz Woliński | CC BY 4.0 | Personaje «Night Ops» de Vanguard (con el esqueleto del operador) |
 | [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
-| [Shotgun](https://sketchfab.com/3d-models/shotgun-2f5b48d9904145a39c1c2fcc6e5579b7) | DJMaesen | CC BY 4.0 | Escopeta Breaker-8 (montada sobre el paquete animado de escopeta) |
-| [Animated MP5](https://sketchfab.com/3d-models/animated-mp5-19278d5f4a334f4abf320bc303ff9be1) | JUST (modelo del MP5 de tnnv) | CC BY 4.0 | Subfusil MP5 (solo el arma; sus brazos no se usan) |
-| [AK-12](https://sketchfab.com/3d-models/ak-12-f78ad7ae10ad4335b3ad81be3ec15bb0) | rwroclav | CC BY 4.0 | Arma exclusiva AK-12 de Raven |
-| [BT SPR 300](https://sketchfab.com/3d-models/bt-spr-300-30d47cacabbe4de7ab7c25bbfef3a41b) | m.daneshyab | CC BY 4.0 | Francotirador Titan-50 |
+| [AKM Assault Rifle - Animated](https://sketchfab.com/3d-models/akm-assault-rifle-animated-6348dc53e3e249c6b297cb8f3f1e3e9b) | user77 (brazos y animaciones de DJMaesen, arma de Armored Wave) | CC BY 4.0 | AKM exclusivo de Raven |
+| [Dual Mac10 SMG - Animated](https://sketchfab.com/user77) | user77 (brazos y animaciones de DJMaesen) | CC BY 4.0 | Subfusil doble Twin MAC-10 |
+| [Remington 870 Shotgun - Animated](https://sketchfab.com/user77) | user77 (brazos y animaciones de DJMaesen) | CC BY 4.0 | Escopeta R870 |
+| [L96A1 Sniper Rifle - Animated](https://sketchfab.com/3d-models/l96a1-sniper-rifle-animated-65d65d7e7576400b985130cb150f8e7e) | user77 (brazos y animaciones de DJMaesen, arma de ARIA) | **CC BY-NC 4.0** (solo uso no comercial) | Francotirador Titan-50 (L96A1). Si el juego se monetizara, habría que retirarlo. |
 | [M16 A2 Assault Rifle - Animated](https://sketchfab.com/3d-models/m16-a2-assault-rifle-animated-bd4ff595b593447f9a7f1d95f501fb6c) | user77 | CC BY 4.0 | M16A2 SD de Vanguard (brazos y animaciones) |
 | [revolver animated](https://sketchfab.com/3d-models/revolver-animated-a34b6d0ddc774744bc3567d6afc0878f) | DJMaesen | CC BY 4.0 | Revólver Talon .44 (brazos y animaciones) |
 | [Riot Shield](https://sketchfab.com/3d-models/riot-shield-6e3d3ea43e6b4f4fbf959607e10f05ca) | Foxx Assets | CC BY 4.0 | Escudo balístico de Vanguard |
