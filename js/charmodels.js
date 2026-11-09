@@ -64,7 +64,7 @@ BV.CharModels = (function () {
       const hiQ = BV.settings.quality === 'high' || BV.settings.quality === 'ultra';
       o.frustumCulled = false; o.castShadow = hiQ; o.receiveShadow = true;
       const fix = (m) => { const n = m.clone(); const skin = /skin|face|head|body_m|eye/i.test(n.name || ''); if (tint && !skin && n.color) n.color.multiply(tint);
-        if (V && !hostage && (isBase ? /Topmat|Bottommat|Hatmat/i : /^Body\.|^material_7$|^Bottom$/).test(n.name || '')   /* shirt and trousers; 'Body' alone is skin in Fuse models */) (isBase ? policeBlue : policeBlueTex)(n);   // hostages keep their own colours   // Vanguard: police-blue uniform (texture tint for imported characters)
+        if (V && !hostage && (isBase ? /Topmat|Bottommat|Hatmat/i : /^Body\.|^material_7$|^Bottom$|Mail_Warrior_Material_1_(clothes|fabric|armor)/).test(n.name || '')   /* shirt and trousers; 'Body' alone is skin in Fuse models */) (isBase ? policeBlue : policeBlueTex)(n);   // hostages keep their own colours   // Vanguard: police-blue uniform (texture tint for imported characters)
         n.userData.base = n.color ? n.color.clone() : null; mats.push(n); return n; };
       o.material = Array.isArray(o.material) ? o.material.map(fix) : fix(o.material);
     });
@@ -229,6 +229,7 @@ BV.CharModels = (function () {
   // (a shared shader key on imported characters left a uniform undefined and aborted the frame's rendering)
   const blueCache = new Map();
   function policeBlueTex(m) {
+    if (!m.map && m.color) { const l = m.color.r * 0.299 + m.color.g * 0.587 + m.color.b * 0.114; m.color.setRGB(0.04 + l * 0.30, 0.05 + l * 0.38, 0.09 + l * 0.62); return; }   // untextured (flat colour): same navy
     const src = m.map; if (!src || !src.image) return;
     let t = blueCache.get(src.uuid);
     if (!t) {

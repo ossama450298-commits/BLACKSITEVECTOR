@@ -414,8 +414,8 @@ BV.Real = (function () {
     else inner.position.set(D.grip.x * D.s, -D.grip.y * D.s, D.grip.z * D.s);   // grip at the weapon origin
     group.add(inner);
     const dksMuzzle = c.swap === 'dks' && dks ? swapDKS(inner)
-      : c.swap === 'mp5' && mp5Tpl ? swapOnto(inner, mp5Tpl, { s: 75.4 / mp5Len, basis: [-1, 0, 0, 0,  0, 0, 1, 0,  0, 1, 0, 0],   // gun along +Y, top +Z -> along +Z, top +Y
-          src: [-150.68, -21582.26, 61763.56], dst: [0, -12.8, -0.6], muzzle: [-150.68, -1885, 72500], rules: [[/mag/, 'clip'], [/trigger/, 'trigger']] })
+      : c.swap === 'mp5' && mp5Tpl ? swapOnto(inner, mp5Tpl, { s: 75.4 / mp5Len, basis: [1, 0, 0, 0,  0, 0, 1, 0,  0, -1, 0, 0],   // muzzle at -Y, top +Z -> muzzle +Z, top +Y
+          src: [-150.68, -16575.6, 70360.57], dst: [0.193, 9.764, 11.884], muzzle: [-150.68, -31266, 72000], rules: [[/mag/, 'clip'], [/trigger/, 'trigger']] })   // body on the SMG's body
       : c.swap === 'spr' && spr ? swapOnto(inner, spr, Object.assign({}, { s: 50, rot: Math.PI, src: [0, -0.009, 0.041], dst: [0, 5.778, 18.468], muzzle: [0, -0.02, -0.998],
           rules: [[/bolt/, 'bolt'], [/\|mag|follower/, 'clip'], [/bullet/, 'bullet']],
           tweak: [{ re: /stuck/, pivot: [0, -0.02, 0.36], scale: [1, 0.6, 0.85] }] }))   // lower, shorter stock: its cheek riser blocked the view
@@ -666,9 +666,11 @@ BV.Real = (function () {
   }
   function gun(model) {
     if (model === 'mp5' && mp5Tpl) {   // third person: ~0.55 m, upright (Z half turn), muzzle to -Z, grip near the origin
-      const k = 0.55 / mp5Len, group = new THREE.Group(), inner = mp5Tpl.clone(true); inner.scale.setScalar(k); inner.rotation.set(-Math.PI / 2, 0, 0);   // +Y forward -> -Z, +Z up -> +Y
-      inner.position.set(0.0, -73675 * k + 0.02, -26054 * k); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
-      const muzzle = new THREE.Object3D(); muzzle.position.set(0, (72500 - 73675) * k + 0.02, (1885 - 26054) * k); group.add(muzzle);
+      const k = 0.55 / mp5Len, group = new THREE.Group(), inner = mp5Tpl.clone(true); inner.scale.setScalar(k);
+      const M = new THREE.Matrix4().set(-1, 0, 0, 0,  0, 0, 1, 0,  0, 1, 0, 0,  0, 0, 0, 1);   // muzzle at -Y -> -Z (forward for a character), top +Z -> +Y
+      inner.quaternion.setFromRotationMatrix(M); const tf = (x, y, z) => new THREE.Vector3(x, y, z).applyMatrix4(M).multiplyScalar(k);
+      inner.position.copy(tf(-863, -26054, 70000)).negate(); group.add(inner); inner.traverse(o => { if (o.isMesh) o.castShadow = true; });
+      const muzzle = new THREE.Object3D(); muzzle.position.copy(tf(-150.68, -31266, 72000)).add(inner.position); group.add(muzzle);
       const eject = new THREE.Object3D(); eject.position.set(0.03, 0.06, -0.1); group.add(eject);
       return { group, muzzle, mag: null, magHome: null, eject, real: true, imported: true };
     }
