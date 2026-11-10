@@ -321,6 +321,106 @@ BV.Map = (function () {
     Object.assign(data, HARBOR);
     data.waypoints = wp;
   }
+  /* ================= RAILYARD-12: freight rail yard at night (v6, three sites) =================
+     224 x 156 m. Five tracks run west-east through the middle with parked wagons (corridors, with gaps to cross);
+     a footbridge 6 m up crosses every track. Raven start in the west yard, Vanguard in the east depot.
+     A = freight shed (north-east), B = station platforms (south-east), C = tank train and fuel depot (centre-east). */
+  function defineRailyard() {
+    const wagon = (x, z, len, mat) => {   // boxcar / tank car on a track: solid body, chassis down to the rails
+      B(x - len / 2, z - 1.45, x + len / 2, z + 1.45, 0, 0.55, 'metal');
+      B(x - len / 2 - 0.1, z - 1.6, x + len / 2 + 0.1, z + 1.6, 0.55, mat === 'metal' ? 3.6 : 4.1, mat || 'container');
+    };
+    const post = (x, z, warm) => { B(x - 0.13, z - 0.13, x + 0.13, z + 0.13, 0, 8, 'metal', { solid: true }); B(x - 0.5, z - 0.25, x + 0.5, z + 0.25, 7.8, 8.05, 'trim', { solid: false }); lamp(x, 7.6, z, 18, 1.5, warm !== false); };
+    const mast = (x, z) => { B(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 0, 16, 'metal'); B(x - 1.6, z - 0.4, x + 1.6, z + 0.4, 15.6, 16.4, 'trim', { solid: false }); lamp(x, 15.4, z, 30, 1.3, 'white'); };
+    const hut = (x0, z0, x1, z1, h, mat, door) => {   // small building with one door gap (door: 'n'|'s'|'e'|'w')
+      const t = 0.4, dw = 2.2, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      const wall = (a0, b0, a1, b1, gapAlongX, mid) => {
+        if (mid === null) { B(a0, b0, a1, b1, 0, h, mat); return; }
+        if (gapAlongX) { B(a0, b0, mid - dw / 2, b1, 0, h, mat); B(mid + dw / 2, b0, a1, b1, 0, h, mat); B(mid - dw / 2, b0, mid + dw / 2, b1, 2.6, h, mat); }
+        else { B(a0, b0, a1, mid - dw / 2, 0, h, mat); B(a0, mid + dw / 2, a1, b1, 0, h, mat); B(a0, mid - dw / 2, a1, mid + dw / 2, 2.6, h, mat); }
+      };
+      wall(x0, z0, x1, z0 + t, true, door === 'n' ? cx : null); wall(x0, z1 - t, x1, z1, true, door === 's' ? cx : null);
+      wall(x0, z0, x0 + t, z1, false, door === 'w' ? cz : null); wall(x1 - t, z0, x1, z1, false, door === 'e' ? cz : null);
+      B(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, h, h + 0.35, 'roof', { faces: ['ny', 'py'] }); indoor.push([x0, z0, x1, z1, h]);
+    };
+    // ---- ground: road (north), ballast yard (tracks), station concrete (south)
+    floor(-112, -78, 112, -32, 'asphalt');
+    floor(-112, -32, 112, 32, 'dirt');
+    floor(-112, 32, 112, 78, 'concrete');
+    // ---- perimeter walls
+    B(-114, -80, 114, -78, 0, 7, 'concreteDark'); B(-114, 78, 114, 80, 0, 7, 'concreteDark');
+    B(-114, -80, -112, 80, 0, 7, 'concreteDark'); B(112, -80, 114, 80, 0, 7, 'concreteDark');
+    // ---- five tracks: rails (decoration) and parked wagons with gaps to cross north-south
+    const TR = [-24, -12, 0, 12, 24];
+    for (const z of TR) { B(-112, z - 0.8, 112, z - 0.66, 0, 0.16, 'metal', { solid: false }); B(-112, z + 0.66, 112, z + 0.8, 0, 0.16, 'metal', { solid: false }); }
+    const W = {
+      '-24': [[-92, 13], [-77, 13], [-40, 13], [-26, 13], [6, 13], [36, 13], [70, 13]],
+      '-12': [[-84, 13], [-55, 13], [-4, 13], [22, 13], [58, 13], [86, 13]],
+      '0':   [[-96, 13], [-66, 13], [-30, 13], [36, 12, 'metal'], [50, 12, 'metal'], [80, 13]],
+      '12':  [[-88, 13], [-52, 13], [-18, 13], [16, 13], [64, 13]],
+      '24':  [[-94, 13], [-70, 13], [-38, 13], [-4, 13], [28, 13], [74, 13], [88, 13]]
+    };
+    for (const z of TR) for (const [x, len, mat] of W[String(z)]) wagon(x, z, len, mat);
+    // ---- footbridge over the tracks (x = -10): deck 6 m up, stairs at both ends (players only)
+    const BX = -10, deck = 6;
+    B(BX - 1.6, -32, BX + 1.6, 32, deck - 0.4, deck, 'metal');
+    B(BX - 1.7, -32, BX - 1.6, 32, deck, deck + 1.1, 'trim', { solid: false }); B(BX + 1.6, -32, BX + 1.7, 32, deck, deck + 1.1, 'trim', { solid: false });
+    for (const z of [-28, -6, 6, 28]) B(BX - 1.5, z - 0.4, BX + 1.5, z + 0.4, 0, deck - 0.4, 'metal');   // pillars
+    for (let i = 0; i < 15; i++) {   // stairs: 0.4 m per step
+      const h = (i + 1) * 0.4, d = 0.55;
+      B(BX - 1.4, -32 - (15 - i) * d, BX + 1.4, -32 - (14 - i) * d, 0, h, 'concrete');
+      B(BX - 1.4, 32 + (14 - i) * d, BX + 1.4, 32 + (15 - i) * d, 0, h, 'concrete');
+    }
+    // ---- site A: freight shed (north-east), doors west and south, racks and crates inside
+    const Ax0 = 54, Az0 = -72, Ax1 = 92, Az1 = -40, Ah = 8;
+    B(Ax0, Az0, Ax1, Az0 + 0.5, 0, Ah, 'brick2'); B(Ax1 - 0.5, Az0, Ax1, Az1, 0, Ah, 'brick2');
+    B(Ax0, Az0, Ax0 + 0.5, -60, 0, Ah, 'brick2'); B(Ax0, -54, Ax0 + 0.5, Az1, 0, Ah, 'brick2'); B(Ax0, -60, Ax0 + 0.5, -54, 4.4, Ah, 'brick2');
+    B(Ax0, Az1 - 0.5, 68, Az1, 0, Ah, 'brick2'); B(76, Az1 - 0.5, Ax1, Az1, 0, Ah, 'brick2'); B(68, Az1 - 0.5, 76, Az1, 4.4, Ah, 'brick2');
+    B(Ax0, Az0, Ax1, Az1, Ah, Ah + 0.4, 'roof', { faces: ['ny', 'py'] }); indoor.push([Ax0, Az0, Ax1, Az1, Ah]);
+    for (const x of [62, 82]) B(x - 0.5, -66, x + 0.5, -50, 0, 2.8, 'metal');   // racks
+    crate(72, -62, 1.6, 1.6, 'crateMil'); crate(73.6, -62, 1.6, 1.6, 'crateMil'); crate(72.8, -62, 1.5, 1.5, 'crateMil', 1.6);
+    crate(60, -46, 1.6, 1.6); crate(86, -46, 1.6, 1.6); crate(86, -68, 1.6, 1.6, 'crate'); crate(72, -48, 1.4, 1.4);
+    // loading dock and lorries' cover outside A
+    crate(46, -50, 1.6, 1.6); crate(46, -48.4, 1.6, 1.6); B(36, -60, 48, -57, 0, 3.2, 'container');
+    // ---- site B: station platforms (south-east) under a canopy, ticket hall behind
+    B(48, 36, 96, 37, 0, 0.9, 'concrete');                                  // platform edge wall (cover towards the tracks)
+    for (const x of [52, 62, 72, 82, 92]) B(x - 0.25, 44 - 0.25, x + 0.25, 44 + 0.25, 0, 5, 'metal');   // canopy pillars
+    B(48, 38, 96, 50, 5, 5.3, 'roof', { solid: false });
+    for (const [x, z] of [[57, 41], [67, 46], [77, 41], [87, 46]]) B(x - 1.4, z - 0.35, x + 1.4, z + 0.35, 0, 0.8, 'crate');   // benches
+    crate(60, 48, 1.6, 1.6, 'crateMil'); crate(84, 40, 1.6, 1.6); crate(84, 41.6, 1.6, 1.6);
+    hut(60, 56, 90, 72, 6, 'plaster', 'n');                                 // ticket hall (door towards the platforms)
+    crate(70, 64, 1.6, 1.6); crate(80, 62, 1.6, 1.6, 'crateMil');
+    // ---- site C: tank train (on track 0) and fuel depot tanks (centre-east)
+    for (const [x, z] of [[40, -6.5], [46, 6.5]]) B(x - 2.2, z - 2.2, x + 2.2, z + 2.2, 0, 4.5, 'metal');   // fuel tanks
+    crate(30, -5, 1.6, 1.6, 'crateMil'); crate(56, 5, 1.6, 1.6); B(52, -7, 54, -5, 0, 1.2, 'concrete');
+    // ---- Raven west yard: sheds, crates and a container stack
+    hut(-104, -60, -84, -44, 5, 'brick2', 'e'); hut(-104, 44, -86, 60, 5, 'plaster', 'e');
+    crate(-80, -36, 1.6, 1.6); crate(-80, -34.4, 1.6, 1.6); B(-96, 34, -90, 40, 0, 2.6, 'container');
+    crate(-70, 40, 1.6, 1.6, 'crateMil'); crate(-62, -40, 1.6, 1.6);
+    // ---- middle north road and south yard cover
+    hut(-56, -70, -36, -54, 5, 'brick2', 's');                             // maintenance shed
+    hut(-30, 50, -10, 66, 5, 'plaster', 'n');                              // workers' hut
+    B(-4, -60, 8, -57, 0, 2.6, 'container'); B(14, -52, 17, -40, 0, 2.6, 'container'); B(-26, -46, -14, -43, 0, 2.6, 'container');
+    B(0, 42, 12, 45, 0, 2.6, 'container'); B(20, 56, 23, 68, 0, 2.6, 'container'); crate(30, 40, 1.6, 1.6); crate(-40, 40, 1.6, 1.6);
+    // ---- Vanguard east depot
+    crate(100, -20, 1.6, 1.6, 'crateMil'); crate(100, 20, 1.6, 1.6, 'crateMil'); B(98, -4, 104, -1, 0, 2.6, 'container');
+    // ---- lights: sodium posts on the road and platforms, white floodlight masts over the yard
+    for (const x of [-96, -72, -48, -24, 0, 24, 48, 100]) post(x, -34);
+    for (const x of [-96, -72, -48, -24, 0, 24, 100]) post(x, 34);
+    for (const x of [-80, -40, 0, 40, 80]) post(x, -74), post(x, 74);
+    for (const [x, z] of [[-60, -18], [-20, 18], [20, -18], [60, 18], [90, -6]]) mast(x, z);
+    lamp(64, 6.5, -64, 14, 1.0); lamp(82, 6.5, -64, 14, 1.0); lamp(64, 6.5, -48, 14, 1.0); lamp(82, 6.5, -48, 14, 1.0);   // inside A
+    lamp(60, 4.6, 43, 12, 1.0); lamp(76, 4.6, 43, 12, 1.0); lamp(92, 4.6, 43, 12, 1.0);                                // canopy B
+    // ---- navigation grid: every 3 m clear of solid boxes, plus the doors
+    const free = (x, z) => !boxes.some(b => b.solid && x > b.min[0] - 0.7 && x < b.max[0] + 0.7 && z > b.min[2] - 0.7 && z < b.max[2] + 0.7 && b.min[1] < 1.8 && b.max[1] > 0.2);
+    const wp = [];
+    for (let x = -109; x <= 109; x += 3) for (let z = -75; z <= 75; z += 3) if (free(x, z)) wp.push([x, z]);
+    for (const p of [[54.2, -57], [52.5, -57], [56, -57], [72, -40.2], [72, -38.5], [72, -42],      // shed doors
+                     [75, 56.2], [75, 54.5], [75, 58], [-84.2, -52], [-82.5, -52], [-86, -52], [-86.2, 52], [-84.5, 52], [-88, 52],
+                     [-46, -54.2], [-46, -52.5], [-46, -56], [-20, 50.2], [-20, 48.5], [-20, 52]]) wp.push(p);
+    Object.assign(data, RAILYARD);
+    data.waypoints = wp;
+  }
   /* ================= DUSTLINE: desert town at midday ================= */
   /* ---------------- MERIDIAN: office tower floor (hostage rescue) ----------------
      Building x -36..24, z -22..22, ceiling at 3.6 m. Vanguard arrive from the east street (rescue zone);
@@ -532,6 +632,46 @@ BV.Map = (function () {
       if (z < -26) return 'North Quarter';
       if (z > 22) return 'South Quarter';
       return z < 0 ? 'North Alley' : 'South Alley';
+    }
+  };
+  const RAILYARD = {
+    name: 'RAILYARD-12',
+    bounds: { minX: -112, maxX: 112, minZ: -78, maxZ: 78 },
+    linkDist: 7.5,
+    roundTime: 150,   // bigger map: 2:30 rounds
+    noWarehouse: true,
+    env: { sky: 'sky_harbor', fog: 0x1a2232, hemiSky: 0x9aaccc, hemiGround: 0x3a3c44, hemi: 1.25, sun: 0xc4d0f2, sunI: 1.3, exposure: 1.42 },
+    spawns: {
+      attack: [[-104, -6], [-104, 6], [-100, 0], [-107, 0], [-100, -10], [-100, 10], [-107, -12], [-107, 12]],
+      defend: [[104, -10], [104, 10], [107, 0], [101, 0], [107, -14], [107, 14], [101, -16], [101, 16]]
+    },
+    spawnCenter: { attack: [-104, 0], defend: [104, 0] },
+    sites: [
+      { name: 'A', min: [55, -71], max: [91, -41], center: [73, -56], plant: [[72, -56, 0], [66, -48, 0], [80, -66, 0]],
+        threatsDef: [[54, -57], [72, -40], [40, -50]], threatsAtk: [[92, -30], [72, -30], [100, -20]],
+        defend: [[88, -44, 0, Math.PI * 0.6], [86, -70, 0, Math.PI * 0.45], [70, -43, 0, Math.PI * 0.75], [59, -68, 0, Math.PI * 0.4], [78, -52, 0, Math.PI / 2]] },
+      { name: 'B', min: [48, 37], max: [96, 54], center: [72, 45], plant: [[72, 45, 0], [58, 42, 0], [88, 48, 0]],
+        threatsDef: [[48, 42], [30, 50], [56, 34]], threatsAtk: [[100, 30], [96, 40], [80, 30]],
+        defend: [[94, 40, 0, Math.PI * 0.6], [90, 52, 0, Math.PI * 0.55], [66, 52, 0, Math.PI * 0.65], [80, 39, 0, Math.PI * 0.4], [56, 50, 0, Math.PI * 0.7]] },
+      { name: 'C', min: [28, -9], max: [58, 9], center: [43, 0], plant: [[43, 3, 0], [32, -3, 0], [56, -3, 0]],
+        threatsDef: [[28, -4], [20, 6], [30, 10]], threatsAtk: [[96, 0], [60, -14], [60, 14]],
+        defend: [[58, 8, 0, Math.PI / 2], [57, -9, 0, Math.PI / 2], [44, -9, 0, Math.PI * 0.4], [44, 9, 0, Math.PI * 0.6], [52, 0, 0, Math.PI / 2]] }
+    ],
+    routes: {
+      A: [{ name: 'road', stage: [30, -50] }, { name: 'yard', stage: [20, -30] }],
+      B: [{ name: 'station', stage: [30, 50] }, { name: 'yard', stage: [20, 30] }],
+      C: [{ name: 'tracks', stage: [14, -6] }, { name: 'bridge', stage: [0, 6] }]
+    },
+    midPatrol: [[-10, -40], [-10, 40], [20, 0], [0, -30], [0, 30], [40, -30], [40, 30]],
+    links: [],
+    zoneFn: (x, z) => {
+      if (x < -82) return 'Raven Yard';
+      if (x > 96) return 'Vanguard Depot';
+      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Freight Shed (A)' : s.name === 'B' ? 'Platforms (B)' : 'Tank Train (C)';
+      if (z < -32) return 'North Road';
+      if (z > 32) return 'Station Yard';
+      if (Math.abs(x + 10) < 3) return 'Footbridge';
+      return 'Tracks';
     }
   };
   const HARBOR = {
@@ -1110,7 +1250,7 @@ BV.Map = (function () {
 
   let built = false;
   function build(scene) {
-    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : BV.MAP_ID === 'dustline' ? defineDustline : BV.MAP_ID === 'meridian' ? defineMeridian : defineSector17)(); built = true; }
+    if (!built) { (BV.MAP_ID === 'harbor9' ? defineHarbor : BV.MAP_ID === 'dustline' ? defineDustline : BV.MAP_ID === 'meridian' ? defineMeridian : BV.MAP_ID === 'railyard12' ? defineRailyard : defineSector17)(); built = true; }
     BV.Physics.setBoxes(boxes);
     const T = (BV.timings = BV.timings || {}); let t0 = performance.now();
     buildGeometry(scene); T.geometry = performance.now() - t0; t0 = performance.now();

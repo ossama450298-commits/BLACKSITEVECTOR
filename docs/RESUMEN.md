@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.21.1
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.0.0
 
 ## Enlaces
 
@@ -22,8 +22,11 @@ FPS táctico web original, inspirado en la sensación de Counter-Strike sin copi
 | HARBOR-9 | Puerto de contenedores, noche | Bomba |
 | DUSTLINE | Pueblo del desierto, mediodía | Bomba |
 | MERIDIAN | Planta de oficinas | Rescate de rehenes |
+| **RAILYARD-12** (v6) | Playa de vías de noche, 224 × 156 m, pasarela elevada | Bomba con **3 puntos** (A nave, B andenes, C tren cisterna), rondas de 2:30 |
 
-Rotación: sector17 → harbor9 → dustline → meridian.
+Rotación: sector17 → harbor9 → dustline → meridian → railyard12.
+
+Mapas con 3 puntos: `routes`, `threatsDef`/`threatsAtk` por punto en los datos del mapa (`map.js`, constante `RAILYARD`); los defensores se reparten entre todos los puntos (`game.js`); `roundTime` por mapa.
 
 ## Reglas importantes
 

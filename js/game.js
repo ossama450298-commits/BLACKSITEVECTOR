@@ -21,9 +21,11 @@ BV.Game = class {
     this.T1 = new THREE.Vector3(); this.T2 = new THREE.Vector3(); this.T3 = new THREE.Vector3(); this.T4 = new THREE.Vector3();
     this.buildChargeMesh();
     // threat directions used by bots when holding angles
+    // (a map can give its own per site; otherwise the original two-site values are used, as before)
     const [A, B] = this.map.data.sites;
-    A.threatsDef = [[22, -36], [30, -14], [26, -25]]; A.threatsAtk = [[54, -15], [30, -14], [22, -36]];
-    B.threatsDef = [[22, 35], [29, 14], [27, 22]]; B.threatsAtk = [[54, 14], [29, 14], [22, 35]];
+    if (!A.threatsDef) { A.threatsDef = [[22, -36], [30, -14], [26, -25]]; A.threatsAtk = [[54, -15], [30, -14], [22, -36]]; }
+    if (B && !B.threatsDef) { B.threatsDef = [[22, 35], [29, 14], [27, 22]]; B.threatsAtk = [[54, 14], [29, 14], [22, 35]]; }
+    for (const s of this.map.data.sites) if (!s.threatsDef) { s.threatsDef = [[s.center[0] - 20, s.center[1]]]; s.threatsAtk = [[s.center[0] + 20, s.center[1]]]; }   // safety net
   }
 
   get diff() { return BV.DIFFICULTY[this.diffName]; }
@@ -225,12 +227,12 @@ BV.Game = class {
     const routes = this.map.data.routes[site.name], main = BV.U.pick(routes);
     this.plan = { site, plantSpot: BV.U.pick(site.plant), goAt: this.time + R.freezeTime + BV.U.rand(14, 26) };
     attackers.forEach(b => { if (b.isBot) { b.route = Math.random() < 0.72 ? main : BV.U.pick(routes); } });
-    const roles = ['A', 'B', 'mid', 'A', 'B', 'A', 'B'];
+    const SN = sites.map(s => s.name), roles = SN.concat(['mid'], SN, SN);   // defenders spread over every site (3 on RAILYARD-12)
     let ri = 0;
     BV.U.shuffle(this.ents.filter(e => e.team !== atk && e.isBot)).forEach(b => { b.role = roles[ri++ % roles.length]; });
     // bot economy
     for (const e of this.ents) if (e.isBot && !this.training) this.botBuy(e);
-    this.phase = 'freeze'; this.phaseT = this.training ? 0.01 : R.freezeTime; this.timer = R.roundTime;
+    this.phase = 'freeze'; this.phaseT = this.training ? 0.01 : R.freezeTime; this.timer = this.map.data.roundTime || R.roundTime;
     this.buyUntil = this.time + R.freezeTime + R.buyTime;
     this.spectate = null;
     BV.HUD.onRoundStart(this);
@@ -1072,7 +1074,7 @@ BV.Game = class {
     const R = BV.RULES;
     if (this.phase === 'freeze') {
       this.phaseT -= dt;
-      if (this.phaseT <= 0) { this.phase = 'live'; this.timer = R.roundTime; if (!this.training) BV.HUD.notice('Go! Go! Go!', 'good', 1.5); }
+      if (this.phaseT <= 0) { this.phase = 'live'; this.timer = this.map.data.roundTime || R.roundTime; if (!this.training) BV.HUD.notice('Go! Go! Go!', 'good', 1.5); }
     } else if (this.phase === 'live') {
       if (!this.training) this.timer -= dt;
     } else if (this.phase === 'end') {
