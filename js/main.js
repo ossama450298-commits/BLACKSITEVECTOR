@@ -496,6 +496,7 @@
       E.outpostPieces = BV.Real.placeOutpost(scene);
       BV.Real.placeWarehouse(scene);
       if (BV.Real.placeCars) BV.Real.placeCars(scene);
+      if (BV.Real.placeTrains) BV.Real.placeTrains(scene);
       E.kitProps = BV.Real.dressMap(scene);
       if (BV.Real.placeOffice) E.officeProps = BV.Real.placeOffice(scene);
     } catch (err) { console.warn('scenery dressing failed', err); }

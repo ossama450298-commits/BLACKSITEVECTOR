@@ -21,7 +21,7 @@ BV.Real = (function () {
   // Quaternius pistols from js/gun_data.js are used instead until a better realistic pistol arrives
   const USE = { smg: ['mp5', 1], smgCompact: ['mp5', 0.9], shotgun: ['r870', 1],
     rifle: ['ak47', 1], rifleCarbine: ['m4a1', 1], dmr: ['m4a1', 1.05], sniper: ['sniper', 1] };
-  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; const carTpl = {}; let sg2 = null, mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
+  const guns = {}, kit = {}, outpost = {}, packs = {}, chars = {}; const carTpl = {}, trainTpl = {}; let sg2 = null, mp5Tpl = null, mp5Len = 29381, spr = null, ak12 = null, gaussTpl = null, gaussBox = null, awm = null, shieldTpl = null, dks = null, colt = null, ar15 = null, flashN = null, smokeN = null, cutter = null, officeKit = null, officeChair = null, hostages = {}; let timebomb = null, ak74 = null, frag = null, makarov = null, soldier = null, city = null, warehouse = null, clips = {}, ready = false;
 
   function decode(b64) { const bin = atob(b64), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf.buffer; }
   // models are stored meshopt-compressed with WebP textures (about 60 % smaller); after decoding, every
@@ -195,6 +195,12 @@ BV.Real = (function () {
         geo.computeBoundingBox(); gaussBox.union(geo.boundingBox); const m = new THREE.Mesh(geo, o.material); m.name = 'gauss'; grp.add(m); });
       gaussTpl = grp; }));
     if (BV.REAL.mp5) jobs.push(parse(BV.REAL.mp5).then(g => { styleMaterials(g.scene); mp5Tpl = g.scene; }));   // gun only (pre-baked: base, mag, trigger)
+    // trains (RAILYARD-12): one template per vehicle kind, built from its parts (named 'kind|part')
+    if (MID === 'railyard12' && BV.REAL.trains) jobs.push(parse(BV.REAL.trains).then(g => {
+      styleMaterials(g.scene); g.scene.updateMatrixWorld(true); const parts = {};
+      g.scene.traverse(o => { if (!o.isMesh) return; let n = o, k = null; while (n && !k) { const m = /^(box|gondola|flat|diesel)\|/.exec(n.name || ''); if (m) k = m[1]; n = n.parent; } if (k) (parts[k] = parts[k] || []).push(o); });
+      for (const k in parts) { const grp = new THREE.Group(); for (const o of parts[k]) { const c = o.clone(); o.matrixWorld.decompose(c.position, c.quaternion, c.scale); grp.add(c); } trainTpl[k] = grp; }
+    }));
     // cars: only the map that parks them loads them
     for (const k of (MID === 'sector17' ? ['car_audi', 'car_vaz'] : MID === 'meridian' ? ['car_rusty1', 'car_rusty2'] : []))
       if (BV.REAL[k]) jobs.push(parse(BV.REAL[k]).then(g => { styleMaterials(g.scene); carTpl[k] = g.scene; }));
@@ -811,7 +817,7 @@ BV.Real = (function () {
   }
   /* kit props along the foot of walls (decorative only: no collision, never in walkways) */
   function dressMap(scene) {
-    if (!Object.keys(kit).length || !BV.Map || !BV.Map.data || BV.Map.data.noIndustrial) return 0;
+    if (!Object.keys(kit).length || !BV.Map || !BV.Map.data || BV.Map.data.noIndustrial || BV.Map.data.noWallDress) return 0;
     const D = BV.Map.data, boxes = D.boxes || [], r = BV.U.rng(1717);
     const pieces = [['pallet_broken', 1.6], ['barrel3', 1.9], ['pipe_support', 2.4], ['box', 1.7], ['pallet16', 1.6], ['gas_tank1', 0.75], ['debris', 1.5], ['plank1', 1.6]];
     const blocked = (x, z, rad) => boxes.some(b => b.solid && x > b.min[0] - rad && x < b.max[0] + rad && z > b.min[2] - rad && z < b.max[2] + rad && b.max[1] > 0.2 && b.min[1] < 1.6);
@@ -888,6 +894,20 @@ BV.Real = (function () {
     }
     return n;
   }
+  // swap the simple wagons of RAILYARD-12 for the real vehicles: length along X, real length, wheels on the rails
+  function placeTrains(scene) {
+    const list = (BV.Map.data && BV.Map.data.wagons) || []; let n = 0;
+    for (const { g, p } of list) {
+      const tpl = trainTpl[p.kind]; if (!tpl) continue;
+      const inner = tpl.clone(true); inner.updateMatrixWorld(true);
+      const bb = new THREE.Box3().setFromObject(inner), sz = bb.getSize(new THREE.Vector3()), c = bb.getCenter(new THREE.Vector3());
+      const k = p.len / Math.max(sz.x, sz.z), wrap = new THREE.Group(), spin = new THREE.Group();
+      inner.position.set(-c.x, -bb.min.y, -c.z); spin.add(inner); spin.scale.setScalar(k); spin.rotation.y = sz.z > sz.x ? Math.PI / 2 : 0;
+      wrap.add(spin); wrap.position.set(p.x, 0, p.z); wrap.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      scene.add(wrap); g.visible = false; p.real = wrap; n++;
+    }
+    return n;
+  }
   function placeWarehouse(scene) {
     if (!warehouse || (BV.Map.data && BV.Map.data.noWarehouse)) return false;
     const box = new THREE.Box3().setFromObject(warehouse), c = box.getCenter(new THREE.Vector3());
@@ -901,5 +921,5 @@ BV.Real = (function () {
     const extra = team === 'VANGUARD' ? ['char_swat', 'char_swat2'] : ['char_merc'];   // stalker held back until its boots skin cleanly
     return base.concat(extra.filter(k => chars[k]).map(k => ({ scene: chars[k], id: k })));
   }
-  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, placeCars, shieldModel: () => shieldTpl ? shieldTpl.clone() : null, placeOffice, hostageScene: (k) => hostages[k] || null, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
+  return { _packs: packs, characters, load, gun, akPack, fpPack, armsRig, thrownGrenade, cutterModel, placeCars, placeTrains, shieldModel: () => shieldTpl ? shieldTpl.clone() : null, placeOffice, hostageScene: (k) => hostages[k] || null, chargeModel, skyTexture, placeCity, dressMap, placeOutpost, placeWarehouse, get ready() { return ready; }, get soldier() { return soldier; }, get kit() { return kit; }, clips };
 })();

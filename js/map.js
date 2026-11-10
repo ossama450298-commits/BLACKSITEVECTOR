@@ -324,11 +324,14 @@ BV.Map = (function () {
   /* ================= RAILYARD-12: freight rail yard at night (v6, three sites) =================
      224 x 156 m. Five tracks run west-east through the middle with parked wagons (corridors, with gaps to cross);
      a footbridge 6 m up crosses every track. Raven start in the west yard, Vanguard in the east depot.
-     A = freight shed (north-east), B = station platforms (south-east), C = tank train and fuel depot (centre-east). */
+     A = freight shed (north-east), B = station platforms (south-east), C = coal train and fuel depot (centre-east). */
   function defineRailyard() {
-    const wagon = (x, z, len, mat) => {   // boxcar / tank car on a track: solid body, chassis down to the rails
-      B(x - len / 2, z - 1.45, x + len / 2, z + 1.45, 0, 0.55, 'metal');
-      B(x - len / 2 - 0.1, z - 1.6, x + len / 2 + 0.1, z + 1.6, 0.55, mat === 'metal' ? 3.6 : 4.1, mat || 'container');
+    // freight vehicles (real models from the railroad pack once loaded): invisible collision with each vehicle's real size
+    const KIND = { box: [9.6, 4.5], gondola: [9.4, 2.6], flat: [9.4, 1.5], diesel: [9.0, 4.6] };
+    const wagon = (x, z, kind) => {
+      const [len, h] = KIND[kind];
+      B(x - len / 2, z - 1.6, x + len / 2, z + 1.6, 0, h, 'car', { faces: [] });   // 'car': invisible, and no wall dressing along it
+      props.push({ type: 'wagon', x, z, kind, len, h });
     };
     const post = (x, z, warm) => { B(x - 0.13, z - 0.13, x + 0.13, z + 0.13, 0, 8, 'metal', { solid: true }); B(x - 0.5, z - 0.25, x + 0.5, z + 0.25, 7.8, 8.05, 'trim', { solid: false }); lamp(x, 7.6, z, 18, 1.5, warm !== false); };
     const mast = (x, z) => { B(x - 0.35, z - 0.35, x + 0.35, z + 0.35, 0, 16, 'metal'); B(x - 1.6, z - 0.4, x + 1.6, z + 0.4, 15.6, 16.4, 'trim', { solid: false }); lamp(x, 15.4, z, 30, 1.3, 'white'); };
@@ -353,14 +356,14 @@ BV.Map = (function () {
     // ---- five tracks: rails (decoration) and parked wagons with gaps to cross north-south
     const TR = [-24, -12, 0, 12, 24];
     for (const z of TR) { B(-112, z - 0.8, 112, z - 0.66, 0, 0.16, 'metal', { solid: false }); B(-112, z + 0.66, 112, z + 0.8, 0, 0.16, 'metal', { solid: false }); }
-    const W = {
-      '-24': [[-92, 13], [-77, 13], [-40, 13], [-26, 13], [6, 13], [36, 13], [70, 13]],
-      '-12': [[-84, 13], [-55, 13], [-4, 13], [22, 13], [58, 13], [86, 13]],
-      '0':   [[-96, 13], [-66, 13], [-30, 13], [36, 12, 'metal'], [50, 12, 'metal'], [80, 13]],
-      '12':  [[-88, 13], [-52, 13], [-18, 13], [16, 13], [64, 13]],
-      '24':  [[-94, 13], [-70, 13], [-38, 13], [-4, 13], [28, 13], [74, 13], [88, 13]]
+    const W = {   // [x, kind] per track: locomotives at the head of some trains, wagon types mixed for cover of different heights
+      '-24': [[-92, 'diesel'], [-77, 'box'], [-40, 'gondola'], [-26, 'box'], [6, 'flat'], [36, 'box'], [70, 'box']],
+      '-12': [[-84, 'box'], [-55, 'gondola'], [-4, 'box'], [22, 'flat'], [58, 'box'], [86, 'diesel']],
+      '0':   [[-96, 'box'], [-66, 'gondola'], [-30, 'box'], [36, 'gondola'], [50, 'gondola'], [80, 'diesel']],
+      '12':  [[-88, 'flat'], [-52, 'box'], [-18, 'box'], [16, 'gondola'], [64, 'box']],
+      '24':  [[-94, 'diesel'], [-70, 'box'], [-38, 'gondola'], [-4, 'box'], [28, 'box'], [74, 'flat'], [88, 'box']]
     };
-    for (const z of TR) for (const [x, len, mat] of W[String(z)]) wagon(x, z, len, mat);
+    for (const z of TR) for (const [x, kind] of W[String(z)]) wagon(x, z, kind);
     // ---- footbridge over the tracks (x = -10): deck 6 m up, stairs at both ends (players only)
     const BX = -10, deck = 6;
     B(BX - 1.6, -32, BX + 1.6, 32, deck - 0.4, deck, 'metal');
@@ -640,6 +643,7 @@ BV.Map = (function () {
     linkDist: 7.5,
     roundTime: 150,   // bigger map: 2:30 rounds
     noWarehouse: true,
+    noWallDress: true,   // the automatic wall-foot props would land on the tracks (bridge pillars, light masts)
     env: { sky: 'sky_harbor', fog: 0x1a2232, hemiSky: 0x9aaccc, hemiGround: 0x3a3c44, hemi: 1.25, sun: 0xc4d0f2, sunI: 1.3, exposure: 1.42 },
     spawns: {
       attack: [[-104, -6], [-104, 6], [-100, 0], [-107, 0], [-100, -10], [-100, 10], [-107, -12], [-107, 12]],
@@ -667,7 +671,7 @@ BV.Map = (function () {
     zoneFn: (x, z) => {
       if (x < -82) return 'Raven Yard';
       if (x > 96) return 'Vanguard Depot';
-      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Freight Shed (A)' : s.name === 'B' ? 'Platforms (B)' : 'Tank Train (C)';
+      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Freight Shed (A)' : s.name === 'B' ? 'Platforms (B)' : 'Fuel Depot (C)';
       if (z < -32) return 'North Road';
       if (z > 32) return 'Station Yard';
       if (Math.abs(x + 10) < 3) return 'Footbridge';
@@ -982,6 +986,10 @@ BV.Map = (function () {
           b.castShadow = true; b.receiveShadow = true; g.add(b);
         }
         BV.Models.mergeTree(g); scene.add(g);
+      } else if (p.type === 'wagon') {
+        const g = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(p.len, p.h - 0.6, 3.0), S({ color: p.kind === 'diesel' ? 0x7a5a2a : 0x3e4a52, roughness: 0.8, metalness: 0.3 }));
+        body.position.y = 0.6 + (p.h - 0.6) / 2; body.castShadow = true; body.receiveShadow = true; g.add(body); g.position.set(p.x, 0, p.z); scene.add(g);
+        (data.wagons = data.wagons || []).push({ g, p });
       } else if (p.type === 'car') {
         const g = carModel(p.color); g.position.set(p.x, 0, p.z); g.rotation.y = p.rot; BV.Models.mergeTree(g); scene.add(g);
         if (p.model) (data.cars = data.cars || []).push({ g, p });   // swapped for the real model once it is loaded

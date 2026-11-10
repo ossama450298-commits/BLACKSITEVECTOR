@@ -101,6 +101,8 @@ BV.Props = (function () {
 
   function build(scene, boxes, isIndoor) {
     const M = BV.Models.mat;
+    // RAILYARD-12: dress only the buildings, never the track area (bridge pillars and light masts stand between the rails)
+    if (BV.MAP_ID === 'railyard12') boxes = boxes.filter(b => b.max[2] < -31 || b.min[2] > 31 || b.max[0] < -84 || b.min[0] > 96);
     /* --- pallets (stacked), solid-free decoration near walls --- */
     const wood = S({ map: woodT(), roughness: 0.85 });
     const parts = [];
