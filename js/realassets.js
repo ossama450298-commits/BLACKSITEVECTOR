@@ -39,12 +39,17 @@ BV.Real = (function () {
       geo.setAttribute(key, new THREE.BufferAttribute(f, sz));
     }
   }
-  function parse(b64) {
-    return new Promise((res, rej) => {
+  /* a model is either a '@url' (web: one binary file, fetched only when needed, cached by the browser)
+     or base64 text (single-file and desktop builds, everything inside) */
+  function parse(src) {
+    const bytes = typeof src === 'string' && src[0] === '@'
+      ? fetch(src.slice(1)).then(r => { if (!r.ok) throw new Error('model ' + src + ': ' + r.status); return r.arrayBuffer(); })
+      : Promise.resolve(decode(src));
+    return bytes.then(buf => new Promise((res, rej) => {
       const L = new THREE.GLTFLoader();
       if (window.MeshoptDecoder) L.setMeshoptDecoder(window.MeshoptDecoder);
-      L.parse(decode(b64), '', g => { g.scene.traverse(o => { if (o.isMesh && o.geometry) toFloat(o.geometry); }); res(g); }, rej);
-    });
+      L.parse(buf, '', g => { g.scene.traverse(o => { if (o.isMesh && o.geometry) toFloat(o.geometry); }); res(g); }, rej);
+    }));
   }
   function unpack(b64) { const s = atob(b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new Int16Array(u.buffer); }
   function buildClip(c) {
@@ -169,8 +174,8 @@ BV.Real = (function () {
     jobs.push(parse(BV.REAL.soldier).then(g => { styleMaterials(g.scene); soldier = g; }));
     // map-specific assets are decoded only for the map being played (faster start on slower PCs)
     const MID = BV.MAP_ID || 'sector17', need = {
-      city: MID !== 'dustline' && MID !== 'meridian', warehouse: MID !== 'dustline' && MID !== 'meridian', outpost: MID === 'dustline',
-      kit: MID !== 'meridian', office: MID === 'meridian'
+      city: MID !== 'dustline' && MID !== 'meridian', warehouse: MID === 'sector17' || MID === 'harbor9', outpost: MID === 'dustline',
+      kit: MID !== 'meridian' && MID !== 'railyard12', office: MID === 'meridian'
     };
     if (BV.REAL.city && need.city) jobs.push(parse(BV.REAL.city).then(g => { styleMaterials(g.scene); city = BV.Models.flatten(g.scene); city.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); }));
     for (const id in PACKS) { const c = PACKS[id]; if (BV.REAL[c.data] && !packs[c.data]) { packs[c.data] = 'loading'; jobs.push(parse(BV.REAL[c.data]).then(g => { styleMaterials(g.scene); packs[c.data] = prepPack(g, c); })); } }
@@ -800,7 +805,7 @@ BV.Real = (function () {
   function skyTexture(key) {
     const src = BV.REAL && (BV.REAL[key || 'sky'] || BV.REAL.sky); if (!src) return null;
     const img = new Image(), t = new THREE.Texture(img);
-    img.onload = () => { t.needsUpdate = true; }; img.src = src;
+    img.onload = () => { t.needsUpdate = true; }; img.src = src[0] === '@' ? src.slice(1) : src;   // web: image file; single file: data URL
     t.encoding = THREE.sRGBEncoding; return t;
   }
   /* realistic city around the compound (four rotated copies, beyond the play area) */

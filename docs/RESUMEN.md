@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.1.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.2.0
 
 ## Enlaces
 
@@ -70,7 +70,7 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 ## Estructura del código (`/home/claude/bv/`)
 
 - `game/` → el juego (lo que se publica). `js/`: config, game, bot, player, hud, main, realassets, charmodels, viewmodel, map, props, audio...
-- `game/js/real_data.js` → todos los modelos incrustados en base64 (~25 MB). `char_thumbs.js` → retratos del selector.
+- **Modelos (desde v6.2.0):** `game/assets/real/<nombre>.<huella>.glb` (49 archivos, 23 MB) y el índice `js/real_files.js` (`BV.REAL` con direcciones `@assets/real/...`; `parse()` las descarga). Cada mapa descarga solo lo suyo (18,8-22,1 MB). Añadir o cambiar un modelo: `python3 tools/assets.py add <clave> <archivo.glb> [grupo]`; quitar: `assets.py remove <clave>`. Ya no existe `real_data.js` (copia en `/home/claude/bv/real_data_backup_6.1.0.js`). `char_thumbs.js` → retratos del selector.
 - `lab/` → herramientas de laboratorio: `reskin.py`/`reskin.html` (transferir esqueleto; opciones `bind=1`, `arm=<rad>`, `skip=`), `bounds2.py`, `packparts*.py`, renders de prueba.
 - `tools/` → compresión: `shrink_one.mjs` (meshopt + WebP), `recompress.mjs` (texturas por categoría), `slim.mjs` (simplificación + meshopt high).
 - `test/` → pruebas automáticas: `single.py`, `simquick2.py`, `charsheet.py` (panel de personajes), `audit.py`, etc.
@@ -87,7 +87,7 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 ## Cómo publicar
 
 1. Cambiar `BV.VERSION` en `js/config.js` y añadir línea en `README.md`.
-2. Generar el HTML de un solo archivo (`blacksite-vector.html`) y comprobar con `test/single.py`.
+2. Generar el archivo único con `python3 tools/build_single.py` (mete todos los modelos dentro en base64) y comprobar con `test/single.py`.
 3. `git add -A && git commit` y `git push` a `main` con el token.
 4. Esperar el build de GitHub Pages (API `pages/builds/latest`); si se atasca, relanzarlo con un POST a `pages/builds`.
 5. Enviar email de informe con diseño de marca y capturas (preferencia del usuario).
