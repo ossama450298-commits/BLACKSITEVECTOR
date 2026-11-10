@@ -235,7 +235,7 @@ BV.Real = (function () {
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     ak484:    { data: 'fp_akm',     world: 'akm',   yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 9], reloadEmpty: [9, 99], reload: [99, 153], idle: [198, 222], draw: [222, 249] } },   // user77 AKM (DJMaesen arms)
     gauss:    { data: 'fp_carbine', swap: 'gauss', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
-    titan50:  { data: 'fp_l96',     world: 'l96',   yaw: Math.PI, len: 1.3,  gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },   // user77 L96A1
+    titan50:  { data: 'fp_l96',     world: 'l96',   yaw: Math.PI, len: 1.3,  gy: 0.5,  gz: 0.3,  clips: { fire: [0, 60], reload: [63, 117], reloadEmpty: [24, 117], idle: [144, 165], draw: [166, 199] } },   // user77 L96A1 (its own timeline, measured: bolt 24-42, magazine 75-99, draw from 168)
     lynx7:    { data: 'fp_sniper',  len: 1.12, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 48], reload: [48, 96], reloadEmpty: [48, 147], idle: [147, 180], draw: [183, 200] } },
     bastion60: { data: 'fp_lmg',    len: 1.05, gy: 0.5,  gz: 0.3,  world: 'lmg', clips: { fire: [0, 9], reload: [27, 168], idle: [216, 249], draw: [252, 276], reloadEmpty: [294, 432] } },
     // knife: same convention as the AK pack (centimetres, +Z forward, right hand at about x -21, shoulders ~60 cm behind)

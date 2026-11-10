@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.21.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 5.21.1
 
 ## Enlaces
 
@@ -94,6 +94,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **Medir siempre los tramos de animación de cada arma** (herramienta `lab/tl2.py`), aunque dure lo mismo que otra: el L96A1 dura como el Lynx-7 y sus tramos son distintos.
 
 - **Preferir armas que vengan animadas con los brazos de DJMaesen (DJMaesen o user77)**: las montadas con `swapOnto` sobre la animación de otra arma nunca encajan del todo (manos, tamaño, acabado).
 
