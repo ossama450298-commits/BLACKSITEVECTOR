@@ -1,7 +1,7 @@
 /* Real models (CC BY / CC0 authors listed in CREDITS.md), one binary file each, fetched only when a map needs them. */
 BV.REAL = {
 "ak74fp": "@assets/real/ak74fp.ad1cbae0dd.glb",
-"anims": "@assets/real/anims.a8fd2dd4fa.glb",
+"anims": "@assets/real/anims.d1aa199924.json",
 "car_audi": "@assets/real/car_audi.cf1afd7ab7.glb",
 "car_rusty1": "@assets/real/car_rusty1.2e7baba32e.glb",
 "car_rusty2": "@assets/real/car_rusty2.67827b9ed9.glb",

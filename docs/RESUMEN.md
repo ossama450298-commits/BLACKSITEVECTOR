@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.2.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.2.1
 
 ## Enlaces
 
@@ -97,6 +97,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **No todo en `BV.REAL` es un modelo:** `anims` es JSON (animaciones de personaje, archivo `.json`) y `sky*` son imágenes (`.jpg`). `tools/assets.py` los trata aparte. Tras tocar la carga, comprobar con `test/weight.py` que `charClips` sea 16 y con `test/charsheet.py` las posturas.
 
 - **Medir siempre los tramos de animación de cada arma** (herramienta `lab/tl2.py`), aunque dure lo mismo que otra: el L96A1 dura como el Lynx-7 y sus tramos son distintos.
 

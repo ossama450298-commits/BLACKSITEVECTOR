@@ -223,8 +223,10 @@ BV.Real = (function () {
     if (BV.REAL.outpost && need.outpost) jobs.push(parse(BV.REAL.outpost).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; outpost[c.name] = f; }); }));
     if (BV.REAL.warehouse && need.warehouse) jobs.push(parse(BV.REAL.warehouse).then(g => { styleMaterials(g.scene); g.scene.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } }); warehouse = g.scene; }));
     if (BV.REAL.kit && need.kit) jobs.push(parse(BV.REAL.kit).then(g => { styleMaterials(g.scene); g.scene.children.forEach(c => { c.traverse(o => { if (o.isMesh && o.material) o.material.side = THREE.DoubleSide; }); c.position.set(0, 0, 0); const f = BV.Models.flatten(c); f.name = c.name; kit[c.name] = f; }); }));
+    // character animations: JSON text (web: a .json file; single file: inline)
+    const A = BV.REAL.anims;
+    if (A) jobs.push((A[0] === '@' ? fetch(A.slice(1)).then(r => r.text()) : Promise.resolve(A)).then(t => { JSON.parse(t).forEach(c => { clips[c.name] = buildClip(c); }); }));
     return Promise.all(jobs).then(() => {
-      JSON.parse(BV.REAL.anims).forEach(c => { clips[c.name] = buildClip(c); });
       ready = true; return true;
     }).catch(e => { console.warn('realistic assets failed to load', e); return false; });
   }
