@@ -4823,7 +4823,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '6.2.1';
+BV.VERSION = '6.3.0';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -12726,9 +12726,18 @@ BV.HUD = (function () {
       x.fillStyle = col;
       if (shape === 'sq') x.fillRect(px - r, pz - r, r * 2, r * 2); else { x.beginPath(); x.arc(px, pz, r, 0, 7); x.fill(); }
     };
-    if (g.charge.state === 'dropped' || g.charge.state === 'planted') {
-      if (my === g.attackTeam || g.charge.state === 'planted') dot(g.charge.pos.x, g.charge.pos.z, (g.time * 4 | 0) % 2 ? '#ff5030' : '#ffd0a0', 4, 'sq');
-    }
+    // the bomb: its own symbol (round bomb with a lit fuse); planted = pulsing red ring around it
+    const bomb = (wx, wz, sc, planted) => {
+      const px = (wx - viewer.pos.x) * RADAR_SCALE, pz = (wz - viewer.pos.z) * RADAR_SCALE;
+      x.save(); x.translate(px, pz); x.rotate(-viewer.yaw); x.scale(sc, sc);   // keep the symbol upright
+      if (planted) { const t = (g.time * 1.6) % 1; x.strokeStyle = `rgba(255,60,40,${1 - t})`; x.lineWidth = 2 / sc; x.beginPath(); x.arc(0, 0, 6 + t * 9, 0, 7); x.stroke(); }
+      x.fillStyle = '#141414'; x.strokeStyle = planted ? '#ff4a30' : '#ffc533'; x.lineWidth = 1.6;
+      x.beginPath(); x.arc(0, 1, 4.6, 0, 7); x.fill(); x.stroke();                       // body
+      x.fillStyle = x.strokeStyle; x.fillRect(1.6, -4.6, 2.6, 2.2);                        // cap
+      x.strokeStyle = '#d8c9a0'; x.lineWidth = 1.1; x.beginPath(); x.moveTo(3, -4.4); x.quadraticCurveTo(5, -7, 6.6, -6.4); x.stroke();   // fuse
+      if ((g.time * 6 | 0) % 2) { x.fillStyle = '#fff3a0'; x.beginPath(); x.arc(6.8, -6.6, 1.5, 0, 7); x.fill(); }                          // spark
+      x.restore();
+    };
     if (g.mode === 'hostage') for (const h of g.hostages || []) {   // hostages: bone dots, white ringed in blue while escorted
       if (h.state === 'dead' || h.state === 'rescued') continue;
       if (h.state === 'following') { dot(h.pos.x, h.pos.z, '#5aa0e0', 4.2); dot(h.pos.x, h.pos.z, '#ffffff', 2.6); }
@@ -12738,9 +12747,17 @@ BV.HUD = (function () {
       if (e === viewer) continue;
       const friend = e.team === my;
       if (!e.alive) { if (friend) { x.fillStyle = 'rgba(200,200,190,0.5)'; x.font = 'bold 10px sans-serif'; x.fillText('×', (e.pos.x - viewer.pos.x) * RADAR_SCALE - 3, (e.pos.z - viewer.pos.z) * RADAR_SCALE + 3); } continue; }
-      if (friend) dot(e.pos.x, e.pos.z, BV.TEAMS[e.team].css, 3.4);
-      else if (e.spottedBy && e.spottedBy[my] > g.time) dot(e.pos.x, e.pos.z, '#ff3b25', 3.4);
-      if (friend && e.hasCharge) dot(e.pos.x, e.pos.z, '#ffd0a0', 1.6, 'sq');
+      // allies always cyan (whatever the team colour), enemies red: never the same colour on the radar
+      if (friend) { dot(e.pos.x, e.pos.z, '#0b2a33', 4.4); dot(e.pos.x, e.pos.z, '#38d8ff', 3.3); }
+      else if (e.spottedBy && e.spottedBy[my] > g.time) { dot(e.pos.x, e.pos.z, '#2a0805', 4.4); dot(e.pos.x, e.pos.z, '#ff3b25', 3.3); }
+      if (friend && e.hasCharge) {   // the ally carrying the bomb: a small bomb next to its dot
+        const ox = Math.cos(viewer.yaw) * 6 / RADAR_SCALE, oz = -Math.sin(viewer.yaw) * 6 / RADAR_SCALE;
+        bomb(e.pos.x + ox - Math.sin(viewer.yaw) * 6 / RADAR_SCALE, e.pos.z + oz - Math.cos(viewer.yaw) * 6 / RADAR_SCALE, 0.62, false);
+      }
+    }
+    // the bomb last, on top of every dot (it matters most)
+    if (g.charge.state === 'dropped' || g.charge.state === 'planted') {
+      if (my === g.attackTeam || g.charge.state === 'planted') bomb(g.charge.pos.x, g.charge.pos.z, g.charge.state === 'planted' ? 1.2 : 1, g.charge.state === 'planted');
     }
     x.restore();
     // viewer arrow (always pointing up)

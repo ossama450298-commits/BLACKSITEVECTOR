@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.2.1
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.0
 
 ## Enlaces
 
@@ -35,6 +35,7 @@ Mapas con 3 puntos: `routes`, `threatsDef`/`threatsAtk` por punto en los datos d
 - **Turno de la bomba (v5.11.0):** se reparte entre todos los terroristas (jugador incluido) en turno barajado sin repetir hasta que la han llevado todos. Aviso al empezar la ronda.
 - **Portador de la bomba (v5.19.0):** va directo a plantar disparando sin pararse (estado RUSH en `bot.js`, función `carrierGo`); el equipo sale con él. Planta en su punto o, si no lo alcanza en 2 s dentro del sitio, donde esté (un punto del sitio A de SECTOR-17 está elevado). Sigue siendo mortal.
 - **Tienda por equipo (v5.5.0):** cada equipo solo ve lo que puede comprar.
+- **Radar (v6.3.0):** aliados en cian (#38d8ff) y enemigos en rojo, sea cual sea el equipo; la bomba con su propio símbolo (bomba con mecha) dibujada encima de todo, con anillo rojo que late si está plantada (`drawRadar` en `hud.js`).
 - **Espectador (v5.7.0):** al morir se ve a todos los vivos, primero compañeros y luego enemigos.
 
 ## Armas actuales
@@ -97,6 +98,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **El espacio de trabajo puede reiniciarse entre conversaciones** (pasó el 11 nov 2026): el juego está entero en GitHub (clonar con `--depth 1`), pero las herramientas locales se pierden. Recreadas: `tools/assets.py`, `tools/build_single.py`, `test/smoke.py` y `test/radartest.py`. La ruta del navegador de pruebas también puede cambiar (`/opt/pw-browsers/chromium-*/chrome-linux*/chrome`).
 
 - **No todo en `BV.REAL` es un modelo:** `anims` es JSON (animaciones de personaje, archivo `.json`) y `sky*` son imágenes (`.jpg`). `tools/assets.py` los trata aparte. Tras tocar la carga, comprobar con `test/weight.py` que `charClips` sea 16 y con `test/charsheet.py` las posturas.
 
