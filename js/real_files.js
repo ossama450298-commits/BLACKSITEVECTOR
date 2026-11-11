@@ -49,6 +49,6 @@ BV.REAL = {
 "sky_harbor": "@assets/real/sky_harbor.459b4d2981.jpg",
 "soldier": "@assets/real/soldier.2679c6c09e.glb",
 "timebomb": "@assets/real/timebomb.b49804c7a5.glb",
-"trains": "@assets/real/trains.a2b84498a2.glb",
+"trains": "@assets/real/trains.a35395d816.glb",
 "warehouse": "@assets/real/warehouse.a49098b712.glb"
 };

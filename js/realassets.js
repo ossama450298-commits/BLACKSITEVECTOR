@@ -203,7 +203,7 @@ BV.Real = (function () {
     // trains (RAILYARD-12): one template per vehicle kind, built from its parts (named 'kind|part')
     if (MID === 'railyard12' && BV.REAL.trains) jobs.push(parse(BV.REAL.trains).then(g => {
       styleMaterials(g.scene); g.scene.updateMatrixWorld(true); const parts = {};
-      g.scene.traverse(o => { if (!o.isMesh) return; let n = o, k = null; while (n && !k) { const m = /^(box|gondola|flat|diesel)\|/.exec(n.name || ''); if (m) k = m[1]; n = n.parent; } if (k) (parts[k] = parts[k] || []).push(o); });
+      g.scene.traverse(o => { if (!o.isMesh) return; let n = o, k = null; while (n && !k) { const m = /^(tank|gondola|flat|diesel)\|/.exec(n.name || ''); if (m) k = m[1]; n = n.parent; } if (k) (parts[k] = parts[k] || []).push(o); });
       for (const k in parts) { const grp = new THREE.Group(); for (const o of parts[k]) { const c = o.clone(); o.matrixWorld.decompose(c.position, c.quaternion, c.scale); grp.add(c); } trainTpl[k] = grp; }
     }));
     // cars: only the map that parks them loads them

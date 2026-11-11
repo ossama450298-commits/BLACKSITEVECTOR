@@ -324,10 +324,10 @@ BV.Map = (function () {
   /* ================= RAILYARD-12: freight rail yard at night (v6, three sites) =================
      224 x 156 m. Five tracks run west-east through the middle with parked wagons (corridors, with gaps to cross);
      a footbridge 6 m up crosses every track. Raven start in the west yard, Vanguard in the east depot.
-     A = freight shed (north-east), B = station platforms (south-east), C = coal train and fuel depot (centre-east). */
+     A = freight shed (north-east), B = station platforms (south-east), C = tank train and fuel depot (centre-east). */
   function defineRailyard() {
     // freight vehicles (real models from the railroad pack once loaded): invisible collision with each vehicle's real size
-    const KIND = { box: [9.6, 4.5], gondola: [9.4, 2.6], flat: [9.4, 1.5], diesel: [9.0, 4.6] };
+    const KIND = { tank: [9.6, 4.5], gondola: [9.4, 2.6], flat: [9.4, 1.5], diesel: [9.8, 4.6] };   // tank car, open gondola, low-sided wagon, green two-section diesel (one section)
     const wagon = (x, z, kind) => {
       const [len, h] = KIND[kind];
       B(x - len / 2, z - 1.6, x + len / 2, z + 1.6, 0, h, 'car', { faces: [] });   // 'car': invisible, and no wall dressing along it
@@ -357,11 +357,11 @@ BV.Map = (function () {
     const TR = [-24, -12, 0, 12, 24];
     for (const z of TR) { B(-112, z - 0.8, 112, z - 0.66, 0, 0.16, 'metal', { solid: false }); B(-112, z + 0.66, 112, z + 0.8, 0, 0.16, 'metal', { solid: false }); }
     const W = {   // [x, kind] per track: locomotives at the head of some trains, wagon types mixed for cover of different heights
-      '-24': [[-92, 'diesel'], [-77, 'box'], [-40, 'gondola'], [-26, 'box'], [6, 'flat'], [36, 'box'], [70, 'box']],
-      '-12': [[-84, 'box'], [-55, 'gondola'], [-4, 'box'], [22, 'flat'], [58, 'box'], [86, 'diesel']],
-      '0':   [[-96, 'box'], [-66, 'gondola'], [-30, 'box'], [36, 'gondola'], [50, 'gondola'], [80, 'diesel']],
-      '12':  [[-88, 'flat'], [-52, 'box'], [-18, 'box'], [16, 'gondola'], [64, 'box']],
-      '24':  [[-94, 'diesel'], [-70, 'box'], [-38, 'gondola'], [-4, 'box'], [28, 'box'], [74, 'flat'], [88, 'box']]
+      '-24': [[-92, 'diesel'], [-77, 'tank'], [-40, 'gondola'], [-26, 'tank'], [6, 'flat'], [36, 'tank'], [70, 'tank']],
+      '-12': [[-84, 'tank'], [-55, 'gondola'], [-4, 'tank'], [22, 'flat'], [58, 'tank'], [86, 'diesel']],
+      '0':   [[-96, 'tank'], [-66, 'gondola'], [-30, 'tank'], [36, 'tank'], [50, 'tank'], [80, 'diesel']],
+      '12':  [[-88, 'flat'], [-52, 'tank'], [-18, 'tank'], [16, 'gondola'], [64, 'tank']],
+      '24':  [[-94, 'diesel'], [-70, 'tank'], [-38, 'gondola'], [-4, 'tank'], [28, 'tank'], [74, 'flat'], [88, 'tank']]
     };
     for (const z of TR) for (const [x, kind] of W[String(z)]) wagon(x, z, kind);
     // ---- footbridge over the tracks (x = -10): deck 6 m up, stairs at both ends (players only)
@@ -671,7 +671,7 @@ BV.Map = (function () {
     zoneFn: (x, z) => {
       if (x < -82) return 'Raven Yard';
       if (x > 96) return 'Vanguard Depot';
-      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Freight Shed (A)' : s.name === 'B' ? 'Platforms (B)' : 'Fuel Depot (C)';
+      const s = siteAt(x, z); if (s) return s.name === 'A' ? 'Freight Shed (A)' : s.name === 'B' ? 'Platforms (B)' : 'Tank Train (C)';
       if (z < -32) return 'North Road';
       if (z > 32) return 'Station Yard';
       if (Math.abs(x + 10) < 3) return 'Footbridge';
@@ -987,7 +987,7 @@ BV.Map = (function () {
         }
         BV.Models.mergeTree(g); scene.add(g);
       } else if (p.type === 'wagon') {
-        const g = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(p.len, p.h - 0.6, 3.0), S({ color: p.kind === 'diesel' ? 0x7a5a2a : 0x3e4a52, roughness: 0.8, metalness: 0.3 }));
+        const g = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(p.len, p.h - 0.6, 3.0), S({ color: p.kind === 'diesel' ? 0x2f5a34 : 0x3e4a52, roughness: 0.8, metalness: 0.3 }));
         body.position.y = 0.6 + (p.h - 0.6) / 2; body.castShadow = true; body.receiveShadow = true; g.add(body); g.position.set(p.x, 0, p.z); scene.add(g);
         (data.wagons = data.wagons || []).push({ g, p });
       } else if (p.type === 'car') {

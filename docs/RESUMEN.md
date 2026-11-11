@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.0
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.1
 
 ## Enlaces
 
@@ -22,7 +22,7 @@ FPS táctico web original, inspirado en la sensación de Counter-Strike sin copi
 | HARBOR-9 | Puerto de contenedores, noche | Bomba |
 | DUSTLINE | Pueblo del desierto, mediodía | Bomba |
 | MERIDIAN | Planta de oficinas | Rescate de rehenes |
-| **RAILYARD-12** (v6) | Playa de vías de noche, 224 × 156 m, pasarela elevada | Bomba con **3 puntos** (A nave, B andenes, C depósito de combustible), rondas de 2:30; trenes reales del Railroad Pack de Yo.Ri |
+| **RAILYARD-12** (v6) | Playa de vías de noche, 224 × 156 m, pasarela elevada | Bomba con **3 puntos** (A nave, B andenes, C tren cisterna), rondas de 2:30; trenes del Railroad Pack de Yo.Ri: locomotora diésel verde (Disel_2_1), cisternas, góndolas y vagones bajos (recorte con `tools/trains_cut.mjs`) |
 
 Rotación: sector17 → harbor9 → dustline → meridian → railyard12.
 
