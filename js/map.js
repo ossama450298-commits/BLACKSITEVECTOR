@@ -327,7 +327,7 @@ BV.Map = (function () {
      A = freight shed (north-east), B = station platforms (south-east), C = tank train and fuel depot (centre-east). */
   function defineRailyard() {
     // freight vehicles (real models from the railroad pack once loaded): invisible collision with each vehicle's real size
-    const KIND = { tank: [9.6, 4.5], gondola: [9.4, 2.6], flat: [9.4, 1.5], diesel: [9.8, 4.6] };   // tank car, open gondola, low-sided wagon, green two-section diesel (one section)
+    const KIND = { tank: [9.6, 4.5], gondola: [9.4, 2.6], flat: [9.4, 1.5], diesel: [20.4, 4.7] };   // diesel = EMD SD40 (Heataker), real length   // tank car, open gondola, low-sided wagon, green two-section diesel (one section)
     const wagon = (x, z, kind) => {
       const [len, h] = KIND[kind];
       B(x - len / 2, z - 1.6, x + len / 2, z + 1.6, 0, h, 'car', { faces: [] });   // 'car': invisible, and no wall dressing along it

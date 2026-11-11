@@ -204,7 +204,19 @@ BV.Real = (function () {
     if (MID === 'railyard12' && BV.REAL.trains) jobs.push(parse(BV.REAL.trains).then(g => {
       styleMaterials(g.scene); g.scene.updateMatrixWorld(true); const parts = {};
       g.scene.traverse(o => { if (!o.isMesh) return; let n = o, k = null; while (n && !k) { const m = /^(tank|gondola|flat|diesel)\|/.exec(n.name || ''); if (m) k = m[1]; n = n.parent; } if (k) (parts[k] = parts[k] || []).push(o); });
-      for (const k in parts) { const grp = new THREE.Group(); for (const o of parts[k]) { const c = o.clone(); o.matrixWorld.decompose(c.position, c.quaternion, c.scale); grp.add(c); } trainTpl[k] = grp; }
+      for (const k in parts) { if (k === 'diesel' && BV.REAL.loco) continue;   // the SD40 replaces the pack's diesel
+        const grp = new THREE.Group(); for (const o of parts[k]) { const c = o.clone(); o.matrixWorld.decompose(c.position, c.quaternion, c.scale); grp.add(c); } trainTpl[k] = grp; }
+    }));
+    // RAILYARD-12 locomotive: EMD SD40 (Heataker, CC BY), simplified; weathered a little so it does not look factory-new at night
+    if (MID === 'railyard12' && BV.REAL.loco) jobs.push(parse(BV.REAL.loco).then(g => {
+      // one material shared by all 74 parts: adjust each material ONCE. The author also put the texture in the emissive channel
+      // (self-lit): remove that so the yard's lamps light it, then weather it slightly (not factory-new at night)
+      styleMaterials(g.scene);
+      const seen = new Set();
+      g.scene.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { if (seen.has(m)) continue; seen.add(m);
+        if (m.emissiveMap) { if (!m.map) m.map = m.emissiveMap; m.emissiveMap = null; } if (m.emissive) m.emissive.setRGB(0, 0, 0);
+        if (m.color) m.color.setRGB(0.88, 0.88, 0.86); if ('roughness' in m) m.roughness = Math.max(m.roughness, 0.7); if ('metalness' in m) m.metalness = Math.min(m.metalness, 0.1); m.needsUpdate = true; } });
+      trainTpl.diesel = g.scene;
     }));
     // cars: only the map that parks them loads them
     for (const k of (MID === 'sector17' ? ['car_audi', 'car_vaz'] : MID === 'meridian' ? ['car_rusty1', 'car_rusty2'] : []))

@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.1
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.2
 
 ## Enlaces
 
@@ -22,7 +22,7 @@ FPS táctico web original, inspirado en la sensación de Counter-Strike sin copi
 | HARBOR-9 | Puerto de contenedores, noche | Bomba |
 | DUSTLINE | Pueblo del desierto, mediodía | Bomba |
 | MERIDIAN | Planta de oficinas | Rescate de rehenes |
-| **RAILYARD-12** (v6) | Playa de vías de noche, 224 × 156 m, pasarela elevada | Bomba con **3 puntos** (A nave, B andenes, C tren cisterna), rondas de 2:30; trenes del Railroad Pack de Yo.Ri: locomotora diésel verde (Disel_2_1), cisternas, góndolas y vagones bajos (recorte con `tools/trains_cut.mjs`) |
+| **RAILYARD-12** (v6) | Playa de vías de noche, 224 × 156 m, pasarela elevada | Bomba con **3 puntos** (A nave, B andenes, C tren cisterna), rondas de 2:30; locomotora EMD SD40 de Heataker (20,4 m, simplificada con `tools/loco_cut.mjs`, material sin emisión); cisternas, góndolas y vagones bajos del Railroad Pack de Yo.Ri (`tools/trains_cut.mjs`) |
 
 Rotación: sector17 → harbor9 → dustline → meridian → railyard12.
 
@@ -98,6 +98,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **Al retocar materiales, ajustar cada material una sola vez** (usar un `Set`): muchas piezas pueden compartir el mismo (la SD40 tiene 74 piezas y un material; oscurecerla «por pieza» la dejó negra).
 
 - **El espacio de trabajo puede reiniciarse entre conversaciones** (pasó el 11 nov 2026): el juego está entero en GitHub (clonar con `--depth 1`), pero las herramientas locales se pierden. Recreadas: `tools/assets.py`, `tools/build_single.py`, `test/smoke.py` y `test/radartest.py`. La ruta del navegador de pruebas también puede cambiar (`/opt/pw-browsers/chromium-*/chrome-linux*/chrome`).
 

@@ -33,6 +33,7 @@ BLACKSITE: VECTOR es un juego original. Los recursos externos tienen licencias l
 | [FREE Military Soldier RIGGED](https://sketchfab.com/3d-models/free-military-soldier-rigged-e9c56308a67d4a3db62e914fafa4d198) | BAMEN | CC BY 4.0 | Personaje «SWAT» de Vanguard (con el esqueleto del operador) |
 | [S.W.A.T. Operator](https://sketchfab.com/3d-models/swat-operator-9e82fabf26194896b5ad4a364d864eab) | Mateusz Woliński | CC BY 4.0 | Personaje «Night Ops» de Vanguard (con el esqueleto del operador) |
 | [Mercenary men](https://sketchfab.com/3d-models/mercenary-men-aec56a3ab9f241668f0dfbdd9898e398) | SomeDude (Patyot Suttipreecha) | CC BY 4.0 | Mercenario de Raven |
+| [EMD-SD40 Diesel Electric Locomotive](https://sketchfab.com/3d-models/emd-sd40-diesel-electric-locomotive-7271826d3a584a22849c949a7755f79d) | Heataker | CC BY 4.0 | Locomotoras de RAILYARD-12 (simplificada) |
 | [LowPoly PBR Railroad Pack](https://sketchfab.com/3d-models/lowpoly-pbr-railroad-pack-f97c26bfcd0e48248850254f6ada92db) | Yo.Ri | CC BY 4.0 | Locomotoras y vagones de RAILYARD-12 |
 | Old Rusty Car y Old Rusty Car 2 | Renafox | **CC BY-NC 4.0** (solo uso no comercial) | Coches del aparcamiento de MERIDIAN |
 | Old car - VAZ 2107 | Arkady Gribachev | CC BY 4.0 | Coche de la calle norte de SECTOR-17 |

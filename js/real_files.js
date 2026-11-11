@@ -37,6 +37,7 @@ BV.REAL = {
 "hostage_business": "@assets/real/hostage_business.cb26ff4940.glb",
 "hostage_worker": "@assets/real/hostage_worker.85fa08ca5c.glb",
 "kit": "@assets/real/kit.3fa3dad760.glb",
+"loco": "@assets/real/loco.976cf99873.glb",
 "makarov": "@assets/real/makarov.9d6b417765.glb",
 "nade_flash": "@assets/real/nade_flash.2e1e136d76.glb",
 "nade_smoke": "@assets/real/nade_smoke.76cb3f7f47.glb",
