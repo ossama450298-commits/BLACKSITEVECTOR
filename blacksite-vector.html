@@ -4823,7 +4823,7 @@ else
 'use strict';
 window.BV = window.BV || {};
 
-BV.VERSION = '6.3.2';
+BV.VERSION = '6.3.3';
 
 /* Colour management: Three.js r128 treats hex colours as linear. The game is
    authored in sRGB and renders with sRGB output + ACES tone mapping, so every
@@ -8653,6 +8653,21 @@ BV.Real = (function () {
       if (fixed) { SI.needsUpdate = true; SW.needsUpdate = true; }
     });
   }
+  /* several frame ranges of one animation chained into a single clip (e.g. skip an unwanted part of a reload);
+     between two ranges the pose glides linearly over 'gap' seconds (no snap) */
+  function joinClips(src, name, ranges, fps, gap) {
+    const U = THREE.AnimationUtils, parts = ranges.map(([a, b], i) => U.subclip(src, name + i, a, b, fps)), tracks = {};
+    let offset = 0;
+    parts.forEach((clip, i) => {
+      for (const t of clip.tracks) {
+        const e = tracks[t.name] || (tracks[t.name] = { T: t.constructor, times: [], values: [] });
+        for (let j = 0; j < t.times.length; j++) e.times.push(t.times[j] + offset);
+        for (let j = 0; j < t.values.length; j++) e.values.push(t.values[j]);
+      }
+      offset += clip.duration + (i < parts.length - 1 ? gap : 0);
+    });
+    return new THREE.AnimationClip(name, offset, Object.keys(tracks).map(n => new tracks[n].T(n, tracks[n].times, tracks[n].values)));
+  }
   function styleMaterials(root) {
     if (!BV.classic) { root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); return; }
     root.traverse(o => {
@@ -8817,8 +8832,8 @@ BV.Real = (function () {
     mp5:      { data: 'fp_mac10',   world: 'mac10', yaw: Math.PI, len: 0.5,  gy: 0.5,  gz: 0.3,  clips: { fire: [0, 9], reloadEmpty: [9, 54], reload: [9, 54], idle: [78, 102], draw: [105, 124] } },     // user77 dual MAC-10
     specter9: { data: 'fp_smg',     len: 0.62, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
     vectormp: { data: 'fp_smg',     len: 0.58, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 4], reloadEmpty: [4, 80], reload: [84, 129], idle: [180, 207], draw: [216, 234] } },
-    breaker8: { data: 'fp_r870',    world: 'r870',  yaw: Math.PI, len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },                  // user77 Remington 870
-    hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [27, 102], idle: [105, 123], draw: [126, 140] } },
+    breaker8: { data: 'fp_r870',    world: 'r870',  yaw: Math.PI, len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [[27, 72], [87, 102]], idle: [105, 123], draw: [126, 140] } },                  // user77 Remington 870   // reload = load shells + pump, skipping the sudden 50-degree twist in between (frames 72-87)
+    hammer12: { data: 'fp_shotgun', len: 0.95, gy: 0.5,  gz: 0.22, clips: { fire: [0, 27], reload: [[27, 72], [87, 102]], idle: [105, 123], draw: [126, 140] } },   // reload = load shells + pump, skipping the sudden 50-degree twist in between (frames 72-87)
     shade4:   { data: 'fp_m16', world: 'm16', yaw: Math.PI, len: 0.86, gy: 0.5,  gz: 0.3,  sd: true, clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     halberd4: { data: 'fp_carbine', len: 0.82, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
     kestrel5: { data: 'fp_carbine', len: 0.86, gy: 0.5,  gz: 0.3,  clips: { fire: [0, 6], reloadEmpty: [6, 69], reload: [72, 135], idle: [177, 204], draw: [207, 222] } },
@@ -8834,7 +8849,7 @@ BV.Real = (function () {
     if (c.yaw) { const w = new THREE.Group(); g.scene.rotation.y = c.yaw; w.add(g.scene); g.scene = w; }   // packs whose barrel is not along +Z (user77's M16: along -X)
     retroMaps(g.scene);
     const src = g.animations[0], U = THREE.AnimationUtils, clips = {};
-    for (const k in c.clips) clips[k] = U.subclip(src, k, c.clips[k][0], c.clips[k][1], 30);
+    for (const k in c.clips) clips[k] = Array.isArray(c.clips[k][0]) ? joinClips(src, k, c.clips[k], 30, 0.15) : U.subclip(src, k, c.clips[k][0], c.clips[k][1], 30);
     g.scene.traverse(o => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
     // rest pose (start of idle): measure the weapon body to get scale, grip and muzzle
     const mix = new THREE.AnimationMixer(g.scene); mix.clipAction(clips.idle).play(); mix.update(0); g.scene.updateMatrixWorld(true);

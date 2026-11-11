@@ -1,7 +1,7 @@
 # BLACKSITE: VECTOR · Resumen de desarrollo
 
 > Resumen vivo para retomar el trabajo sin releer las conversaciones. Se actualiza al terminar cada trabajo.
-> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.2
+> **Última actualización:** 9 de noviembre de 2026 · **Versión publicada:** 6.3.3
 
 ## Enlaces
 
@@ -79,7 +79,7 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 
 ## Sistemas clave
 
-- **Armas animadas:** paquetes de DJMaesen/user77 (`fp_*` en `real_data.js`) con tramos de fotogramas (`clips` en `PACKS` de `realassets.js`).
+- **Armas animadas:** paquetes de DJMaesen/user77 (`fp_*`) con tramos de fotogramas (`clips` en `PACKS` de `realassets.js`). Un tramo puede ser una lista de tramos encadenados (`[[27, 72], [87, 102]]`, función `joinClips`), para saltarse partes de la animación; las escopetas lo usan para evitar un giro brusco en la recarga.
 - **`swapOnto(inner, model, cfg)`** monta cualquier arma sobre un paquete animado: `s` escala, `rot`/`rotZ`/`basis` giros, `src`→`dst` anclaje, `muzzle`, `rules` [regex, hueso], `split` (cortar una malla por zona, p. ej. el cargador), `tweak` (deformar una pieza).
 - **Personajes:** todos comparten el esqueleto del soldado (Mixamo), transferido con `reskin`. Claves: modelos en T → `arm=0`; con brazos bajados → `bind=1` y ángulo de brazos (Night Ops 1.13, SWAT 0.85). Correcciones al cargar: `unmetal` (tela no metálica) y `fixHandWeights` (guantes).
 - **Tinte policía:** azul marino oscuro (`policeBlueTex`, también para materiales sin textura).
@@ -98,6 +98,8 @@ Plantar y desactivar (v5.12.0): postura nueva para todos (agachado, inclinado, m
 **Token de GitHub:** está en los transcripts de `/mnt/transcripts`. Debe revocarse y nunca escribirse en el repositorio.
 
 ## Lecciones aprendidas
+
+- **En el entorno de pruebas el juego va a pocos fotogramas por segundo**: el tiempo de juego avanza más despacio que el real, así que las capturas por tiempo real no reflejan el momento de la animación. Para revisar una animación, colocarla en instantes concretos (ver `test/reloadseek.py`).
 
 - **Al retocar materiales, ajustar cada material una sola vez** (usar un `Set`): muchas piezas pueden compartir el mismo (la SD40 tiene 74 piezas y un material; oscurecerla «por pieza» la dejó negra).
 
